@@ -25,3 +25,23 @@ export async function getUserPlaylists(accessToken: string) {
 
   return res.json();
 }
+
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string
+) {
+  const res = await fetch(
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch playlist tracks");
+  }
+
+  return res.json();
+}

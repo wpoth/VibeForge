@@ -7,6 +7,8 @@ export default function Page() {
   const { data: session, status } = useSession();
   const [profile, setProfile] = useState<any>(null);
   const [playlists, setPlaylists] = useState<any>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
+  const [tracks, setTracks] = useState<any>(null);
   useEffect(() => {
     if (!session?.accessToken) return;
 
@@ -29,6 +31,20 @@ export default function Page() {
       .then(setPlaylists);
   }, [session]);
 
+  async function openPlaylist(pl: any) {
+    setSelectedPlaylist(pl);
+
+    const res = await fetch("/api/playlist-tracks", {
+      method: "POST",
+      body: JSON.stringify({
+        accessToken: session?.accessToken,
+        playlistId: pl.id,
+      }),
+    });
+
+    const data = await res.json();
+    setTracks(data);
+  }
   // Loading state
   if (status === "loading") {
     return (
@@ -113,7 +129,8 @@ export default function Page() {
             {playlists.items.map((pl: any) => (
               <div
                 key={pl.id}
-                className="p-4 rounded-xl bg-zinc-900 border border-zinc-800"
+                onClick={() => openPlaylist(pl)}
+                className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer hover:bg-zinc-800 transition"
               >
                 <p className="font-medium">{pl.name}</p>
 
@@ -128,6 +145,38 @@ export default function Page() {
           <p className="text-zinc-500">Loading playlists...</p>
         )}
       </div>
+
+      {/* Tracks */}
+      {selectedPlaylist && (
+        <div className="mt-10">
+          <h2 className="text-xl font-semibold mb-4">
+            {selectedPlaylist.name} — Tracks
+          </h2>
+
+          {tracks?.items ? (
+            <div className="grid gap-3">
+              {tracks.items.map((t: any, i: number) => {
+                const track = t.track;
+
+                return (
+                  <div
+                    key={i}
+                    className="p-3 rounded-lg bg-zinc-900 border border-zinc-800"
+                  >
+                    <p className="font-medium">{track.name}</p>
+
+                    <p className="text-sm text-zinc-400">
+                      {track.artists.map((a: any) => a.name).join(", ")}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-zinc-500">Loading tracks...</p>
+          )}
+        </div>
+      )}
 
       {/* Future AI Section */}
       <div className="mt-10">
