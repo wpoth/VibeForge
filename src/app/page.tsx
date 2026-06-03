@@ -61,6 +61,7 @@ export default function Page() {
     });
 
     const data = await res.json();
+    console.log("TRACKS RESPONSE:", data);
     setTracks(data);
   }
 
