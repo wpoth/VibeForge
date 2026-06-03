@@ -28,7 +28,7 @@ export async function getUserPlaylists(accessToken: string) {
 
 export async function getPlaylistTracks(accessToken: string, playlistId: string) {
   let tracks: any[] = [];
-  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=NL`;
 
   while (url) {
     const res = await fetch(url, {
