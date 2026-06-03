@@ -1,48 +1,45 @@
-import { spotifyFetch } from "@/lib/spotify";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
-
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const { playlistId } = await req.json();
 
     if (!session?.accessToken) {
-      return Response.json(
-        { error: "No session access token" },
-        { status: 401 }
-      );
+      return Response.json({ error: "No session" }, { status: 401 });
     }
 
-    const data = await spotifyFetch(
-      `/playlists/${playlistId}`,
-      session.accessToken
+    const res = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlistId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      }
     );
 
-    const tracks =
-      data.tracks?.items?.map((t: any) => {
-        const track = t.item;
+    const data = await res.json();
 
-        return {
-          id: track.id,
-          name: track.name,
-          artists: track.artists?.map((a: any) => a.name) ?? [],
-        };
-      }) ?? [];
+    if (!res.ok) {
+      return Response.json(
+        { error: true, spotify: data },
+        { status: res.status }
+      );
+    }
 
     return Response.json({
       id: data.id,
       name: data.name,
-      description: data.description,
-      image: data.images?.[0]?.url ?? null,
-      tracks,
+      tracks:
+        data.tracks?.items?.map((t: any) => ({
+          id: t.item.id,
+          name: t.item.name,
+          artists: t.item.artists?.map((a: any) => a.name) ?? [],
+        })) ?? [],
     });
   } catch (err: any) {
+    console.error(err);
+
     return Response.json(
-      {
-        error: true,
-        message: err.message,
-      },
+      { error: true, message: err.message },
       { status: 500 }
     );
   }
