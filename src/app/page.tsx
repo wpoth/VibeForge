@@ -41,20 +41,7 @@ export default function Page() {
       .then((r) => r.json())
       .then((data) => {
         console.log("PLAYLISTS RESPONSE:", data);
-
-        // ✅ FIX: filter playlists properly
-        const filtered = {
-          ...data,
-          items: data.items.filter((pl: any) => {
-            return (
-              pl.owner?.id === session?.spotifyId ||
-              pl.collaborative === true
-            );
-          }),
-        };
-
-        console.log("FILTERED PLAYLISTS:", filtered);
-        setPlaylists(filtered);
+        setPlaylists(data);
       })
       .catch(console.error);
   }, [session]);
@@ -134,7 +121,6 @@ export default function Page() {
     }
   }
 
-  // LOADING
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -143,7 +129,6 @@ export default function Page() {
     );
   }
 
-  // LOGGED OUT
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
@@ -195,7 +180,6 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
 
-            {/* FIXED TRACK COUNT */}
             <p className="text-xs text-zinc-500">
               {pl.tracks?.total ?? 0} tracks
             </p>
@@ -206,7 +190,6 @@ export default function Page() {
       {/* MAIN */}
       <div className="ml-72 pt-20 p-6">
 
-        {/* AI VIEW */}
         {view === "ai" && (
           <div className="max-w-2xl">
             <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
@@ -220,7 +203,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
             <h2 className="text-2xl font-bold mb-6">
@@ -261,7 +243,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* PROFILE */}
         {view === "ai" && (
           <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
             <p className="text-sm text-zinc-400">Logged in as</p>
