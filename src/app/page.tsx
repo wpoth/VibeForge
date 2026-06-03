@@ -72,7 +72,6 @@ export default function Page() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accessToken: session?.accessToken,
           playlistId: pl.id,
         }),
       });
