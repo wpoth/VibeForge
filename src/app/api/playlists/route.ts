@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Fetch ALL playlists (Spotify paginates at 20/50 items)
+    // Fetch ALL playlists (Spotify paginates)
     let url = "https://api.spotify.com/v1/me/playlists?limit=50";
     let allPlaylists: any[] = [];
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         allPlaylists.push(...data.items);
       }
 
-      url = data.next; // pagination
+      url = data.next;
     }
 
     // ⭐ FILTER: user-owned OR collaborative OR public
@@ -44,8 +44,11 @@ export async function POST(req: Request) {
         p.public === true
     );
 
-    // Return full playlist objects (required for track access)
-    return Response.json({ items: filtered });
+    // Return FULL playlist objects (required for track access)
+    return Response.json({
+      items: filtered
+    });
+
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }
