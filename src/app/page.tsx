@@ -11,6 +11,8 @@ export default function Page() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [tracks, setTracks] = useState<any>(null);
   const [view, setView] = useState<"ai" | "playlist">("ai");
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+
 
   // PROFILE
   useEffect(() => {
@@ -46,9 +48,12 @@ export default function Page() {
     setSelectedPlaylist(pl);
     setView("playlist");
 
+    // 1. Get tracks
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         accessToken: session?.accessToken,
         playlistId: pl.id,
@@ -58,6 +63,29 @@ export default function Page() {
     const data = await res.json();
     console.log("TRACKS RESPONSE:", data);
     setTracks(data);
+
+    // 2. Format tracks for AI
+    const simplified = data.items.map((t: any) => ({
+      name: t.track?.name,
+      artists: t.track?.artists?.map((a: any) => a.name),
+    }));
+
+    // 3. Send to AI
+    const aiRes = await fetch("/api/ai", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        playlist: simplified,
+      }),
+    });
+
+    const aiData = await aiRes.json();
+    console.log("AI RESULT:", aiData);
+
+    // 4. STORE AI RESULT (THIS IS WHAT YOU ASKED ABOUT)
+    setAiAnalysis(aiData.result);
   }
 
   // LOADING
@@ -152,7 +180,7 @@ export default function Page() {
             </h2>
 
             {tracks?.items?.map((t: any, i: number) => {
-              const track = t?.item; // 🔥 FIXED (was t.track)
+              const track = t?.item;
               if (!track) return null;
 
               return (
@@ -168,6 +196,14 @@ export default function Page() {
                 </div>
               );
             })}
+            {aiAnalysis && (
+              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                <h3 className="font-semibold mb-2">AI Analysis</h3>
+                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
+                  {aiAnalysis}
+                </pre>
+              </div>
+            )}
           </div>
         )}
 
