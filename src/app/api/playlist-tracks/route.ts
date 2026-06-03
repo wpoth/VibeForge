@@ -20,6 +20,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    
+    if (!accessToken) {
+      return Response.json({ error: "NO ACCESS TOKEN" });
+    }
 
     const tracks = await getPlaylistTracks(accessToken, playlistId);
 
