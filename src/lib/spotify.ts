@@ -34,6 +34,8 @@ export async function getPlaylistTracks(
   let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
 
   while (url) {
+    console.log("PLAYLIST TRACKS URL:", url);
+
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -52,7 +54,6 @@ export async function getPlaylistTracks(
       );
     }
 
-    // IMPORTANT: normalize structure here
     tracks.push(...data.items.map((item: any) => item.track));
 
     url = data.next;

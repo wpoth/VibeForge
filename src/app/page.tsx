@@ -50,7 +50,19 @@ export default function Page() {
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
     setView("playlist");
-    console.log("Selected playlist:", pl);
+
+    console.log("SELECTED PLAYLIST:", {
+      id: pl.id,
+      name: pl.name,
+      owner: {
+        id: pl.owner?.id,
+        display_name: pl.owner?.display_name,
+      },
+      public: pl.public,
+      collaborative: pl.collaborative,
+      tracksTotal: pl.tracks?.total,
+    });
+
     setTracks(null);
     setAiAnalysis(null);
     setLoadingAI(false);
