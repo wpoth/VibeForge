@@ -33,9 +33,13 @@ export default function Page() {
 
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
-
+    console.log("CLICKED PLAYLIST:", pl);
+    console.log("TOKEN:", session?.accessToken);
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         accessToken: session?.accessToken,
         playlistId: pl.id,

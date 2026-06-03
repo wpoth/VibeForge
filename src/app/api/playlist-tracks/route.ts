@@ -2,13 +2,21 @@ import { getPlaylistTracks } from "@/lib/spotify";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const raw = await req.text();
+    console.log("RAW BODY:", raw);
 
-    const { accessToken, playlistId } = body;
+    const { accessToken, playlistId } = JSON.parse(raw || "{}");
+
+    console.log("accessToken exists:", !!accessToken);
+    console.log("playlistId:", playlistId);
 
     if (!accessToken || !playlistId) {
       return Response.json(
-        { error: "Missing accessToken or playlistId" },
+        {
+          error: "Missing data",
+          accessToken: !!accessToken,
+          playlistId,
+        },
         { status: 400 }
       );
     }
@@ -17,10 +25,13 @@ export async function POST(req: Request) {
 
     return Response.json(tracks);
   } catch (err: any) {
-    console.error("playlist-tracks error:", err);
+    console.error("API CRASH:", err);
 
     return Response.json(
-      { error: "Server error", details: err?.message },
+      {
+        error: "Server crashed",
+        details: err?.message,
+      },
       { status: 500 }
     );
   }
