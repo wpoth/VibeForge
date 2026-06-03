@@ -41,7 +41,20 @@ export default function Page() {
       .then((r) => r.json())
       .then((data) => {
         console.log("PLAYLISTS RESPONSE:", data);
-        setPlaylists(data);
+
+        // ✅ FIX: filter playlists properly
+        const filtered = {
+          ...data,
+          items: data.items.filter((pl: any) => {
+            return (
+              pl.owner?.id === session?.spotifyId ||
+              pl.collaborative === true
+            );
+          }),
+        };
+
+        console.log("FILTERED PLAYLISTS:", filtered);
+        setPlaylists(filtered);
       })
       .catch(console.error);
   }, [session]);
@@ -87,7 +100,7 @@ export default function Page() {
 
       setTracks(data);
 
-      // SAFE AI INPUT (IMPORTANT FIX)
+      // SAFE AI INPUT
       const simplified = data.items
         .map((t: any) => t?.track)
         .filter(Boolean)
@@ -182,9 +195,9 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
 
-            {/* ✅ FIXED: correct Spotify field */}
+            {/* FIXED TRACK COUNT */}
             <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? 0} tracks
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
         ))}
