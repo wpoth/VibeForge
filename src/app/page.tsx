@@ -50,7 +50,7 @@ export default function Page() {
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
     setView("playlist");
-
+    console.log("Selected playlist:", pl);
     setTracks(null);
     setAiAnalysis(null);
     setLoadingAI(false);
