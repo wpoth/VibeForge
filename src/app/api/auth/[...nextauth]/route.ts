@@ -66,21 +66,22 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, account }) {
-      // Initial login
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
-        token.expiresAt = Date.now() + (account.expires_in ?? 3600) * 1000;
+
+        const expiresIn = Number(account.expires_in ?? 3600);
+
+        token.expiresAt = Date.now() + expiresIn * 1000;
 
         return token;
       }
 
-      // Still valid
-      if (token.expiresAt && Date.now() < (token.expiresAt as number)) {
+      // SAFE CHECK (no TS error)
+      if (token.expiresAt && Date.now() < token.expiresAt) {
         return token;
       }
 
-      // Expired → refresh
       return await refreshAccessToken(token);
     },
 
