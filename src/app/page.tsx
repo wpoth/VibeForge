@@ -9,13 +9,13 @@ export default function Page() {
   const [profile, setProfile] = useState<any>(null);
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
-  const [tracks, setTracks] = useState<any>(null);
+  const [tracks, setTracks] = useState<any[]>([]);
   const [view, setView] = useState<"ai" | "playlist">("ai");
 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
 
-  // PROFILE
+  // LOAD PROFILE
   useEffect(() => {
     if (!session?.accessToken) return;
 
@@ -25,24 +25,16 @@ export default function Page() {
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
-      .then((data) => {
-        console.log("PROFILE RESPONSE:", data);
-        setProfile(data);
-      })
-      .catch((err) => {
-        console.error("PROFILE ERROR:", err);
-      });
+      .then(setProfile)
+      .catch(console.error);
   }, [session?.accessToken]);
 
-  // PLAYLISTS
+  // LOAD PLAYLISTS
   useEffect(() => {
     if (!session?.accessToken) return;
 
     const spotifyId = (session as any).spotifyId;
-    if (!spotifyId) {
-      console.warn("No spotifyId on session");
-      return;
-    }
+    if (!spotifyId) return;
 
     fetch("/api/playlists", {
       method: "POST",
@@ -53,109 +45,74 @@ export default function Page() {
       }),
     })
       .then((r) => r.json())
-      .then((data) => {
-        console.log("PLAYLISTS RESPONSE:", data);
-        setPlaylists(data.items ?? []);
-      })
-      .catch((err) => {
-        console.error("PLAYLISTS ERROR:", err);
-      });
+      .then((data) => setPlaylists(data.items ?? []))
+      .catch(console.error);
   }, [session?.accessToken]);
 
-  // OPEN PLAYLIST (uses full playlist + its tracks)
+  // OPEN PLAYLIST (FULL OBJECT + TRACKS)
   async function openPlaylist(pl: any) {
-    if (!session?.accessToken) {
-      console.error("No access token available");
-      return;
-    }
+    if (!session?.accessToken) return;
 
     setView("playlist");
     setSelectedPlaylist(pl);
-    setTracks(null);
+    setTracks([]);
     setAiAnalysis(null);
     setLoadingAI(false);
 
-    console.log("SELECTED PLAYLIST (SIMPLIFIED):", {
-      id: pl.id,
-      name: pl.name,
-      owner: {
-        id: pl.owner?.id,
-        display_name: pl.owner?.display_name,
-      },
-      public: pl.public,
-      collaborative: pl.collaborative,
-      tracksTotal: pl.tracks?.total,
+    // 1) FULL PLAYLIST
+    const fullRes = await fetch("/api/playlist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playlistId: pl.id,
+        accessToken: session.accessToken,
+      }),
     });
 
+    const full = await fullRes.json();
+    console.log("FULL PLAYLIST:", full);
+
+    if (!fullRes.ok || full.error) {
+      console.error("Failed to load full playlist:", full);
+      return;
+    }
+
+    setSelectedPlaylist(full);
+
+    // 2) TRACKS DIRECT UIT FULL PLAYLIST
+    const playlistTracks = full.tracks?.items ?? [];
+    setTracks(playlistTracks);
+
+    // 3) AI INPUT
+    const simplified = playlistTracks
+      .map((t: any) => t?.track)
+      .filter(Boolean)
+      .map((track: any) => ({
+        name: track.name,
+        artists: track.artists?.map((a: any) => a.name) ?? [],
+      }));
+
+    if (!simplified.length) return;
+
+    setLoadingAI(true);
+
     try {
-      // 1) Haal VOLLEDIGE playlist op (met tracks erin)
-      const fullRes = await fetch("/api/playlist", {
+      const aiRes = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playlistId: pl.id,
-          accessToken: session.accessToken,
-        }),
+        body: JSON.stringify({ playlist: simplified }),
       });
 
-      const fullData = await fullRes.json();
-      console.log("FULL PLAYLIST RESPONSE:", fullData);
-
-      if (!fullRes.ok || fullData?.error) {
-        console.error("FULL PLAYLIST FAILED:", fullData);
-        return;
-      }
-
-      const fullPlaylist = fullData;
-      setSelectedPlaylist(fullPlaylist);
-      setTracks(fullPlaylist.tracks); // tracks.items + tracks.total
-
-      console.log("SELECTED PLAYLIST (FULL):", {
-        id: fullPlaylist.id,
-        name: fullPlaylist.name,
-        owner: {
-          id: fullPlaylist.owner?.id,
-          display_name: fullPlaylist.owner?.display_name,
-        },
-        public: fullPlaylist.public,
-        collaborative: fullPlaylist.collaborative,
-        tracksTotal: fullPlaylist.tracks?.total,
-      });
-
-      // 2) AI INPUT op basis van fullPlaylist.tracks.items
-      const simplified = (fullPlaylist.tracks?.items ?? [])
-        .map((t: any) => t?.track)
-        .filter(Boolean)
-        .map((track: any) => ({
-          name: track.name,
-          artists: track.artists?.map((a: any) => a.name) ?? [],
-        }));
-
-      if (!simplified.length) return;
-
-      setLoadingAI(true);
-
-      try {
-        const aiRes = await fetch("/api/ai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playlist: simplified }),
-        });
-
-        const aiData = await aiRes.json();
-        console.log("AI RESULT:", aiData);
-
-        setAiAnalysis(aiData?.result ?? null);
-      } catch (err) {
-        console.error("AI failed:", err);
-      } finally {
-        setLoadingAI(false);
-      }
+      const aiData = await aiRes.json();
+      setAiAnalysis(aiData?.result ?? null);
     } catch (err) {
-      console.error("FULL PLAYLIST FETCH ERROR:", err);
+      console.error("AI failed:", err);
+    } finally {
+      setLoadingAI(false);
     }
   }
 
+  // LOADING STATE
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -164,6 +121,7 @@ export default function Page() {
     );
   }
 
+  // LOGIN SCREEN
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
@@ -179,8 +137,10 @@ export default function Page() {
     );
   }
 
+  // MAIN UI
   return (
     <div className="min-h-screen bg-black text-white">
+
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
         <h1 className="font-bold">VibeForge</h1>
@@ -221,8 +181,10 @@ export default function Page() {
         ))}
       </div>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
       <div className="ml-72 pt-20 p-6">
+
+        {/* AI MODE */}
         {view === "ai" && (
           <div className="max-w-2xl">
             <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
@@ -233,9 +195,15 @@ export default function Page() {
                 className="w-full p-3 bg-black border border-zinc-800 rounded-lg"
               />
             </div>
+
+            <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+              <p className="text-sm text-zinc-400">Logged in as</p>
+              <p className="font-medium">{profile?.display_name}</p>
+            </div>
           </div>
         )}
 
+        {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
             <h2 className="text-2xl font-bold mb-6">
@@ -257,7 +225,8 @@ export default function Page() {
               </div>
             )}
 
-            {tracks?.items?.map((t: any, i: number) => {
+            {/* TRACK LIST */}
+            {tracks.map((t: any, i: number) => {
               const track = t?.track;
               if (!track) return null;
 
@@ -273,13 +242,6 @@ export default function Page() {
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {view === "ai" && (
-          <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
-            <p className="text-sm text-zinc-400">Logged in as</p>
-            <p className="font-medium">{profile?.display_name}</p>
           </div>
         )}
       </div>
