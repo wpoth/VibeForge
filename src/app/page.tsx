@@ -12,7 +12,7 @@ export default function Page() {
   const [tracks, setTracks] = useState<any>(null);
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-
+  const [loadingAI, setLoadingAI] = useState(false);
 
   // PROFILE
   useEffect(() => {
@@ -47,8 +47,8 @@ export default function Page() {
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
     setView("playlist");
+    setAiAnalysis(null);
 
-    // 1. Get tracks
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
       headers: {
@@ -62,30 +62,45 @@ export default function Page() {
 
     const data = await res.json();
     console.log("TRACKS RESPONSE:", data);
+
+    if (!data?.items) {
+      console.error("Invalid Spotify response:", data);
+      return;
+    }
+
     setTracks(data);
 
-    // 2. Format tracks for AI
-    const simplified = data.items.map((t: any) => ({
-      name: t.track?.name,
-      artists: t.track?.artists?.map((a: any) => a.name),
-    }));
+    // SAFE AI INPUT
+    const simplified =
+      data?.items?.map((t: any) => ({
+        name: t?.track?.name ?? "Unknown",
+        artists: t?.track?.artists?.map((a: any) => a.name) ?? [],
+      })) ?? [];
 
-    // 3. Send to AI
-    const aiRes = await fetch("/api/ai", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        playlist: simplified,
-      }),
-    });
+    if (simplified.length === 0) return;
 
-    const aiData = await aiRes.json();
-    console.log("AI RESULT:", aiData);
+    setLoadingAI(true);
 
-    // 4. STORE AI RESULT (THIS IS WHAT YOU ASKED ABOUT)
-    setAiAnalysis(aiData.result);
+    try {
+      const aiRes = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          playlist: simplified,
+        }),
+      });
+
+      const aiData = await aiRes.json();
+      console.log("AI RESULT:", aiData);
+
+      setAiAnalysis(aiData.result ?? null);
+    } catch (err) {
+      console.error("AI request failed:", err);
+    } finally {
+      setLoadingAI(false);
+    }
   }
 
   // LOADING
@@ -149,7 +164,7 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
             <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? 0} tracks
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
         ))}
@@ -179,8 +194,23 @@ export default function Page() {
               {selectedPlaylist.name}
             </h2>
 
+            {loadingAI && (
+              <div className="mb-4 text-sm text-zinc-400">
+                Generating AI analysis...
+              </div>
+            )}
+
+            {aiAnalysis && (
+              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                <h3 className="font-semibold mb-2">AI Analysis</h3>
+                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
+                  {aiAnalysis}
+                </pre>
+              </div>
+            )}
+
             {tracks?.items?.map((t: any, i: number) => {
-              const track = t?.item;
+              const track = t?.track;
               if (!track) return null;
 
               return (
@@ -196,14 +226,6 @@ export default function Page() {
                 </div>
               );
             })}
-            {aiAnalysis && (
-              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
-                <h3 className="font-semibold mb-2">AI Analysis</h3>
-                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
-                  {aiAnalysis}
-                </pre>
-              </div>
-            )}
           </div>
         )}
 
