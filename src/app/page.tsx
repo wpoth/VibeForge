@@ -5,26 +5,37 @@ import { useEffect, useState } from "react";
 
 export default function Page() {
   const { data: session, status } = useSession();
+
   const [profile, setProfile] = useState<any>(null);
   const [playlists, setPlaylists] = useState<any>(null);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [tracks, setTracks] = useState<any>(null);
+  const [view, setView] = useState<"ai" | "playlist">("ai");
+
+  // Profile
   useEffect(() => {
     if (!session?.accessToken) return;
 
     fetch("/api/me", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
       .then(setProfile);
   }, [session]);
 
+  // Playlists
   useEffect(() => {
     if (!session?.accessToken) return;
 
     fetch("/api/playlists", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
@@ -33,8 +44,8 @@ export default function Page() {
 
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
-    console.log("CLICKED PLAYLIST:", pl);
-    console.log("TOKEN:", session?.accessToken);
+    setView("playlist");
+
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
       headers: {
@@ -49,7 +60,7 @@ export default function Page() {
     const data = await res.json();
     setTracks(data);
   }
-  // Loading state
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -58,21 +69,14 @@ export default function Page() {
     );
   }
 
-  // Logged out
   if (!session) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-black via-zinc-900 to-black text-white">
-        <h1 className="text-5xl font-bold tracking-tight">
-          VibeForge
-        </h1>
-
-        <p className="mt-4 text-zinc-400 text-center max-w-md">
-          Turn your mood into music. AI-powered Spotify experience.
-        </p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
+        <h1 className="text-5xl font-bold">VibeForge</h1>
 
         <button
           onClick={() => signIn("spotify", { callbackUrl: "/" })}
-          className="mt-8 px-6 py-3 rounded-full bg-green-500 hover:bg-green-400 text-black font-semibold transition"
+          className="mt-6 px-6 py-3 bg-green-500 text-black rounded-full font-semibold"
         >
           Login with Spotify
         </button>
@@ -80,121 +84,98 @@ export default function Page() {
     );
   }
 
-  // Logged in
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white px-6 py-10">
+    <div className="min-h-screen bg-black text-white">
 
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">
-          VibeForge
-        </h1>
+      {/* HEADER */}
+      <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
+        <h1 className="font-bold">VibeForge</h1>
 
-        <button
-          onClick={() => signOut()}
-          className="text-sm text-zinc-400 hover:text-white transition"
-        >
-          Logout
-        </button>
+        <div className="flex gap-3 items-center">
+          <button
+            onClick={() => setView("ai")}
+            className="text-sm text-zinc-400 hover:text-white"
+          >
+            AI Mode
+          </button>
+
+          <button
+            onClick={() => signOut()}
+            className="text-sm text-zinc-400 hover:text-white"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
-      {/* Profile Card */}
-      <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 backdrop-blur">
-        <h2 className="text-xl font-semibold mb-4">
-          Your Spotify Profile
-        </h2>
+      {/* SIDEBAR */}
+      <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-72 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
+        <h2 className="text-lg font-semibold mb-4">Playlists</h2>
 
-        {profile ? (
-          <div className="space-y-2 text-sm text-zinc-300">
-            <p>
-              <span className="text-zinc-500">Name:</span>{" "}
-              {profile.display_name}
-            </p>
-            <p>
-              <span className="text-zinc-500">Country:</span>{" "}
-              {profile.country}
-            </p>
-            <p>
-              <span className="text-zinc-500">Product:</span>{" "}
-              {profile.product}
+        {playlists?.items?.map((pl: any) => (
+          <div
+            key={pl.id}
+            onClick={() => openPlaylist(pl)}
+            className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
+          >
+            <p className="text-sm font-medium">{pl.name}</p>
+            <p className="text-xs text-zinc-500">
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
-        ) : (
-          <p className="text-zinc-500">Loading profile...</p>
-        )}
+        ))}
       </div>
 
-      {/* Playlists */}
-      <div className="mt-10">
-        <h2 className="text-xl font-semibold mb-4">Your Playlists</h2>
+      {/* MAIN CONTENT */}
+      <div className="ml-72 pt-20 p-6">
 
-        {playlists?.items ? (
-          <div className="grid gap-4">
-            {playlists.items.map((pl: any) => (
-              <div
-                key={pl.id}
-                onClick={() => openPlaylist(pl)}
-                className="p-4 rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer hover:bg-zinc-800 transition"
-              >
-                <p className="font-medium">{pl.name}</p>
+        {/* AI VIEW */}
+        {view === "ai" && (
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
 
-                <p className="text-sm text-zinc-400">
-                  {pl.public ? "Public" : "Private"} ·{" "}
-                  {pl.tracks?.total ?? 0} tracks
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-zinc-500">Loading playlists...</p>
-        )}
-      </div>
-
-      {/* Tracks */}
-{selectedPlaylist && (
-  <div className="mt-10">
-    <h2 className="text-xl font-semibold mb-4">
-      {selectedPlaylist.name} — Tracks
-    </h2>
-
-    {tracks?.items ? (
-      <div className="grid gap-3">
-        {tracks.items.map((t: any, i: number) => {
-          const track = t?.track;
-
-          if (!track) return null;
-
-          return (
-            <div
-              key={i}
-              className="p-3 rounded-lg bg-zinc-900 border border-zinc-800"
-            >
-              <p className="font-medium">
-                {track?.name ?? "Unknown track"}
-              </p>
-
-              <p className="text-sm text-zinc-400">
-                {track?.artists?.map((a: any) => a.name).join(", ") ?? "Unknown artist"}
-              </p>
+            <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
+              <input
+                placeholder="Describe a vibe..."
+                className="w-full p-3 bg-black border border-zinc-800 rounded-lg"
+              />
             </div>
-          );
-        })}
-      </div>
-    ) : (
-      <p className="text-zinc-500">Loading tracks...</p>
-    )}
-  </div>
-)}
+          </div>
+        )}
 
-      {/* Future AI Section */}
-      <div className="mt-10">
-        <div className="text-zinc-400 text-sm mb-2">
-          AI Feature (coming next)
-        </div>
+        {/* PLAYLIST VIEW */}
+        {view === "playlist" && selectedPlaylist && (
+          <div className="max-w-3xl">
+            <h2 className="text-2xl font-bold mb-6">
+              {selectedPlaylist.name}
+            </h2>
 
-        <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 text-zinc-500">
-          “Describe a vibe → generate playlist”
-        </div>
+            {tracks?.items?.map((t: any, i: number) => {
+              const track = t?.track;
+              if (!track) return null;
+
+              return (
+                <div
+                  key={i}
+                  className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800"
+                >
+                  <p className="font-medium">{track.name}</p>
+                  <p className="text-sm text-zinc-400">
+                    {track.artists?.map((a: any) => a.name).join(", ")}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* PROFILE (optional small section) */}
+        {view === "ai" && (
+          <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+            <p className="text-sm text-zinc-400">Logged in as</p>
+            <p className="font-medium">{profile?.display_name}</p>
+          </div>
+        )}
       </div>
     </div>
   );
