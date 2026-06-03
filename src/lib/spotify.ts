@@ -39,14 +39,12 @@ export async function getPlaylistTracks(accessToken: string, playlistId: string)
   const data = await res.json();
 
   console.log("SPOTIFY STATUS:", res.status);
-  console.log("SPOTIFY RESPONSE:", data);
+  console.log("SPOTIFY DATA:", JSON.stringify(data, null, 2));
 
   if (!res.ok) {
-    return {
-      error: true,
-      status: res.status,
-      spotifyError: data,
-    };
+    throw new Error(
+      `Spotify error ${res.status}: ${data?.error?.message || "unknown"}`
+    );
   }
 
   return data;
