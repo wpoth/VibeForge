@@ -184,7 +184,7 @@ export default function Page() {
 
             {/* ✅ FIXED: correct Spotify field */}
             <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? 0} tracks
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
         ))}
