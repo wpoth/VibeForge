@@ -7,7 +7,7 @@ export default function Page() {
   const { data: session, status } = useSession();
 
   const [profile, setProfile] = useState<any>(null);
-  const [playlists, setPlaylists] = useState<any>(null);
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [tracks, setTracks] = useState<any>(null);
   const [view, setView] = useState<"ai" | "playlist">("ai");
@@ -25,28 +25,42 @@ export default function Page() {
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
-      .then(setProfile)
-      .catch(console.error);
-  }, [session]);
+      .then((data) => {
+        console.log("PROFILE RESPONSE:", data);
+        setProfile(data);
+      })
+      .catch((err) => {
+        console.error("PROFILE ERROR:", err);
+      });
+  }, [session?.accessToken]);
 
   // PLAYLISTS
   useEffect(() => {
     if (!session?.accessToken) return;
+
+    const spotifyId = (session as any).spotifyId;
+    if (!spotifyId) {
+      console.warn("No spotifyId on session");
+      return;
+    }
 
     fetch("/api/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         accessToken: session.accessToken,
-        spotifyId: session.spotifyId,
+        spotifyId,
       }),
     })
       .then((r) => r.json())
       .then((data) => {
         console.log("PLAYLISTS RESPONSE:", data);
-        setPlaylists(data);
+        setPlaylists(data.items ?? []);
+      })
+      .catch((err) => {
+        console.error("PLAYLISTS ERROR:", err);
       });
-  }, [session]);
+  }, [session?.accessToken]);
 
   // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
@@ -154,7 +168,6 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
         <h1 className="font-bold">VibeForge</h1>
@@ -180,7 +193,7 @@ export default function Page() {
       <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-72 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4">Playlists</h2>
 
-        {playlists?.items?.map((pl: any) => (
+        {playlists.map((pl: any) => (
           <div
             key={pl.id}
             onClick={() => openPlaylist(pl)}
@@ -189,7 +202,7 @@ export default function Page() {
             <p className="text-sm font-medium">{pl.name}</p>
 
             <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? 0} tracks
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
         ))}
@@ -197,7 +210,6 @@ export default function Page() {
 
       {/* MAIN */}
       <div className="ml-72 pt-20 p-6">
-
         {view === "ai" && (
           <div className="max-w-2xl">
             <h2 className="text-3xl font-bold mb-6">AI Mode</h2>

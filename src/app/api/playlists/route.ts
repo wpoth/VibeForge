@@ -23,20 +23,14 @@ export async function POST(req: Request) {
       const data = await res.json();
 
       if (!res.ok) {
-        return Response.json(
-          { error: true, message: data },
-          { status: res.status }
-        );
+        return Response.json({ error: data }, { status: res.status });
       }
 
-      if (Array.isArray(data.items)) {
-        allPlaylists.push(...data.items);
-      }
-
+      allPlaylists.push(...data.items);
       url = data.next;
     }
 
-    // ⭐ FILTER: user-owned OR collaborative OR public
+    // Filter: owner, collaborative, public
     const filtered = allPlaylists.filter(
       (p: any) =>
         p.owner?.id === spotifyId ||
@@ -44,11 +38,7 @@ export async function POST(req: Request) {
         p.public === true
     );
 
-    // Return FULL playlist objects (required for track access)
-    return Response.json({
-      items: filtered
-    });
-
+    return Response.json({ items: filtered });
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 });
   }
