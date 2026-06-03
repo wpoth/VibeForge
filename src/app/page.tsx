@@ -39,6 +39,7 @@ export default function Page() {
       .then((r) => r.json())
       .then((data) => {
         console.log("PLAYLISTS RESPONSE:", data);
+        console.log("FIRST PLAYLIST:", playlists.items?.[0]);
         setPlaylists(data);
       });
   }, [session]);
