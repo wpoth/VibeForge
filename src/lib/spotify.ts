@@ -26,10 +26,7 @@ export async function getUserPlaylists(accessToken: string) {
   return res.json();
 }
 
-export async function getPlaylistTracks(
-  accessToken: string,
-  playlistId: string
-) {
+export async function getPlaylistTracks(accessToken: string, playlistId: string) {
   const res = await fetch(
     `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
     {
@@ -40,7 +37,10 @@ export async function getPlaylistTracks(
   );
 
   if (!res.ok) {
-    throw new Error("Failed to fetch playlist tracks");
+    const errorText = await res.text(); 
+    console.error("Spotify error:", errorText);
+
+    throw new Error(`Spotify API failed: ${res.status}`);
   }
 
   return res.json();
