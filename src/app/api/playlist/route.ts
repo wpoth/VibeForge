@@ -1,57 +1,48 @@
+import { spotifyFetch } from "@/lib/spotify";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
+
 export async function POST(req: Request) {
   try {
-    const { accessToken, playlistId } = await req.json();
+    const session = await getServerSession(authOptions);
+    const { playlistId } = await req.json();
 
-    if (!accessToken || !playlistId) {
+    if (!session?.accessToken) {
       return Response.json(
-        { error: "Missing accessToken or playlistId" },
-        { status: 400 }
+        { error: "No session access token" },
+        { status: 401 }
       );
     }
 
-    const res = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlistId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
+    const data = await spotifyFetch(
+      `/playlists/${playlistId}`,
+      session.accessToken
     );
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return Response.json(
-        { error: true, message: data },
-        { status: res.status }
-      );
-    }
-
-    // ✅ FLATTEN EVERYTHING
     const tracks =
-      data?.tracks?.items?.map((t: any) => {
-        const track = t.item; // Spotify wrapper
+      data.tracks?.items?.map((t: any) => {
+        const track = t.item;
 
         return {
           id: track.id,
           name: track.name,
           artists: track.artists?.map((a: any) => a.name) ?? [],
-          album: track.album?.name ?? null,
         };
       }) ?? [];
 
-    const playlist = {
+    return Response.json({
       id: data.id,
       name: data.name,
       description: data.description,
       image: data.images?.[0]?.url ?? null,
       tracks,
-    };
-
-    return Response.json(playlist);
+    });
   } catch (err: any) {
     return Response.json(
-      { error: true, message: err.message },
+      {
+        error: true,
+        message: err.message,
+      },
       { status: 500 }
     );
   }

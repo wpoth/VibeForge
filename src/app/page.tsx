@@ -15,44 +15,32 @@ export default function Page() {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
 
-  // PROFILE
+  // PROFILE (unchanged if you still use it)
   useEffect(() => {
-    if (!session?.accessToken) return;
-
-    fetch("/api/me", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: session.accessToken }),
-    })
+    fetch("/api/me")
       .then((r) => r.json())
       .then(setProfile)
       .catch(console.error);
-  }, [session?.accessToken]);
+  }, []);
 
-  // PLAYLISTS
+  // PLAYLISTS (clean DTO)
   useEffect(() => {
-    if (!session?.accessToken) return;
-
-    const spotifyId = (session as any).spotifyId;
-    if (!spotifyId) return;
+    if (!session) return;
 
     fetch("/api/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        accessToken: session.accessToken,
-        spotifyId,
+        spotifyId: (session as any).spotifyId,
       }),
     })
       .then((r) => r.json())
       .then((data) => setPlaylists(data.playlists ?? []))
       .catch(console.error);
-  }, [session?.accessToken]);
+  }, [session]);
 
   // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
-    if (!session?.accessToken) return;
-
     setView("playlist");
     setSelectedPlaylist(pl);
     setTracks([]);
@@ -64,14 +52,17 @@ export default function Page() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         playlistId: pl.id,
-        accessToken: session.accessToken,
       }),
     });
 
     const full = await res.json();
 
-    if (!res.ok || full?.error) return;
+    if (!res.ok || full?.error) {
+      console.error("Failed to load playlist:", full);
+      return;
+    }
 
+    // ✅ CLEAN DTO: no Spotify nesting anymore
     setSelectedPlaylist(full);
     setTracks(full.tracks ?? []);
 
@@ -93,29 +84,31 @@ export default function Page() {
 
       const aiData = await aiRes.json();
       setAiAnalysis(aiData?.result ?? null);
+    } catch (err) {
+      console.error("AI failed:", err);
     } finally {
       setLoadingAI(false);
     }
   }
 
+  // LOADING
   if (status === "loading") {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-b from-black to-zinc-900 text-white">
-        <div className="animate-pulse text-zinc-400">Loading VibeForge...</div>
+      <div className="h-screen flex items-center justify-center bg-black text-white">
+        Loading...
       </div>
     );
   }
 
+  // LOGIN
   if (!session) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-black via-zinc-950 to-zinc-900 text-white">
-        <h1 className="text-6xl font-bold tracking-tight bg-gradient-to-r from-green-400 to-emerald-600 text-transparent bg-clip-text animate-pulse">
-          VibeForge
-        </h1>
+      <div className="h-screen flex flex-col items-center justify-center bg-black text-white">
+        <h1 className="text-5xl font-bold">VibeForge</h1>
 
         <button
           onClick={() => signIn("spotify", { callbackUrl: "/" })}
-          className="mt-8 px-6 py-3 rounded-full bg-green-500 hover:bg-green-400 text-black font-semibold transition transform hover:scale-105"
+          className="mt-6 px-6 py-3 bg-green-500 text-black rounded-full font-semibold hover:scale-105 transition"
         >
           Login with Spotify
         </button>
@@ -124,12 +117,10 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen text-white bg-gradient-to-b from-black via-zinc-950 to-black">
+    <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white">
       {/* HEADER */}
-      <div className="fixed top-0 left-0 right-0 h-14 backdrop-blur-md bg-black/60 border-b border-zinc-800 flex items-center justify-between px-5 z-50">
-        <h1 className="font-bold tracking-wide text-green-400">
-          VibeForge
-        </h1>
+      <div className="fixed top-0 left-0 right-0 h-14 bg-black/60 backdrop-blur border-b border-zinc-800 flex items-center justify-between px-4 z-50">
+        <h1 className="font-bold text-green-400">VibeForge</h1>
 
         <div className="flex gap-4">
           <button
@@ -149,8 +140,8 @@ export default function Page() {
       </div>
 
       {/* SIDEBAR */}
-      <div className="fixed left-0 top-14 w-72 h-[calc(100vh-56px)] bg-zinc-950/70 border-r border-zinc-800 p-4 overflow-y-auto">
-        <h2 className="text-sm uppercase tracking-widest text-zinc-500 mb-4">
+      <div className="fixed left-0 top-14 w-72 h-[calc(100vh-56px)] bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
+        <h2 className="text-xs uppercase tracking-widest text-zinc-500 mb-4">
           Playlists
         </h2>
 
@@ -158,15 +149,13 @@ export default function Page() {
           <div
             key={pl.id}
             onClick={() => openPlaylist(pl)}
-            className="p-3 mb-2 rounded-lg bg-zinc-900/50 hover:bg-zinc-800 cursor-pointer transition transform hover:translate-x-1 hover:scale-[1.02] duration-200"
+            className="p-3 mb-2 rounded-lg bg-zinc-900/40 hover:bg-zinc-800 cursor-pointer transition transform hover:translate-x-1"
             style={{
-              animation: `fadeIn 0.2s ease ${i * 0.03}s both`,
+              animation: `fadeIn 0.2s ease ${i * 0.02}s both`,
             }}
           >
             <p className="font-medium">{pl.name}</p>
-            <p className="text-xs text-zinc-500">
-              {pl.trackCount ?? pl.tracks?.total ?? 0} tracks
-            </p>
+            <p className="text-xs text-zinc-500">{pl.trackCount ?? 0} tracks</p>
           </div>
         ))}
       </div>
@@ -175,28 +164,25 @@ export default function Page() {
       <div className="ml-72 pt-20 p-6">
         {/* AI VIEW */}
         {view === "ai" && (
-          <div className="max-w-2xl animate-[fadeIn_0.3s_ease]">
-            <h2 className="text-3xl font-bold mb-6 text-zinc-200">
-              AI Mode
-            </h2>
+          <div className="max-w-2xl">
+            <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
 
-            <div className="p-6 rounded-xl bg-zinc-900/40 border border-zinc-800 shadow-lg">
+            <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-xl">
               <input
                 placeholder="Describe a vibe..."
-                className="w-full p-3 rounded-lg bg-black border border-zinc-800 focus:outline-none focus:border-green-500 transition"
+                className="w-full p-3 bg-black border border-zinc-800 rounded-lg focus:border-green-500 outline-none"
               />
             </div>
 
-            <div className="mt-8 p-4 rounded-xl bg-zinc-900/30 border border-zinc-800">
-              <p className="text-xs text-zinc-500">Logged in as</p>
-              <p className="text-sm font-medium">{profile?.display_name}</p>
+            <div className="mt-8 text-sm text-zinc-400">
+              Logged in as {profile?.display_name}
             </div>
           </div>
         )}
 
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
-          <div className="max-w-3xl animate-[fadeIn_0.25s_ease]">
+          <div className="max-w-3xl">
             <h2 className="text-3xl font-bold mb-4 text-green-400">
               {selectedPlaylist.name}
             </h2>
@@ -208,10 +194,10 @@ export default function Page() {
             )}
 
             {aiAnalysis && (
-              <div className="mb-6 p-4 rounded-xl bg-zinc-900/40 border border-zinc-800">
-                <p className="text-sm whitespace-pre-wrap text-zinc-300">
+              <div className="mb-6 p-4 bg-zinc-900/40 border border-zinc-800 rounded-xl">
+                <pre className="text-sm whitespace-pre-wrap text-zinc-300">
                   {aiAnalysis}
-                </p>
+                </pre>
               </div>
             )}
 
@@ -220,9 +206,9 @@ export default function Page() {
               {tracks.map((t: any, i: number) => (
                 <div
                   key={i}
-                  className="p-3 rounded-lg bg-zinc-900/40 border border-zinc-800 hover:bg-zinc-800/60 transition transform hover:translate-x-1"
+                  className="p-3 bg-zinc-900/40 border border-zinc-800 rounded-lg hover:bg-zinc-800/60 transition transform hover:translate-x-1"
                   style={{
-                    animation: `fadeIn 0.2s ease ${i * 0.02}s both`,
+                    animation: `fadeIn 0.15s ease ${i * 0.015}s both`,
                   }}
                 >
                   <p className="font-medium">{t.name}</p>
@@ -236,12 +222,12 @@ export default function Page() {
         )}
       </div>
 
-      {/* SIMPLE KEYFRAME ANIMATION */}
+      {/* ANIMATION */}
       <style jsx>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(8px);
+            transform: translateY(6px);
           }
           to {
             opacity: 1;

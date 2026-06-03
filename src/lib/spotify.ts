@@ -79,3 +79,19 @@ export type PlaylistDTO = {
   image?: string;
   tracks: TrackDTO[];
 };
+
+export async function spotifyFetch(endpoint: string, accessToken: string) {
+  const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Spotify error ${res.status}: ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}

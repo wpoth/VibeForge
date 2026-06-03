@@ -1,32 +1,16 @@
-import type { NextAuthOptions } from "next-auth";
 import NextAuth from "next-auth";
 import SpotifyProvider from "next-auth/providers/spotify";
 
-const scopes = [
-  "user-read-email",
-  "user-read-private",
-  "playlist-read-private",
-  "user-library-read",
-  "playlist-read-collaborative",
-  "user-read-playback-state",
-  "user-modify-playback-state",
-];
-
-/**
- * Refresh Spotify access token when expired
- */
 async function refreshAccessToken(token: any) {
-  console.log("\n🔄 REFRESH TOKEN FLOW STARTED");
-
   try {
-    const basic = Buffer.from(
+    const basicAuth = Buffer.from(
       `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
     ).toString("base64");
 
     const res = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
-        Authorization: `Basic ${basic}`,
+        Authorization: `Basic ${basicAuth}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
@@ -37,95 +21,56 @@ async function refreshAccessToken(token: any) {
 
     const refreshed = await res.json();
 
-    console.log("🔄 REFRESH STATUS:", res.status);
-
-    if (!res.ok) {
-      throw new Error(refreshed.error || "Failed to refresh token");
-    }
+    if (!res.ok) throw refreshed;
 
     return {
       ...token,
       accessToken: refreshed.access_token,
-      expiresAt: Date.now() + refreshed.expires_in * 1000,
+      accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
+      refreshToken: refreshed.refresh_token ?? token.refreshToken,
     };
   } catch (err) {
-    console.error("❌ Refresh token failed:", err);
-    return token;
+    return {
+      ...token,
+      error: "RefreshAccessTokenError",
+    };
   }
 }
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   providers: [
     SpotifyProvider({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          scope: scopes.join(" "),
-          show_dialog: "true",
-          prompt: "consent",
-        },
-      },
+      authorization:
+        "https://accounts.spotify.com/authorize?scope=user-read-email playlist-read-private playlist-read-collaborative",
     }),
   ],
 
   callbacks: {
-    async jwt({ token, account }) {
-      console.log("\n🧠 JWT CALLBACK HIT");
-
+    async jwt({ token, account }: any) {
+      // Initial login
       if (account) {
-        console.log("🔐 NEW LOGIN");
+        return {
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          accessTokenExpires: Date.now() + account.expires_in * 1000,
+        };
+      }
 
-        token.accessToken = account.access_token;
-        token.refreshToken = account.refresh_token;
-
-        const expiresIn = Number(account.expires_in ?? 3600);
-        token.expiresAt = Date.now() + expiresIn * 1000;
-
-        // ✅ FETCH USER PROFILE ON LOGIN (IMPORTANT ADDITION)
-        const meRes = await fetch("https://api.spotify.com/v1/me", {
-          headers: {
-            Authorization: `Bearer ${account.access_token}`,
-          },
-        });
-
-        const me = await meRes.json();
-
-        console.log("👤 SPOTIFY USER ID:", me?.id);
-
-        token.spotifyId = me?.id;
-
+      // Still valid
+      if (Date.now() < token.accessTokenExpires) {
         return token;
       }
 
-      console.log("🔁 TOKEN REUSE FLOW");
-
-      if (token.expiresAt && Date.now() < token.expiresAt) {
-        return token;
-      }
-
+      // Expired → refresh
       return await refreshAccessToken(token);
     },
 
-    async session({ session, token }) {
-      console.log("\n📦 SESSION CALLBACK");
-
-      session.accessToken = token.accessToken as string;
-      session.refreshToken = token.refreshToken as string;
-      
-      (session as any).spotifyId = token.spotifyId;
-      console.log("Session user:", session.user?.email);
-      console.log("Spotify ID:", (session as any).spotifyId);
-
+    async session({ session, token }: any) {
+      session.accessToken = token.accessToken;
+      session.error = token.error;
       return session;
-    },
-  },
-
-  events: {
-    signIn(message) {
-      console.log("\n🚀 SIGN IN EVENT");
-      console.log("User:", message.user?.email);
-      console.log("Provider:", message.account?.provider);
     },
   },
 };
