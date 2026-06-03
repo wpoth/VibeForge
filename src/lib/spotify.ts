@@ -26,7 +26,10 @@ export async function getUserPlaylists(accessToken: string) {
   return res.json();
 }
 
-export async function getPlaylistTracks(accessToken: string, playlistId: string) {
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string,
+) {
   let tracks: any[] = [];
   let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&market=NL`;
 
@@ -45,7 +48,7 @@ export async function getPlaylistTracks(accessToken: string, playlistId: string)
     // 🚨 HARD GUARD: stop before crash
     if (!res.ok) {
       throw new Error(
-        `Spotify error ${res.status}: ${data?.error?.message || JSON.stringify(data)}`
+        `Spotify error ${res.status}: ${data?.error?.message || JSON.stringify(data)}`,
       );
     }
 
@@ -61,3 +64,18 @@ export async function getPlaylistTracks(accessToken: string, playlistId: string)
 
   return tracks;
 }
+
+export type TrackDTO = {
+  id: string;
+  name: string;
+  artists: string[];
+  album?: string;
+};
+
+export type PlaylistDTO = {
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  tracks: TrackDTO[];
+};
