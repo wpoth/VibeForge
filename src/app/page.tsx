@@ -71,6 +71,9 @@ export default function Page() {
 
     const full = await fullRes.json();
     console.log("FULL PLAYLIST:", full);
+    console.log("TRACK STRUCTURE:", Object.keys(full.tracks));
+    console.log("TRACKS RAW:", full.tracks);
+    console.log("FULL PLAYLIST KEYS:", Object.keys(full));
 
     if (!fullRes.ok || full.error) {
       console.error("Failed to load full playlist:", full);
