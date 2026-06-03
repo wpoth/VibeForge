@@ -36,12 +36,15 @@ export async function getPlaylistTracks(accessToken: string, playlistId: string)
     }
   );
 
-  if (!res.ok) {
-    const errorText = await res.text(); 
-    console.error("Spotify error:", errorText);
+  const text = await res.text(); 
 
-    throw new Error(`Spotify API failed: ${res.status}`);
+  if (!res.ok) {
+    console.error("SPOTIFY ERROR:", text);
+
+    throw new Error(
+      `Spotify API failed: ${res.status} ${res.statusText}`
+    );
   }
 
-  return res.json();
+  return JSON.parse(text);
 }
