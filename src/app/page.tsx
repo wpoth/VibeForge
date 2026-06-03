@@ -34,19 +34,19 @@ export default function Page() {
     if (!session?.accessToken) return;
 
     fetch("/api/playlists", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    accessToken: session.accessToken,
-    spotifyId: session.spotifyId, // ⭐ ADD THIS
-  }),
-})
-  .then((r) => r.json())
-  .then((data) => {
-    console.log("PLAYLISTS RESPONSE:", data);
-    setPlaylists(data);
-  });
-      }, [session]);
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accessToken: session.accessToken,
+        spotifyId: session.spotifyId,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        console.log("PLAYLISTS RESPONSE:", data);
+        setPlaylists(data);
+      });
+  }, [session]);
 
   // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
@@ -70,11 +70,17 @@ export default function Page() {
     setLoadingAI(false);
 
     try {
+      if (!session?.accessToken) {
+        console.error("No access token available");
+        return;
+      }
+
       const res = await fetch("/api/playlist-tracks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playlistId: pl.id,
+          accessToken: session.accessToken,
         }),
       });
 
