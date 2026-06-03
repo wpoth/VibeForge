@@ -26,26 +26,40 @@ export async function getUserPlaylists(accessToken: string) {
   return res.json();
 }
 
-export async function getPlaylistTracks(accessToken: string, playlistId: string) {
-  const res = await fetch(
-    `https://api.spotify.com/v1/playlists/${playlistId}/tracks`,
-    {
+export async function getPlaylistTracks(
+  accessToken: string,
+  playlistId: string
+) {
+  let tracks: any[] = [];
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
+
+  while (url) {
+    const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+    });
+
+    const data = await res.json();
+
+    console.log("SPOTIFY STATUS:", res.status);
+    console.log("SPOTIFY PAGE:", {
+      items: data?.items?.length,
+      next: data?.next,
+      total: data?.total,
+    });
+
+    if (!res.ok) {
+      throw new Error(
+        `Spotify error ${res.status}: ${data?.error?.message || "unknown"}`
+      );
     }
-  );
 
-  const data = await res.json();
+    // IMPORTANT: normalize structure here
+    tracks.push(...data.items.map((item: any) => item.track));
 
-  console.log("SPOTIFY STATUS:", res.status);
-  console.log("SPOTIFY DATA:", JSON.stringify(data, null, 2));
-
-  if (!res.ok) {
-    throw new Error(
-      `Spotify error ${res.status}: ${data?.error?.message || "unknown"}`
-    );
+    url = data.next;
   }
 
-  return data;
+  return tracks;
 }
