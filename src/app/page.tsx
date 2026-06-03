@@ -151,36 +151,40 @@ export default function Page() {
       </div>
 
       {/* Tracks */}
-      {selectedPlaylist && (
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-4">
-            {selectedPlaylist.name} — Tracks
-          </h2>
+{selectedPlaylist && (
+  <div className="mt-10">
+    <h2 className="text-xl font-semibold mb-4">
+      {selectedPlaylist.name} — Tracks
+    </h2>
 
-          {tracks?.items ? (
-            <div className="grid gap-3">
-              {tracks.items.map((t: any, i: number) => {
-                const track = t.track;
+    {tracks?.items ? (
+      <div className="grid gap-3">
+        {tracks.items.map((t: any, i: number) => {
+          const track = t?.track;
 
-                return (
-                  <div
-                    key={i}
-                    className="p-3 rounded-lg bg-zinc-900 border border-zinc-800"
-                  >
-                    <p className="font-medium">{track.name}</p>
+          if (!track) return null;
 
-                    <p className="text-sm text-zinc-400">
-                      {track.artists.map((a: any) => a.name).join(", ")}
-                    </p>
-                  </div>
-                );
-              })}
+          return (
+            <div
+              key={i}
+              className="p-3 rounded-lg bg-zinc-900 border border-zinc-800"
+            >
+              <p className="font-medium">
+                {track?.name ?? "Unknown track"}
+              </p>
+
+              <p className="text-sm text-zinc-400">
+                {track?.artists?.map((a: any) => a.name).join(", ") ?? "Unknown artist"}
+              </p>
             </div>
-          ) : (
-            <p className="text-zinc-500">Loading tracks...</p>
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
+    ) : (
+      <p className="text-zinc-500">Loading tracks...</p>
+    )}
+  </div>
+)}
 
       {/* Future AI Section */}
       <div className="mt-10">
