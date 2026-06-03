@@ -26,6 +26,7 @@ const handler = NextAuth({
       if (account) {
         token.accessToken = account.access_token;
       }
+      console.log("SPOTIFY SCOPES:", account?.scope);
       return token;
     },
 
