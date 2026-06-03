@@ -72,6 +72,7 @@ export const authOptions: NextAuthOptions = {
         params: {
           scope: scopes.join(" "),
           show_dialog: "true",
+          prompt: "consent"
         },
       },
     }),
