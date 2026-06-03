@@ -47,7 +47,11 @@ export default function Page() {
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
     setView("playlist");
+
+    // reset previous state (important fix)
+    setTracks(null);
     setAiAnalysis(null);
+    setLoadingAI(false);
 
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
@@ -72,7 +76,7 @@ export default function Page() {
 
     // SAFE AI INPUT
     const simplified =
-      data?.items?.map((t: any) => ({
+      data.items?.map((t: any) => ({
         name: t?.track?.name ?? "Unknown",
         artists: t?.track?.artists?.map((a: any) => a.name) ?? [],
       })) ?? [];
@@ -163,6 +167,8 @@ export default function Page() {
             className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
           >
             <p className="text-sm font-medium">{pl.name}</p>
+
+            {/* FIXED: correct Spotify field */}
             <p className="text-xs text-zinc-500">
               {pl.tracks?.total ?? 0} tracks
             </p>
