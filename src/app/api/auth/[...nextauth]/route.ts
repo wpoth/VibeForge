@@ -7,7 +7,7 @@ const handler = NextAuth({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
       authorization:
-        "https://accounts.spotify.com/authorize?scope=user-read-email user-read-private playlist-read-private playlist-modify-public user-read-playback-state user-modify-playback-state",
+        "https://accounts.spotify.com/authorize?scope=user-read-email user-read-private playlist-read-private playlist-modify-public user-read-playback-state user-modify-playback-state playlist-read-collaborative",
     }),
   ],
 

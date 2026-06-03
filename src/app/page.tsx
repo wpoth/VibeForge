@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 export default function Page() {
   const { data: session, status } = useSession();
   const [profile, setProfile] = useState<any>(null);
-
+  const [playlists, setPlaylists] = useState<any>(null);
   useEffect(() => {
     if (!session?.accessToken) return;
 
@@ -16,6 +16,17 @@ export default function Page() {
     })
       .then((r) => r.json())
       .then(setProfile);
+  }, [session]);
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+
+    fetch("/api/playlists", {
+      method: "POST",
+      body: JSON.stringify({ accessToken: session.accessToken }),
+    })
+      .then((r) => r.json())
+      .then(setPlaylists);
   }, [session]);
 
   // Loading state
@@ -52,7 +63,7 @@ export default function Page() {
   // Logged in
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white px-6 py-10">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">
@@ -93,6 +104,30 @@ export default function Page() {
         )}
       </div>
 
+      {/* Playlists */}
+      <div className="mt-10">
+        <h2 className="text-xl font-semibold mb-4">Your Playlists</h2>
+
+        {playlists?.items ? (
+          <div className="grid gap-4">
+            {playlists.items.map((pl: any) => (
+              <div
+                key={pl.id}
+                className="p-4 rounded-xl bg-zinc-900 border border-zinc-800"
+              >
+                <p className="font-medium">{pl.name}</p>
+
+                <p className="text-sm text-zinc-400">
+                  {pl.public ? "Public" : "Private"} · {pl.tracks.total} tracks
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-zinc-500">Loading playlists...</p>
+        )}
+      </div>
+      
       {/* Future AI Section */}
       <div className="mt-10">
         <div className="text-zinc-400 text-sm mb-2">
