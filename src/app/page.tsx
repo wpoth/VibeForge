@@ -12,30 +12,26 @@ export default function Page() {
   const [tracks, setTracks] = useState<any>(null);
   const [view, setView] = useState<"ai" | "playlist">("ai");
 
-  // Profile
+  // PROFILE
   useEffect(() => {
     if (!session?.accessToken) return;
 
     fetch("/api/me", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
       .then(setProfile);
   }, [session]);
 
-  // Playlists
+  // PLAYLISTS
   useEffect(() => {
     if (!session?.accessToken) return;
 
     fetch("/api/playlists", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
@@ -45,15 +41,14 @@ export default function Page() {
       });
   }, [session]);
 
+  // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
     setSelectedPlaylist(pl);
     setView("playlist");
 
     const res = await fetch("/api/playlist-tracks", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         accessToken: session?.accessToken,
         playlistId: pl.id,
@@ -65,6 +60,7 @@ export default function Page() {
     setTracks(data);
   }
 
+  // LOADING
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -73,6 +69,7 @@ export default function Page() {
     );
   }
 
+  // LOGGED OUT
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
@@ -95,7 +92,7 @@ export default function Page() {
       <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
         <h1 className="font-bold">VibeForge</h1>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3">
           <button
             onClick={() => setView("ai")}
             className="text-sm text-zinc-400 hover:text-white"
@@ -124,7 +121,7 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
             <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? 0} tracks
+              {pl.tracks?.total ?? 0} tracks
             </p>
           </div>
         ))}
@@ -155,7 +152,7 @@ export default function Page() {
             </h2>
 
             {tracks?.items?.map((t: any, i: number) => {
-              const track = t?.track;
+              const track = t?.item; // 🔥 FIXED (was t.track)
               if (!track) return null;
 
               return (
@@ -164,6 +161,7 @@ export default function Page() {
                   className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800"
                 >
                   <p className="font-medium">{track.name}</p>
+
                   <p className="text-sm text-zinc-400">
                     {track.artists?.map((a: any) => a.name).join(", ")}
                   </p>
@@ -173,7 +171,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* PROFILE (optional small section) */}
+        {/* PROFILE */}
         {view === "ai" && (
           <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
             <p className="text-sm text-zinc-400">Logged in as</p>
