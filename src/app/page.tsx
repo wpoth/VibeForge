@@ -64,10 +64,18 @@ export default function Page() {
 
   // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
-    setSelectedPlaylist(pl);
-    setView("playlist");
+    if (!session?.accessToken) {
+      console.error("No access token available");
+      return;
+    }
 
-    console.log("SELECTED PLAYLIST:", {
+    setView("playlist");
+    setSelectedPlaylist(pl);
+    setTracks(null);
+    setAiAnalysis(null);
+    setLoadingAI(false);
+
+    console.log("SELECTED PLAYLIST (SIMPLIFIED):", {
       id: pl.id,
       name: pl.name,
       owner: {
@@ -79,21 +87,50 @@ export default function Page() {
       tracksTotal: pl.tracks?.total,
     });
 
-    setTracks(null);
-    setAiAnalysis(null);
-    setLoadingAI(false);
-
+    // 1) Haal VOLLEDIGE playlist op
+    let fullPlaylist = pl;
     try {
-      if (!session?.accessToken) {
-        console.error("No access token available");
-        return;
-      }
-
-      const res = await fetch("/api/playlist-tracks", {
+      const fullRes = await fetch("/api/playlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playlistId: pl.id,
+          accessToken: session.accessToken,
+        }),
+      });
+
+      const fullData = await fullRes.json();
+      console.log("FULL PLAYLIST RESPONSE:", fullData);
+
+      if (fullRes.ok && !fullData?.error) {
+        fullPlaylist = fullData;
+        setSelectedPlaylist(fullData);
+      } else {
+        console.error("FULL PLAYLIST FAILED:", fullData);
+      }
+    } catch (err) {
+      console.error("FULL PLAYLIST FETCH ERROR:", err);
+    }
+
+    console.log("SELECTED PLAYLIST (FULL):", {
+      id: fullPlaylist.id,
+      name: fullPlaylist.name,
+      owner: {
+        id: fullPlaylist.owner?.id,
+        display_name: fullPlaylist.owner?.display_name,
+      },
+      public: fullPlaylist.public,
+      collaborative: fullPlaylist.collaborative,
+      tracksTotal: fullPlaylist.tracks?.total,
+    });
+
+    // 2) Haal TRACKS op
+    try {
+      const res = await fetch("/api/playlist-tracks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playlistId: fullPlaylist.id,
           accessToken: session.accessToken,
         }),
       });
