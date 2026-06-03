@@ -62,7 +62,7 @@ export default function Page() {
       });
   }, [session?.accessToken]);
 
-  // OPEN PLAYLIST
+  // OPEN PLAYLIST (uses full playlist + its tracks)
   async function openPlaylist(pl: any) {
     if (!session?.accessToken) {
       console.error("No access token available");
@@ -87,9 +87,8 @@ export default function Page() {
       tracksTotal: pl.tracks?.total,
     });
 
-    // 1) Haal VOLLEDIGE playlist op
-    let fullPlaylist = pl;
     try {
+      // 1) Haal VOLLEDIGE playlist op (met tracks erin)
       const fullRes = await fetch("/api/playlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,52 +101,29 @@ export default function Page() {
       const fullData = await fullRes.json();
       console.log("FULL PLAYLIST RESPONSE:", fullData);
 
-      if (fullRes.ok && !fullData?.error) {
-        fullPlaylist = fullData;
-        setSelectedPlaylist(fullData);
-      } else {
+      if (!fullRes.ok || fullData?.error) {
         console.error("FULL PLAYLIST FAILED:", fullData);
-      }
-    } catch (err) {
-      console.error("FULL PLAYLIST FETCH ERROR:", err);
-    }
-
-    console.log("SELECTED PLAYLIST (FULL):", {
-      id: fullPlaylist.id,
-      name: fullPlaylist.name,
-      owner: {
-        id: fullPlaylist.owner?.id,
-        display_name: fullPlaylist.owner?.display_name,
-      },
-      public: fullPlaylist.public,
-      collaborative: fullPlaylist.collaborative,
-      tracksTotal: fullPlaylist.tracks?.total,
-    });
-
-    // 2) Haal TRACKS op
-    try {
-      const res = await fetch("/api/playlist-tracks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playlistId: fullPlaylist.id,
-          accessToken: session.accessToken,
-        }),
-      });
-
-      const data = await res.json();
-      console.log("TRACKS RESPONSE:", data);
-
-      if (!res.ok || data?.error) {
-        console.error("Spotify API failed:", data);
-        setTracks(null);
         return;
       }
 
-      setTracks(data);
+      const fullPlaylist = fullData;
+      setSelectedPlaylist(fullPlaylist);
+      setTracks(fullPlaylist.tracks); // tracks.items + tracks.total
 
-      // SAFE AI INPUT
-      const simplified = data.items
+      console.log("SELECTED PLAYLIST (FULL):", {
+        id: fullPlaylist.id,
+        name: fullPlaylist.name,
+        owner: {
+          id: fullPlaylist.owner?.id,
+          display_name: fullPlaylist.owner?.display_name,
+        },
+        public: fullPlaylist.public,
+        collaborative: fullPlaylist.collaborative,
+        tracksTotal: fullPlaylist.tracks?.total,
+      });
+
+      // 2) AI INPUT op basis van fullPlaylist.tracks.items
+      const simplified = (fullPlaylist.tracks?.items ?? [])
         .map((t: any) => t?.track)
         .filter(Boolean)
         .map((track: any) => ({
@@ -176,7 +152,7 @@ export default function Page() {
         setLoadingAI(false);
       }
     } catch (err) {
-      console.error("Playlist fetch failed:", err);
+      console.error("FULL PLAYLIST FETCH ERROR:", err);
     }
   }
 
