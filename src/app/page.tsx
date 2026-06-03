@@ -3,41 +3,27 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-export default function Home() {
-  const { data: session, status } = useSession();
-  const [profile, setProfile] = useState<any>(null);
+export default function Page() {
+  const { data: session } = useSession();
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    async function loadProfile() {
-      if (!session?.accessToken) return;
+    if (!session?.accessToken) return;
 
-      const res = await fetch("/api/me", {
-        method: "POST",
-        body: JSON.stringify({
-          accessToken: session.accessToken,
-        }),
-      });
-
-      const data = await res.json();
-      setProfile(data);
-    }
-
-    loadProfile();
+    fetch("/api/me", {
+      method: "POST",
+      body: JSON.stringify({ accessToken: session.accessToken }),
+    })
+      .then((r) => r.json())
+      .then(setProfile);
   }, [session]);
 
-  if (status === "loading") return <p>Loading...</p>;
-
-  if (!session) {
-    return <button onClick={() => signIn("spotify")}>Login</button>;
-  }
+  if (!session) return <button onClick={() => signIn("spotify")}>Login</button>;
 
   return (
     <div>
       <h1>VibeForge</h1>
-
-      <p>Logged in as:</p>
       <pre>{JSON.stringify(profile, null, 2)}</pre>
-
       <button onClick={() => signOut()}>Logout</button>
     </div>
   );

@@ -1,13 +1,12 @@
-import { getSpotifyProfile } from "@/lib/spotify";
-
 export async function POST(req: Request) {
   const { accessToken } = await req.json();
 
-  if (!accessToken) {
-    return Response.json({ error: "No token" }, { status: 401 });
-  }
+  const res = await fetch("https://api.spotify.com/v1/me", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-  const profile = await getSpotifyProfile(accessToken);
-
-  return Response.json(profile);
+  const data = await res.json();
+  return Response.json(data);
 }
