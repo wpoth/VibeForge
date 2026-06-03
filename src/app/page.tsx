@@ -88,7 +88,7 @@ export default function Page() {
 
     // 3) AI INPUT
     const simplified = playlistTracks
-      .map((t: any) => t?.track)
+      .map((t: any) => t?.item ?? t?.track)
       .filter(Boolean)
       .map((track: any) => ({
         name: track.name,
@@ -143,7 +143,6 @@ export default function Page() {
   // MAIN UI
   return (
     <div className="min-h-screen bg-black text-white">
-
       {/* HEADER */}
       <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
         <h1 className="font-bold">VibeForge</h1>
@@ -186,7 +185,6 @@ export default function Page() {
 
       {/* MAIN CONTENT */}
       <div className="ml-72 pt-20 p-6">
-
         {/* AI MODE */}
         {view === "ai" && (
           <div className="max-w-2xl">
@@ -209,9 +207,7 @@ export default function Page() {
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold mb-6">
-              {selectedPlaylist.name}
-            </h2>
+            <h2 className="text-2xl font-bold mb-6">{selectedPlaylist.name}</h2>
 
             {loadingAI && (
               <div className="mb-4 text-sm text-zinc-400">
@@ -230,7 +226,8 @@ export default function Page() {
 
             {/* TRACK LIST */}
             {tracks.map((t: any, i: number) => {
-              const track = t?.track;
+              const track = t?.item ?? t?.track;
+
               if (!track) return null;
 
               return (
