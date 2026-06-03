@@ -68,8 +68,9 @@ export default function Page() {
       const data = await res.json();
       console.log("TRACKS RESPONSE:", data);
 
-      if (!data || !Array.isArray(data.items)) {
-        console.error("Invalid tracks response:", data);
+      if (!res.ok || data?.error) {
+        console.error("Spotify API failed:", data);
+        setTracks(null);
         return;
       }
 
