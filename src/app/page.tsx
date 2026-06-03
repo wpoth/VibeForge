@@ -11,6 +11,7 @@ export default function Page() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
   const [tracks, setTracks] = useState<any>(null);
   const [view, setView] = useState<"ai" | "playlist">("ai");
+
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
 
@@ -24,7 +25,8 @@ export default function Page() {
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
-      .then(setProfile);
+      .then(setProfile)
+      .catch(console.error);
   }, [session]);
 
   // PLAYLISTS
@@ -39,9 +41,9 @@ export default function Page() {
       .then((r) => r.json())
       .then((data) => {
         console.log("PLAYLISTS RESPONSE:", data);
-        console.log("FIRST PLAYLIST:", playlists.items?.[0]);
         setPlaylists(data);
-      });
+      })
+      .catch(console.error);
   }, [session]);
 
   // OPEN PLAYLIST
@@ -49,62 +51,61 @@ export default function Page() {
     setSelectedPlaylist(pl);
     setView("playlist");
 
-    // reset previous state (important fix)
     setTracks(null);
     setAiAnalysis(null);
     setLoadingAI(false);
 
-    const res = await fetch("/api/playlist-tracks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        accessToken: session?.accessToken,
-        playlistId: pl.id,
-      }),
-    });
-
-    const data = await res.json();
-    console.log("TRACKS RESPONSE:", data);
-
-    if (!data?.items) {
-      console.error("Invalid Spotify response:", data);
-      return;
-    }
-
-    setTracks(data);
-
-    // SAFE AI INPUT
-    const simplified =
-      data.items?.map((t: any) => ({
-        name: t?.track?.name ?? "Unknown",
-        artists: t?.track?.artists?.map((a: any) => a.name) ?? [],
-      })) ?? [];
-
-    if (simplified.length === 0) return;
-
-    setLoadingAI(true);
-
     try {
-      const aiRes = await fetch("/api/ai", {
+      const res = await fetch("/api/playlist-tracks", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          playlist: simplified,
+          accessToken: session?.accessToken,
+          playlistId: pl.id,
         }),
       });
 
-      const aiData = await aiRes.json();
-      console.log("AI RESULT:", aiData);
+      const data = await res.json();
+      console.log("TRACKS RESPONSE:", data);
 
-      setAiAnalysis(aiData.result ?? null);
+      if (!data || !Array.isArray(data.items)) {
+        console.error("Invalid tracks response:", data);
+        return;
+      }
+
+      setTracks(data);
+
+      // SAFE AI INPUT (IMPORTANT FIX)
+      const simplified = data.items
+        .map((t: any) => t?.track)
+        .filter(Boolean)
+        .map((track: any) => ({
+          name: track.name,
+          artists: track.artists?.map((a: any) => a.name) ?? [],
+        }));
+
+      if (!simplified.length) return;
+
+      setLoadingAI(true);
+
+      try {
+        const aiRes = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlist: simplified }),
+        });
+
+        const aiData = await aiRes.json();
+        console.log("AI RESULT:", aiData);
+
+        setAiAnalysis(aiData?.result ?? null);
+      } catch (err) {
+        console.error("AI failed:", err);
+      } finally {
+        setLoadingAI(false);
+      }
     } catch (err) {
-      console.error("AI request failed:", err);
-    } finally {
-      setLoadingAI(false);
+      console.error("Playlist fetch failed:", err);
     }
   }
 
@@ -169,15 +170,15 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
 
-            {/* FIXED: correct Spotify field */}
+            {/* ✅ FIXED: correct Spotify field */}
             <p className="text-xs text-zinc-500">
-              {pl.tracks?.total ?? 0} tracks
+              {pl.items?.total ?? 0} tracks
             </p>
           </div>
         ))}
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
       <div className="ml-72 pt-20 p-6">
 
         {/* AI VIEW */}
@@ -226,7 +227,6 @@ export default function Page() {
                   className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800"
                 >
                   <p className="font-medium">{track.name}</p>
-
                   <p className="text-sm text-zinc-400">
                     {track.artists?.map((a: any) => a.name).join(", ")}
                   </p>
