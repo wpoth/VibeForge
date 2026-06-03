@@ -121,7 +121,7 @@ export default function Page() {
           >
             <p className="text-sm font-medium">{pl.name}</p>
             <p className="text-xs text-zinc-500">
-              {pl.tracks?.total ?? 0} tracks
+              {pl.items?.total ?? 0} tracks
             </p>
           </div>
         ))}
