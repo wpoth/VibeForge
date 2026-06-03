@@ -39,7 +39,10 @@ export default function Page() {
       body: JSON.stringify({ accessToken: session.accessToken }),
     })
       .then((r) => r.json())
-      .then(setPlaylists);
+      .then((data) => {
+        console.log("PLAYLISTS RESPONSE:", data);
+        setPlaylists(data);
+      });
   }, [session]);
 
   async function openPlaylist(pl: any) {
