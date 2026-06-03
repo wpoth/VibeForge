@@ -1,13 +1,27 @@
 import { getPlaylistTracks } from "@/lib/spotify";
 
 export async function POST(req: Request) {
-  const { accessToken, playlistId } = await req.json();
+  try {
+    const body = await req.json();
 
-  if (!accessToken || !playlistId) {
-    return Response.json({ error: "Missing data" }, { status: 400 });
+    const { accessToken, playlistId } = body;
+
+    if (!accessToken || !playlistId) {
+      return Response.json(
+        { error: "Missing accessToken or playlistId" },
+        { status: 400 }
+      );
+    }
+
+    const tracks = await getPlaylistTracks(accessToken, playlistId);
+
+    return Response.json(tracks);
+  } catch (err: any) {
+    console.error("playlist-tracks error:", err);
+
+    return Response.json(
+      { error: "Server error", details: err?.message },
+      { status: 500 }
+    );
   }
-
-  const tracks = await getPlaylistTracks(accessToken, playlistId);
-
-  return Response.json(tracks);
 }
