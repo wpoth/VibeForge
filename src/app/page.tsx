@@ -34,17 +34,19 @@ export default function Page() {
     if (!session?.accessToken) return;
 
     fetch("/api/playlists", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: session.accessToken }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        console.log("PLAYLISTS RESPONSE:", data);
-        setPlaylists(data);
-      })
-      .catch(console.error);
-  }, [session]);
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    accessToken: session.accessToken,
+    spotifyId: session.spotifyId, // ⭐ ADD THIS
+  }),
+})
+  .then((r) => r.json())
+  .then((data) => {
+    console.log("PLAYLISTS RESPONSE:", data);
+    setPlaylists(data);
+  });
+      }, [session]);
 
   // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
@@ -181,7 +183,7 @@ export default function Page() {
             <p className="text-sm font-medium">{pl.name}</p>
 
             <p className="text-xs text-zinc-500">
-              {pl.tracks?.total ?? 0} tracks
+              {pl.items?.total ?? 0} tracks
             </p>
           </div>
         ))}
