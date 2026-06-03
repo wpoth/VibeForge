@@ -18,7 +18,7 @@ export default function Page() {
       .then(setProfile);
   }, [session]);
 
-  if (!session) return <button onClick={() => signIn("spotify")}>Login</button>;
+  if (!session) return <button onClick={() => signIn("spotify" , {callbackUrl: "/"})}>Login</button>;
 
   return (
     <div>
