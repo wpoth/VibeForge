@@ -118,7 +118,8 @@ export default function Page() {
                 <p className="font-medium">{pl.name}</p>
 
                 <p className="text-sm text-zinc-400">
-                  {pl.public ? "Public" : "Private"} · {pl.tracks.total} tracks
+                  {pl.public ? "Public" : "Private"} ·{" "}
+                  {pl.tracks?.total ?? 0} tracks
                 </p>
               </div>
             ))}
@@ -127,7 +128,7 @@ export default function Page() {
           <p className="text-zinc-500">Loading playlists...</p>
         )}
       </div>
-      
+
       {/* Future AI Section */}
       <div className="mt-10">
         <div className="text-zinc-400 text-sm mb-2">
