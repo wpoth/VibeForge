@@ -49,7 +49,7 @@ export default function Page() {
       .catch(console.error);
   }, [session?.accessToken]);
 
-  // OPEN PLAYLIST (FULL OBJECT + TRACKS)
+  // OPEN PLAYLIST
   async function openPlaylist(pl: any) {
     if (!session?.accessToken) return;
 
@@ -59,63 +59,64 @@ export default function Page() {
     setAiAnalysis(null);
     setLoadingAI(false);
 
-    // 1) FULL PLAYLIST
-    const fullRes = await fetch("/api/playlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playlistId: pl.id,
-        accessToken: session.accessToken,
-      }),
-    });
-
-    const full = await fullRes.json();
-    console.log("FULL PLAYLIST:", full);
-    console.log("TRACK STRUCTURE:", Object.keys(full.tracks));
-    console.log("TRACKS RAW:", full.tracks);
-    console.log("FULL PLAYLIST KEYS:", Object.keys(full));
-
-    if (!fullRes.ok || full.error) {
-      console.error("Failed to load full playlist:", full);
-      return;
-    }
-
-    setSelectedPlaylist(full);
-
-    // 2) TRACKS DIRECT UIT FULL PLAYLIST
-    const playlistTracks = full.tracks?.items ?? [];
-    setTracks(playlistTracks);
-
-    // 3) AI INPUT
-    const simplified = playlistTracks
-      .map((t: any) => t?.item ?? t?.track)
-      .filter(Boolean)
-      .map((track: any) => ({
-        name: track.name,
-        artists: track.artists?.map((a: any) => a.name) ?? [],
-      }));
-
-    if (!simplified.length) return;
-
-    setLoadingAI(true);
-
     try {
-      const aiRes = await fetch("/api/ai", {
+      const fullRes = await fetch("/api/playlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlist: simplified }),
+        body: JSON.stringify({
+          playlistId: pl.id,
+          accessToken: session.accessToken,
+        }),
       });
 
-      const aiData = await aiRes.json();
-      setAiAnalysis(aiData?.result ?? null);
+      const full = await fullRes.json();
+
+      console.log("FULL PLAYLIST:", full);
+
+      if (!fullRes.ok || full?.error) {
+        console.error("Failed to load playlist:", full);
+        return;
+      }
+
+      // ✅ Spotify shape: tracks -> items -> item
+      const playlistTracks = full?.tracks?.items ?? [];
+
+      setSelectedPlaylist(full);
+      setTracks(playlistTracks);
+
+      // ✅ normalize tracks safely
+      const simplified = playlistTracks
+        .map((t: any) => t?.item)
+        .filter(Boolean)
+        .map((track: any) => ({
+          name: track.name,
+          artists: track.artists?.map((a: any) => a.name) ?? [],
+        }));
+
+      if (!simplified.length) return;
+
+      setLoadingAI(true);
+
+      try {
+        const aiRes = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlist: simplified }),
+        });
+
+        const aiData = await aiRes.json();
+        setAiAnalysis(aiData?.result ?? null);
+      } catch (err) {
+        console.error("AI failed:", err);
+      } finally {
+        setLoadingAI(false);
+      }
     } catch (err) {
-      console.error("AI failed:", err);
-    } finally {
-      setLoadingAI(false);
+      console.error("Playlist fetch failed:", err);
     }
   }
 
-  // LOADING STATE
+  // LOADING
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
@@ -124,7 +125,7 @@ export default function Page() {
     );
   }
 
-  // LOGIN SCREEN
+  // LOGIN
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
@@ -175,7 +176,6 @@ export default function Page() {
             className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
           >
             <p className="text-sm font-medium">{pl.name}</p>
-
             <p className="text-xs text-zinc-500">
               {pl.tracks?.total ?? 0} tracks
             </p>
@@ -207,7 +207,9 @@ export default function Page() {
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold mb-6">{selectedPlaylist.name}</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {selectedPlaylist.name}
+            </h2>
 
             {loadingAI && (
               <div className="mb-4 text-sm text-zinc-400">
@@ -226,7 +228,7 @@ export default function Page() {
 
             {/* TRACK LIST */}
             {tracks.map((t: any, i: number) => {
-              const track = t?.item ?? t?.track;
+              const track = t?.item;
 
               if (!track) return null;
 
