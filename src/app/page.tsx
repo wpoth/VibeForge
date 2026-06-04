@@ -8,6 +8,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PlaylistView } from "@/components/playlist/PlaylistView";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 import type {
   AiPlaylistResponse,
@@ -54,6 +55,9 @@ export default function Page() {
     null
   );
 
+  const [playlistToRemove, setPlaylistToRemove] =
+    useState<SpotifyPlaylist | null>(null);
+  const [removingPlaylist, setRemovingPlaylist] = useState(false);
   const accessToken = session?.accessToken;
 
   useEffect(() => {
@@ -201,15 +205,16 @@ export default function Page() {
     }
   }
 
-  async function removePlaylist(playlist: SpotifyPlaylist) {
-    if (!accessToken) return;
+  function requestRemovePlaylist(playlist: SpotifyPlaylist) {
+    setPlaylistToRemove(playlist);
+  }
 
-    const confirmed = window.confirm(
-      `Remove "${playlist.name}" from your Spotify library?`
-    );
+  async function confirmRemovePlaylist() {
+    if (!accessToken || !playlistToRemove) return;
 
-    if (!confirmed) return;
+    const playlist = playlistToRemove;
 
+    setRemovingPlaylist(true);
     setError(null);
 
     try {
@@ -242,9 +247,13 @@ export default function Page() {
         setAiAnalysis(null);
         setView("ai");
       }
+
+      setPlaylistToRemove(null);
     } catch (err: unknown) {
       console.error("Remove playlist failed:", err);
       setError(getErrorMessage(err));
+    } finally {
+      setRemovingPlaylist(false);
     }
   }
   async function createAiPlaylist() {
@@ -368,7 +377,7 @@ export default function Page() {
         hiddenPlaylists={hiddenPlaylists}
         selectedPlaylist={selectedPlaylist}
         onPlaylistClick={openPlaylist}
-        onPlaylistRemove={removePlaylist}
+        onPlaylistRemove={requestRemovePlaylist}
       />
 
       <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
@@ -404,6 +413,24 @@ export default function Page() {
           />
         )}
       </main>
+      <ConfirmDialog
+        open={Boolean(playlistToRemove)}
+        title="Remove playlist?"
+        description={
+          playlistToRemove
+            ? `This will remove "${playlistToRemove.name}" from your Spotify library. Spotify does not permanently delete playlists through the Web API.`
+            : ""
+        }
+        confirmLabel="Remove playlist"
+        cancelLabel="Keep playlist"
+        loading={removingPlaylist}
+        onConfirm={confirmRemovePlaylist}
+        onCancel={() => {
+          if (!removingPlaylist) {
+            setPlaylistToRemove(null);
+          }
+        }}
+      />
     </AppShell>
   );
 }
