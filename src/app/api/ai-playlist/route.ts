@@ -582,6 +582,12 @@ Rules:
                 id: createdPlaylist.id,
                 name: createdPlaylist.name,
                 url: createdPlaylist.external_urls?.spotify,
+                items: {
+                    total: urisToAdd.length,
+                },
+                tracks: {
+                    total: urisToAdd.length,
+                },
             },
             tracks: foundTracks.map((track) => ({
                 id: track.id,
