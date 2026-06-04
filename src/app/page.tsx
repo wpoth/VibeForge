@@ -528,7 +528,7 @@ export default function Page() {
             {error}
           </div>
         )}
-
+        {/* ai view */}
         {view === "ai" && (
           <div className="max-w-3xl">
             <p className="text-sm text-green-400 font-medium mb-3">
@@ -545,7 +545,7 @@ export default function Page() {
             >
               Test Spotify playlist creation
             </button>
-            
+
             <p className="text-zinc-400 mb-8 max-w-2xl">
               Describe a mood, setting, genre, or artist direction. VibeForge will find
               matching Spotify tracks and create a private playlist in your account.
