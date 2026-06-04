@@ -4,7 +4,7 @@ import SpotifyProvider from "next-auth/providers/spotify";
 async function refreshAccessToken(token: any) {
   try {
     const basicAuth = Buffer.from(
-      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
+      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
     ).toString("base64");
 
     const res = await fetch("https://accounts.spotify.com/api/token", {
@@ -21,6 +21,15 @@ async function refreshAccessToken(token: any) {
 
     const refreshed = await res.json();
 
+    console.log("SPOTIFY REFRESH DEBUG:", {
+      ok: res.ok,
+      status: res.status,
+      hasAccessToken: Boolean(refreshed.access_token),
+      hasRefreshToken: Boolean(refreshed.refresh_token),
+      scope: refreshed.scope,
+      error: refreshed.error,
+    });
+
     if (!res.ok) throw refreshed;
 
     return {
@@ -28,8 +37,12 @@ async function refreshAccessToken(token: any) {
       accessToken: refreshed.access_token,
       accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
       refreshToken: refreshed.refresh_token ?? token.refreshToken,
+      scope: refreshed.scope ?? token.scope,
+      error: undefined,
     };
   } catch (err) {
+    console.error("REFRESH ACCESS TOKEN ERROR:", err);
+
     return {
       ...token,
       error: "RefreshAccessTokenError",
@@ -54,6 +67,7 @@ export const authOptions = {
       authorization: {
         params: {
           scope: scopes,
+          show_dialog: true,
         },
       },
     }),
@@ -63,25 +77,47 @@ export const authOptions = {
     async jwt({ token, account }: any) {
       // Initial login
       if (account) {
+        const accessTokenExpires =
+          account.expires_at
+            ? account.expires_at * 1000
+            : Date.now() + account.expires_in * 1000;
+
+        console.log("SPOTIFY LOGIN DEBUG:", {
+          hasAccessToken: Boolean(account.access_token),
+          hasRefreshToken: Boolean(account.refresh_token),
+          expiresAt: account.expires_at,
+          expiresIn: account.expires_in,
+          accessTokenExpires,
+          scope: account.scope,
+        });
+
         return {
+          ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
-          accessTokenExpires: Date.now() + account.expires_in * 1000,
+          accessTokenExpires,
+          scope: account.scope,
+          error: undefined,
         };
       }
 
-      // Still valid
-      if (Date.now() < token.accessTokenExpires) {
+      // If token is still valid, return it
+      if (
+        token.accessTokenExpires &&
+        Date.now() < token.accessTokenExpires
+      ) {
         return token;
       }
 
-      // Expired → refresh
+      // Token expired, refresh it
       return await refreshAccessToken(token);
     },
 
     async session({ session, token }: any) {
       session.accessToken = token.accessToken;
       session.error = token.error;
+      session.scope = token.scope;
+
       return session;
     },
   },
