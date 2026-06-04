@@ -7,11 +7,23 @@ type SpotifyArtist = {
   name?: string;
 };
 
+type SpotifyImage = {
+  url: string;
+  height?: number | null;
+  width?: number | null;
+};
+
+type SpotifyAlbum = {
+  name?: string;
+  images?: SpotifyImage[];
+};
+
 type SpotifyTrack = {
   id?: string;
   name?: string;
   type?: string;
   artists?: SpotifyArtist[];
+  album?: SpotifyAlbum;
 };
 
 type SpotifyPlaylistItem = {
@@ -22,6 +34,7 @@ type SpotifyPlaylistItem = {
 type SpotifyPlaylist = {
   id: string;
   name: string;
+  images?: SpotifyImage[];
   items?: {
     total?: number;
   };
@@ -41,6 +54,8 @@ type ApiErrorResponse = {
 
 type PlaylistsResponse = ApiErrorResponse & {
   items?: SpotifyPlaylist[];
+  total?: number;
+  hidden?: number;
 };
 
 type PlaylistTracksResponse = ApiErrorResponse & {
@@ -55,13 +70,21 @@ function getTrackFromPlaylistItem(item: SpotifyPlaylistItem): SpotifyTrack | nul
   return item.item ?? item.track ?? null;
 }
 
+function getBestImage(images?: SpotifyImage[]) {
+  return images?.[0]?.url ?? null;
+}
+
 export default function Page() {
   const { data: session, status } = useSession();
 
   const [profile, setProfile] = useState<SpotifyProfile | null>(null);
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [playlistsLoaded, setPlaylistsLoaded] = useState(false);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
+  const [hiddenPlaylists, setHiddenPlaylists] = useState(0);
+
+  const [selectedPlaylist, setSelectedPlaylist] =
+    useState<SpotifyPlaylist | null>(null);
+
   const [tracks, setTracks] = useState<SpotifyPlaylistItem[]>([]);
   const [view, setView] = useState<"ai" | "playlist">("ai");
 
@@ -99,6 +122,9 @@ export default function Page() {
   useEffect(() => {
     if (!accessToken) return;
 
+    setPlaylistsLoaded(false);
+    setError(null);
+
     fetch("/api/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -106,17 +132,24 @@ export default function Page() {
     })
       .then((r) => r.json())
       .then((data: PlaylistsResponse) => {
+        console.log("PLAYLISTS RESPONSE:", data);
+
         if (data?.error) {
-          throw new Error(data?.message || "Failed to load playlists");
+          throw new Error(data?.message || String(data.error));
         }
 
         setPlaylists(data.items ?? []);
+        setHiddenPlaylists(data.hidden ?? 0);
       })
       .catch((err: unknown) => {
         console.error(err);
         setError(getErrorMessage(err));
+        setPlaylists([]);
+        setHiddenPlaylists(0);
       })
-      .finally(() => setPlaylistsLoaded(true));
+      .finally(() => {
+        setPlaylistsLoaded(true);
+      });
   }, [accessToken]);
 
   async function generateAiAnalysis(playlistItems: SpotifyPlaylistItem[]) {
@@ -125,7 +158,8 @@ export default function Page() {
       .filter((track): track is SpotifyTrack => Boolean(track?.name))
       .map((track) => ({
         name: track.name,
-        artists: track.artists?.map((artist) => artist.name).filter(Boolean) ?? [],
+        artists:
+          track.artists?.map((artist) => artist.name).filter(Boolean) ?? [],
       }));
 
     if (!simplified.length) return;
@@ -139,10 +173,14 @@ export default function Page() {
         body: JSON.stringify({ playlist: simplified }),
       });
 
-      const aiData = (await aiRes.json()) as ApiErrorResponse & { result?: string };
+      const aiData = (await aiRes.json()) as ApiErrorResponse & {
+        result?: string;
+      };
 
       if (!aiRes.ok || aiData?.error) {
-        throw new Error(aiData?.message || String(aiData?.error) || "AI analysis failed");
+        throw new Error(
+          aiData?.message || String(aiData?.error) || "AI analysis failed"
+        );
       }
 
       setAiAnalysis(aiData?.result ?? null);
@@ -154,7 +192,6 @@ export default function Page() {
     }
   }
 
-  // OPEN PLAYLIST
   async function openPlaylist(pl: SpotifyPlaylist) {
     if (!accessToken) return;
 
@@ -181,11 +218,12 @@ export default function Page() {
       if (!tracksRes.ok || tracksData?.error) {
         throw new Error(
           tracksData?.message ||
-            "Could not load playlist tracks. Spotify may not expose items for this playlist."
+          "Could not load playlist tracks. Spotify may not expose items for this playlist."
         );
       }
 
       const playlistItems = tracksData.items ?? [];
+
       setTracks(playlistItems);
       await generateAiAnalysis(playlistItems);
     } catch (err: unknown) {
@@ -247,7 +285,7 @@ export default function Page() {
       </div>
 
       {/* SIDEBAR */}
-      <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-72 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
+      <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-80 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
         <h2 className="text-lg font-semibold mb-4">Playlists</h2>
 
         {!playlistsLoaded && (
@@ -258,23 +296,54 @@ export default function Page() {
           <p className="text-sm text-zinc-500">No playlists found.</p>
         )}
 
-        {playlists.map((pl) => (
-          <div
-            key={pl.id}
-            onClick={() => openPlaylist(pl)}
-            className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
-          >
-            <p className="text-sm font-medium">{pl.name}</p>
-
-            <p className="text-xs text-zinc-500">
-              {pl.items?.total ?? pl.tracks?.total ?? 0} tracks
+        {playlistsLoaded && hiddenPlaylists > 0 && (
+          <div className="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+            <p className="text-xs text-zinc-400">
+              {hiddenPlaylists} playlists are hidden because Spotify does not
+              allow reading tracks from playlists you do not own or collaborate
+              on.
             </p>
           </div>
-        ))}
+        )}
+
+        {playlists.map((pl) => {
+          const imageUrl = getBestImage(pl.images);
+
+          return (
+            <div
+              key={pl.id}
+              onClick={() => openPlaylist(pl)}
+              className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition flex gap-3"
+            >
+              <div className="w-12 h-12 rounded-md bg-zinc-800 overflow-hidden shrink-0">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={imageUrl}
+                    alt={`${pl.name} cover`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">
+                    ♪
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{pl.name}</p>
+
+                <p className="text-xs text-zinc-500">
+                  {pl.items?.total ?? pl.tracks?.total ?? 0} tracks
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="ml-72 pt-20 p-6">
+      <div className="ml-80 pt-20 p-6">
         {error && (
           <div className="mb-6 p-4 rounded-lg bg-red-950/60 border border-red-900 text-sm text-red-200">
             {error}
@@ -303,9 +372,35 @@ export default function Page() {
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold mb-6">
-              {selectedPlaylist.name}
-            </h2>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-24 h-24 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
+                {getBestImage(selectedPlaylist.images) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={getBestImage(selectedPlaylist.images) ?? ""}
+                    alt={`${selectedPlaylist.name} cover`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                    ♪
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm text-zinc-500">Playlist</p>
+                <h2 className="text-2xl font-bold">
+                  {selectedPlaylist.name}
+                </h2>
+                <p className="text-sm text-zinc-500">
+                  {selectedPlaylist.items?.total ??
+                    selectedPlaylist.tracks?.total ??
+                    0}{" "}
+                  tracks
+                </p>
+              </div>
+            </div>
 
             {loadingTracks && (
               <div className="mb-4 text-sm text-zinc-400">
@@ -339,15 +434,37 @@ export default function Page() {
               const track = getTrackFromPlaylistItem(playlistItem);
               if (!track) return null;
 
+              const trackImageUrl = getBestImage(track.album?.images);
+
               return (
                 <div
                   key={track.id ?? i}
-                  className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800"
+                  className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center gap-3"
                 >
-                  <p className="font-medium">{track.name}</p>
-                  <p className="text-sm text-zinc-400">
-                    {track.artists?.map((artist) => artist.name).join(", ")}
-                  </p>
+                  <div className="w-12 h-12 rounded-md bg-zinc-800 overflow-hidden shrink-0">
+                    {trackImageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={trackImageUrl}
+                        alt={`${track.name} cover`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">
+                        ♪
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{track.name}</p>
+                    <p className="text-sm text-zinc-400 truncate">
+                      {track.artists
+                        ?.map((artist) => artist.name)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  </div>
                 </div>
               );
             })}

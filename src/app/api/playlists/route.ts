@@ -1,3 +1,10 @@
+type SpotifyUserResponse = {
+  id?: string;
+  error?: {
+    message?: string;
+  };
+};
+
 type SpotifyPlaylist = {
   id: string;
   name: string;
@@ -30,7 +37,7 @@ type SpotifyPlaylistsResponse = {
 
 export async function POST(req: Request) {
   try {
-    const { accessToken, spotifyId } = await req.json();
+    const { accessToken } = await req.json();
 
     if (!accessToken) {
       return Response.json(
@@ -39,13 +46,28 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!spotifyId) {
+    const meRes: globalThis.Response = await fetch(
+      "https://api.spotify.com/v1/me",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const meData = (await meRes.json()) as SpotifyUserResponse;
+
+    if (!meRes.ok || !meData.id) {
       return Response.json(
-        { error: "Missing Spotify user ID" },
-        { status: 400 }
+        {
+          error: meData?.error?.message ?? "Failed to fetch Spotify user",
+          details: meData,
+        },
+        { status: meRes.status }
       );
     }
 
+    const spotifyId = meData.id;
     const allPlaylists: SpotifyPlaylist[] = [];
 
     let url: string | null =
