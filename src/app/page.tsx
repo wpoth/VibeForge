@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PlaylistView } from "@/components/playlist/PlaylistView";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { getPlaylistTrackCount } from "@/lib/ui-helpers";
 
 import type {
   AiPlaylistResponse,
@@ -54,6 +55,14 @@ export default function Page() {
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState<string | null>(
     null
   );
+
+  const [aiPlaylistTarget, setAiPlaylistTarget] = useState<"new" | "existing">(
+    "new"
+  );
+
+  const [selectedTargetPlaylistId, setSelectedTargetPlaylistId] = useState("");
+  const [aiPlaylistSuccessMessage, setAiPlaylistSuccessMessage] =
+    useState<string | null>(null);
 
   const [playlistToRemove, setPlaylistToRemove] =
     useState<SpotifyPlaylist | null>(null);
@@ -404,9 +413,14 @@ export default function Page() {
       setError("Type a vibe or artist first.");
       return;
     }
-
+    
+    if (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId) {
+      setError("Choose a playlist to add songs to.");
+      return;
+    }
     setCreatingPlaylist(true);
     setCreatedPlaylistUrl(null);
+    setAiPlaylistSuccessMessage(null);
     setError(null);
 
     try {
@@ -419,6 +433,9 @@ export default function Page() {
           mode: aiPlaylistMode,
           playlistName: aiPlaylistName,
           isPublic: false,
+          action: aiPlaylistTarget === "existing" ? "append" : "create",
+          targetPlaylistId:
+            aiPlaylistTarget === "existing" ? selectedTargetPlaylistId : undefined,
         }),
       });
 
@@ -432,8 +449,57 @@ export default function Page() {
         );
       }
 
-      setCreatedPlaylistUrl(data.playlist?.url ?? null);
+      if (data.action === "append") {
+        const addedCount = data.tracks?.length ?? 0;
 
+        setPlaylists((currentPlaylists) =>
+          currentPlaylists.map((playlist) => {
+            if (playlist.id !== selectedTargetPlaylistId) return playlist;
+
+            const currentTotal =
+              playlist.items?.total ?? playlist.tracks?.total ?? 0;
+
+            const nextTotal = currentTotal + addedCount;
+
+            return {
+              ...playlist,
+              items: { total: nextTotal },
+              tracks: { total: nextTotal },
+            };
+          })
+        );
+
+        setSelectedPlaylist((currentPlaylist) => {
+          if (!currentPlaylist || currentPlaylist.id !== selectedTargetPlaylistId) {
+            return currentPlaylist;
+          }
+
+          const currentTotal =
+            currentPlaylist.items?.total ?? currentPlaylist.tracks?.total ?? 0;
+
+          const nextTotal = currentTotal + addedCount;
+
+          return {
+            ...currentPlaylist,
+            items: { total: nextTotal },
+            tracks: { total: nextTotal },
+          };
+        });
+
+        if (selectedPlaylist?.id === selectedTargetPlaylistId) {
+          await openPlaylist(selectedPlaylist);
+        }
+
+        setCreatedPlaylistUrl(null);
+        setAiPlaylistSuccessMessage(
+          `Added ${addedCount} songs to the selected playlist.`
+        );
+
+        return;
+      }
+
+      setCreatedPlaylistUrl(data.playlist?.url ?? null);
+      setAiPlaylistSuccessMessage("Playlist created successfully.");
       const createdPlaylist = data.playlist;
 
       if (createdPlaylist?.id) {
@@ -628,14 +694,20 @@ export default function Page() {
         {view === "ai" && (
           <AiPlaylistCreator
             profile={profile}
+            playlists={playlists}
             aiPrompt={aiPrompt}
             aiPlaylistName={aiPlaylistName}
             aiPlaylistMode={aiPlaylistMode}
+            aiPlaylistTarget={aiPlaylistTarget}
+            selectedTargetPlaylistId={selectedTargetPlaylistId}
             creatingPlaylist={creatingPlaylist}
             createdPlaylistUrl={createdPlaylistUrl}
+            successMessage={aiPlaylistSuccessMessage}
             onPromptChange={setAiPrompt}
             onPlaylistNameChange={setAiPlaylistName}
             onModeChange={setAiPlaylistMode}
+            onTargetChange={setAiPlaylistTarget}
+            onTargetPlaylistChange={setSelectedTargetPlaylistId}
             onCreatePlaylist={createAiPlaylist}
           />
         )}

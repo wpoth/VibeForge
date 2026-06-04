@@ -58,16 +58,7 @@ type SpotifyAddItemsResponse = {
     };
 };
 
-function extractJsonArray(text: string) {
-    const start = text.indexOf("[");
-    const end = text.lastIndexOf("]");
-
-    if (start === -1 || end === -1 || end <= start) {
-        throw new Error("AI did not return a valid JSON array");
-    }
-
-    return text.slice(start, end + 1);
-}
+type AiPlaylistAction = "create" | "append";
 
 function uniqueStrings(values: string[]) {
     return Array.from(new Set(values.filter(Boolean)));
@@ -109,12 +100,16 @@ export async function POST(req: Request) {
             mode,
             playlistName,
             isPublic,
+            action = "create",
+            targetPlaylistId,
         }: {
             accessToken?: string;
             prompt?: string;
             mode?: string;
             playlistName?: string;
             isPublic?: boolean;
+            action?: AiPlaylistAction;
+            targetPlaylistId?: string;
         } = body;
 
         logStep("Request body received", {
@@ -123,6 +118,8 @@ export async function POST(req: Request) {
             mode,
             playlistName,
             isPublic,
+            action,
+            targetPlaylistId,
         });
 
         if (!accessToken) {
@@ -146,6 +143,37 @@ export async function POST(req: Request) {
                     error: true,
                     message: "Missing prompt",
                     step: "validate_request",
+                },
+                { status: 400 }
+            );
+        }
+
+        if (action !== "create" && action !== "append") {
+            logError("Invalid action", { action });
+
+            return Response.json(
+                {
+                    error: true,
+                    message: "Invalid action. Use 'create' or 'append'.",
+                    step: "validate_action",
+                },
+                { status: 400 }
+            );
+        }
+
+        if (
+            action === "append" &&
+            (!targetPlaylistId || typeof targetPlaylistId !== "string")
+        ) {
+            logError("Missing target playlist ID for append action", {
+                targetPlaylistId,
+            });
+
+            return Response.json(
+                {
+                    error: true,
+                    message: "Missing target playlist ID",
+                    step: "validate_append_target",
                 },
                 { status: 400 }
             );
@@ -212,25 +240,25 @@ export async function POST(req: Request) {
         // 2. Ask AI for track search queries
         const aiPrompt = `
             You are VibeForge, an expert Spotify playlist curator.
-
+                
             Your job is to generate Spotify track search queries that will be used by the Spotify Search API.
             The output must be easy for Spotify to match to real tracks.
-
+                
             User request:
             "${prompt}"
-
+                
             Mode:
             "${mode ?? "vibe"}"
-
+                
             Return ONLY valid JSON with this exact shape:
             {
               "tracks": [
                 { "query": "artist name song title" }
               ]
             }
-
+                
             The "tracks" array must contain exactly 25 objects.
-
+                
             Important output rules:
             - Return valid JSON only.
             - Do not include markdown.
@@ -246,7 +274,7 @@ export async function POST(req: Request) {
             - Avoid duplicate artists unless the artist is highly central to the prompt.
             - Avoid duplicate tracks.
             - Prefer tracks likely to exist on Spotify.
-
+                
             If mode is "artist":
             - The user is asking for music similar to the named artist or artists.
             - First identify the intended music artist, not just the literal word.
@@ -256,14 +284,14 @@ export async function POST(req: Request) {
             - If the artist is Japanese, Korean, Spanish, Dutch, etc., prefer music from the same or closely related scene.
             - If the prompt says "like artist A and artist B", blend both artists' styles.
             - Use recognizable songs plus some deeper but real picks.
-
+                
             If mode is "vibe":
             - The user is asking for a mood, setting, genre, activity, or aesthetic.
             - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
             - Prefer variety across artists while keeping the playlist coherent.
             - If the prompt mentions a genre, stay close to that genre.
             - If the prompt mentions an activity, choose tracks that fit that activity.
-
+                
             Quality rules:
             - Prioritize accurate real-world music matches over obscure guesses.
             - Prefer tracks with strong Spotify availability.
@@ -272,9 +300,9 @@ export async function POST(req: Request) {
             - Avoid generic searches like "sad song" or "rock music".
             - Avoid album-only queries. Search queries must point to tracks.
             - Do not include explanation fields, genres, reasons, confidence scores, or metadata.
-
+                
             Examples:
-
+                
             User request: "Music like Ado"
             Mode: "artist"
             Good queries:
@@ -288,7 +316,7 @@ export async function POST(req: Request) {
             { "query": "Reol No title" }
             { "query": "LiSA Gurenge" }
             { "query": "Kenshi Yonezu KICK BACK" }
-
+                
             User request: "math rock"
             Mode: "vibe"
             Good queries:
@@ -297,7 +325,7 @@ export async function POST(req: Request) {
             { "query": "CHON Bubble Dream" }
             { "query": "American Football Never Meant" }
             { "query": "Tricot POOL" }
-
+                
             User request: "late night coding, dark synthwave, no vocals"
             Mode: "vibe"
             Good queries:
@@ -305,7 +333,7 @@ export async function POST(req: Request) {
             { "query": "Kavinsky Nightcall" }
             { "query": "Timecop1983 On the Run" }
             { "query": "Perturbator Future Club" }
-
+                
             Now generate exactly 25 Spotify search queries for the user's request.
             `;
 
@@ -527,7 +555,96 @@ export async function POST(req: Request) {
             );
         }
 
-        // 4. Create playlist
+        const urisToAdd = foundUris.slice(0, 100);
+
+        // 4A. Append to existing playlist
+        if (action === "append") {
+            logStep("Adding AI tracks to existing playlist", {
+                endpoint: "POST /playlists/{id}/items",
+                playlistId: targetPlaylistId,
+                uriCount: urisToAdd.length,
+                uris: urisToAdd,
+            });
+
+            const addItemsRes: globalThis.Response = await fetch(
+                `https://api.spotify.com/v1/playlists/${targetPlaylistId}/items`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        uris: urisToAdd,
+                    }),
+                }
+            );
+
+            const addItemsData = (await addItemsRes.json()) as SpotifyAddItemsResponse;
+
+            logStep("Append items response", {
+                status: addItemsRes.status,
+                ok: addItemsRes.ok,
+                snapshotId: addItemsData.snapshot_id,
+                error: addItemsData.error,
+                fullResponse: addItemsData,
+            });
+
+            if (!addItemsRes.ok) {
+                logError("Append items failed", {
+                    status: addItemsRes.status,
+                    response: addItemsData,
+                    playlistId: targetPlaylistId,
+                });
+
+                return Response.json(
+                    {
+                        error: true,
+                        message:
+                            addItemsData?.error?.message ??
+                            `Failed to add tracks to playlist. Spotify returned ${addItemsRes.status}.`,
+                        details: addItemsData,
+                        step: "append_items",
+                    },
+                    { status: addItemsRes.status }
+                );
+            }
+
+            const responsePayload = {
+                success: true,
+                action: "append" as const,
+                playlist: {
+                    id: targetPlaylistId,
+                    items: {
+                        total: urisToAdd.length,
+                    },
+                    tracks: {
+                        total: urisToAdd.length,
+                    },
+                },
+                tracks: foundTracks.map((track) => ({
+                    id: track.id,
+                    uri: track.uri,
+                    name: track.name,
+                    artists:
+                        track.artists?.map((artist) => artist.name).filter(Boolean) ?? [],
+                })),
+                debug: {
+                    prompt,
+                    mode: mode ?? "vibe",
+                    generatedQueries: queries,
+                    foundTrackCount: foundTracks.length,
+                    addedTrackCount: urisToAdd.length,
+                    durationMs: Date.now() - startedAt,
+                },
+            };
+
+            logStep("SUCCESS", responsePayload);
+
+            return Response.json(responsePayload);
+        }
+
+        // 4B. Create new playlist
         const finalPlaylistName =
             playlistName?.trim() || `VibeForge - ${prompt.trim().slice(0, 40)}`;
 
@@ -536,7 +653,7 @@ export async function POST(req: Request) {
             userId: meData.id,
             finalPlaylistName,
             isPublic: Boolean(isPublic),
-            trackCountToAdd: foundUris.length,
+            trackCountToAdd: urisToAdd.length,
         });
 
         const createPlaylistRes: globalThis.Response = await fetch(
@@ -587,10 +704,9 @@ export async function POST(req: Request) {
             );
         }
 
-        // 5. Add tracks to playlist
-        const urisToAdd = foundUris.slice(0, 100);
-
-        logStep("Adding tracks to playlist", {
+        // 5. Add tracks to new playlist
+        logStep("Adding tracks to new playlist", {
+            endpoint: "POST /playlists/{id}/items",
             playlistId: createdPlaylist.id,
             uriCount: urisToAdd.length,
             uris: urisToAdd,
@@ -643,6 +759,7 @@ export async function POST(req: Request) {
 
         const responsePayload = {
             success: true,
+            action: "create" as const,
             playlist: {
                 id: createdPlaylist.id,
                 name: createdPlaylist.name,

@@ -65,6 +65,7 @@ export type PlaylistTracksResponse = ApiErrorResponse & {
 
 export type AiPlaylistResponse = ApiErrorResponse & {
   success?: boolean;
+  action?: "create" | "append";
   playlist?: {
     id?: string;
     name?: string;
