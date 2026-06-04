@@ -66,7 +66,9 @@ function getErrorMessage(err: unknown) {
   return err instanceof Error ? err.message : "Unknown error";
 }
 
-function getTrackFromPlaylistItem(item: SpotifyPlaylistItem): SpotifyTrack | null {
+function getTrackFromPlaylistItem(
+  item: SpotifyPlaylistItem
+): SpotifyTrack | null {
   return item.item ?? item.track ?? null;
 }
 
@@ -175,6 +177,7 @@ export default function Page() {
     if (!simplified.length) return;
 
     setLoadingAI(true);
+    setError(null);
 
     try {
       const aiRes = await fetch("/api/ai", {
@@ -233,7 +236,6 @@ export default function Page() {
       }
 
       const playlistItems = tracksData.items ?? [];
-
       setTracks(playlistItems);
     } catch (err: unknown) {
       console.error("Failed to open playlist:", err);
@@ -247,7 +249,7 @@ export default function Page() {
   // LOADING STATE
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
         Loading VibeForge...
       </div>
     );
@@ -256,37 +258,92 @@ export default function Page() {
   // LOGIN SCREEN
   if (!session) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
-        <h1 className="text-5xl font-bold">VibeForge</h1>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white relative overflow-hidden">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
+          <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+        </div>
 
-        <button
-          onClick={() => signIn("spotify", { callbackUrl: "/" })}
-          className="mt-6 px-6 py-3 bg-green-500 text-black rounded-full font-semibold"
-        >
-          Login with Spotify
-        </button>
+        <div className="relative z-10 flex flex-col items-center">
+          <h1 className="text-6xl font-bold tracking-tight">VibeForge</h1>
+          <p className="mt-4 max-w-md text-center text-zinc-400">
+            Analyze your playlists, discover the mood behind your music, and
+            generate insights only when you need them.
+          </p>
+
+          <button
+            onClick={() => signIn("spotify", { callbackUrl: "/" })}
+            className="mt-8 px-7 py-3 bg-green-500 text-black rounded-full font-semibold hover:bg-green-400 transition shadow-lg shadow-green-500/20"
+          >
+            Login with Spotify
+          </button>
+        </div>
       </div>
     );
   }
 
   // MAIN UI
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
+      <style jsx global>{`
+        .custom-sidebar-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(34, 197, 94, 0.55) rgba(255, 255, 255, 0.05);
+        }
+
+        .custom-sidebar-scrollbar::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .custom-sidebar-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 999px;
+        }
+
+        .custom-sidebar-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(
+            180deg,
+            rgba(34, 197, 94, 0.85),
+            rgba(168, 85, 247, 0.55)
+          );
+          border-radius: 999px;
+          border: 2px solid rgba(15, 17, 23, 0.95);
+        }
+
+        .custom-sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(
+            180deg,
+            rgba(74, 222, 128, 0.95),
+            rgba(192, 132, 252, 0.75)
+          );
+        }
+      `}</style>
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
+        <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+      </div>
+
       {/* HEADER */}
-      <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
-        <h1 className="font-bold">VibeForge</h1>
+      <div className="fixed top-0 left-0 right-0 h-14 border-b border-white/10 bg-[#0f1117]/80 backdrop-blur-xl flex items-center justify-between px-5 z-50">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-lg bg-green-500/20 border border-green-400/30 flex items-center justify-center text-green-300 text-sm">
+            ♪
+          </div>
+          <h1 className="font-bold tracking-tight">VibeForge</h1>
+        </div>
 
         <div className="flex gap-3">
           <button
             onClick={() => setView("ai")}
-            className="text-sm text-zinc-400 hover:text-white"
+            className="text-sm text-zinc-400 hover:text-white transition"
           >
             AI Mode
           </button>
 
           <button
             onClick={() => signOut()}
-            className="text-sm text-zinc-400 hover:text-white"
+            className="text-sm text-zinc-400 hover:text-white transition"
           >
             Logout
           </button>
@@ -294,8 +351,13 @@ export default function Page() {
       </div>
 
       {/* SIDEBAR */}
-      <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-80 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4">Playlists</h2>
+      <div className="custom-sidebar-scrollbar fixed left-0 top-14 h-[calc(100vh-56px)] w-80 bg-white/[0.03] backdrop-blur-xl border-r border-white/10 p-4 overflow-y-auto z-20">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold">Playlists</h2>
+          <p className="text-xs text-zinc-500 mt-1">
+            Owned and collaborative playlists
+          </p>
+        </div>
 
         {!playlistsLoaded && (
           <p className="text-sm text-zinc-500">Loading playlists...</p>
@@ -306,7 +368,7 @@ export default function Page() {
         )}
 
         {playlistsLoaded && hiddenPlaylists > 0 && (
-          <div className="mb-4 p-3 rounded-lg bg-zinc-900 border border-zinc-800">
+          <div className="mb-4 p-3 rounded-xl bg-white/[0.04] border border-white/10">
             <p className="text-xs text-zinc-400">
               {hiddenPlaylists} playlists are hidden because Spotify does not
               allow reading tracks from playlists you do not own or collaborate
@@ -317,14 +379,18 @@ export default function Page() {
 
         {playlists.map((pl) => {
           const imageUrl = getBestImage(pl.images);
+          const isSelected = selectedPlaylist?.id === pl.id;
 
           return (
             <div
               key={pl.id}
               onClick={() => openPlaylist(pl)}
-              className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition flex gap-3"
+              className={`p-3 rounded-xl mb-2 cursor-pointer transition flex gap-3 border ${isSelected
+                  ? "bg-green-500/10 border-green-400/40 shadow-lg shadow-green-500/10"
+                  : "bg-white/[0.04] border-white/5 hover:bg-white/[0.08] hover:border-white/10"
+                }`}
             >
-              <div className="w-12 h-12 rounded-md bg-zinc-800 overflow-hidden shrink-0">
+              <div className="w-14 h-14 rounded-xl bg-zinc-800 overflow-hidden shrink-0 shadow-lg">
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -339,7 +405,7 @@ export default function Page() {
                 )}
               </div>
 
-              <div className="min-w-0">
+              <div className="min-w-0 flex flex-col justify-center">
                 <p className="text-sm font-medium truncate">{pl.name}</p>
 
                 <p className="text-xs text-zinc-500">
@@ -352,26 +418,37 @@ export default function Page() {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="ml-80 pt-20 p-6">
+      <div className="relative z-10 ml-80 pt-20 p-6">
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-950/60 border border-red-900 text-sm text-red-200">
+          <div className="mb-6 p-4 rounded-xl bg-red-950/60 border border-red-900/80 text-sm text-red-200">
             {error}
           </div>
         )}
 
         {/* AI MODE */}
         {view === "ai" && (
-          <div className="max-w-2xl">
-            <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
+          <div className="max-w-3xl">
+            <p className="text-sm text-green-400 font-medium mb-3">
+              AI Playlist Intelligence
+            </p>
 
-            <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
+            <h2 className="text-4xl font-bold mb-3 tracking-tight">
+              Find the sound behind your mood.
+            </h2>
+
+            <p className="text-zinc-400 mb-8 max-w-2xl">
+              Open a playlist, inspect its tracks, and generate an AI vibe
+              analysis only when you need it.
+            </p>
+
+            <div className="p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
               <input
                 placeholder="Describe a vibe..."
-                className="w-full p-3 bg-black border border-zinc-800 rounded-lg"
+                className="w-full p-4 bg-black/30 border border-white/10 rounded-xl outline-none focus:border-green-400/60 transition placeholder:text-zinc-600"
               />
             </div>
 
-            <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+            <div className="mt-10 max-w-md bg-white/[0.04] border border-white/10 rounded-2xl p-4">
               <p className="text-sm text-zinc-400">Logged in as</p>
               <p className="font-medium">{profile?.display_name}</p>
             </div>
@@ -380,9 +457,9 @@ export default function Page() {
 
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-24 h-24 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
+          <div className="max-w-4xl">
+            <div className="flex items-end gap-6 mb-10 p-6 rounded-2xl bg-white/[0.04] border border-white/10 shadow-2xl">
+              <div className="w-32 h-32 rounded-2xl bg-zinc-900 border border-white/10 overflow-hidden shrink-0 shadow-2xl">
                 {getBestImage(selectedPlaylist.images) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -397,12 +474,16 @@ export default function Page() {
                 )}
               </div>
 
-              <div>
-                <p className="text-sm text-zinc-500">Playlist</p>
-                <h2 className="text-2xl font-bold">
+              <div className="min-w-0">
+                <p className="text-sm text-green-400 font-medium mb-2">
+                  Playlist
+                </p>
+
+                <h2 className="text-4xl font-bold tracking-tight truncate">
                   {selectedPlaylist.name}
                 </h2>
-                <p className="text-sm text-zinc-500">
+
+                <p className="text-sm text-zinc-500 mt-2">
                   {selectedPlaylist.items?.total ??
                     selectedPlaylist.tracks?.total ??
                     0}{" "}
@@ -421,7 +502,7 @@ export default function Page() {
               <button
                 onClick={() => generateAiAnalysis(tracks)}
                 disabled={loadingAI}
-                className="mb-4 px-4 py-2 rounded-lg bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mb-4 px-4 py-2 rounded-lg bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
               >
                 Generate AI analysis
               </button>
@@ -434,14 +515,14 @@ export default function Page() {
             )}
 
             {aiAnalysis && (
-              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+              <div className="mb-6 p-4 rounded-2xl bg-white/[0.04] border border-white/10 shadow-xl">
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <h3 className="font-semibold">AI Analysis</h3>
 
                   <button
                     onClick={() => generateAiAnalysis(tracks)}
                     disabled={loadingAI}
-                    className="text-xs px-3 py-1 rounded-full bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     Regenerate
                   </button>
@@ -460,44 +541,46 @@ export default function Page() {
               </p>
             )}
 
-            {tracks.map((playlistItem, i) => {
-              const track = getTrackFromPlaylistItem(playlistItem);
-              if (!track) return null;
+            <div className="space-y-2">
+              {tracks.map((playlistItem, i) => {
+                const track = getTrackFromPlaylistItem(playlistItem);
+                if (!track) return null;
 
-              const trackImageUrl = getBestImage(track.album?.images);
+                const trackImageUrl = getBestImage(track.album?.images);
 
-              return (
-                <div
-                  key={track.id ?? i}
-                  className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center gap-3"
-                >
-                  <div className="w-12 h-12 rounded-md bg-zinc-800 overflow-hidden shrink-0">
-                    {trackImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={trackImageUrl}
-                        alt={`${track.name} cover`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">
-                        ♪
-                      </div>
-                    )}
+                return (
+                  <div
+                    key={track.id ?? i}
+                    className="p-3 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition flex items-center gap-3"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-zinc-800 overflow-hidden shrink-0">
+                      {trackImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={trackImageUrl}
+                          alt={`${track.name} cover`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-zinc-500">
+                          ♪
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{track.name}</p>
+                      <p className="text-sm text-zinc-400 truncate">
+                        {track.artists
+                          ?.map((artist) => artist.name)
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{track.name}</p>
-                    <p className="text-sm text-zinc-400 truncate">
-                      {track.artists
-                        ?.map((artist) => artist.name)
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
