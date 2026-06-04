@@ -1,121 +1,102 @@
-export type TrackDTO = {
-  id: string;
-  name: string;
-  artists: string[];
-  album?: string;
+type SpotifyApiError = {
+  error?: {
+    message?: string;
+  };
 };
 
-export type PlaylistDTO = {
-  id: string;
-  name: string;
-  description: string;
-  image?: string | null;
-  trackCount?: number;
-  tracks?: TrackDTO[];
+type SpotifyPagingResponse<T> = {
+  items?: T[];
+  next?: string | null;
+  error?: {
+    message?: string;
+  };
 };
 
-/**
- * Core Spotify request helper
- * - Handles auth
- * - Handles errors consistently
- * - Prevents silent crashes
- */
-async function spotifyRequest(endpoint: string, accessToken: string) {
-  const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
+function getSpotifyErrorMessage(data: SpotifyApiError | unknown) {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "error" in data &&
+    typeof data.error === "object" &&
+    data.error !== null &&
+    "message" in data.error &&
+    typeof data.error.message === "string"
+  ) {
+    return data.error.message;
+  }
+
+  return JSON.stringify(data);
+}
+
+export async function getSpotifyProfile(accessToken: string) {
+  const res = await fetch("https://api.spotify.com/v1/me", {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
 
-  let data: any;
-
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`Spotify returned invalid JSON at ${endpoint}`);
-  }
+  const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(
-      `Spotify error ${res.status}: ${
-        data?.error?.message || JSON.stringify(data)
-      }`
-    );
+    throw new Error(`Failed to fetch Spotify profile: ${getSpotifyErrorMessage(data)}`);
   }
 
   return data;
 }
 
-/**
- * GET /me
- */
-export async function getSpotifyProfile(accessToken: string) {
-  return spotifyRequest("/me", accessToken);
-}
-
-/**
- * GET /me/playlists (normalized DTO)
- */
 export async function getUserPlaylists(accessToken: string) {
-  const data = await spotifyRequest("/me/playlists", accessToken);
-
-  const playlists: PlaylistDTO[] = (data.items ?? []).map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description ?? "",
-    image: p.images?.[0]?.url ?? null,
-    trackCount: p.tracks?.total ?? 0,
-  }));
-
-  return { playlists };
-}
-
-/**
- * GET /playlists/{id}/tracks
- * Fully normalized into TrackDTO[]
- */
-export async function getPlaylistTracks(
-  accessToken: string,
-  playlistId: string
-): Promise<TrackDTO[]> {
-  let tracks: TrackDTO[] = [];
-
-  let url: string | null =
-    `/playlists/${playlistId}/tracks?limit=100&market=NL`;
+  let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
+  const playlists: unknown[] = [];
 
   while (url) {
-    const data = await spotifyRequest(url, accessToken);
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-    if (!Array.isArray(data?.items)) {
-      throw new Error("Invalid Spotify response: missing items array");
+    const data = (await res.json()) as SpotifyPagingResponse<unknown>;
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch playlists: ${getSpotifyErrorMessage(data)}`);
     }
 
-    const mapped: TrackDTO[] = data.items
-      .map((item: any) => item.track)
-      .filter(Boolean)
-      .map((track: any) => ({
-        id: track.id,
-        name: track.name,
-        artists: track.artists?.map((a: any) => a.name) ?? [],
-        album: track.album?.name ?? undefined,
-      }));
-
-    tracks.push(...mapped);
-
-    // Spotify pagination safety
-    if (data.next) {
-      url = data.next.replace("https://api.spotify.com/v1", "");
-    } else {
-      url = null;
+    if (!Array.isArray(data.items)) {
+      throw new Error("Invalid Spotify response: missing playlist items");
     }
+
+    playlists.push(...data.items);
+    url = data.next ?? null;
   }
 
-  return tracks;
+  return playlists;
 }
 
-/**
- * Generic Spotify fetch (only use if needed internally)
- */
-export async function spotifyFetch(endpoint: string, accessToken: string) {
-  return spotifyRequest(endpoint, accessToken);
+export async function getPlaylistItems(accessToken: string, playlistId: string) {
+  const items: unknown[] = [];
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = (await res.json()) as SpotifyPagingResponse<unknown>;
+
+    if (!res.ok) {
+      throw new Error(`Spotify error ${res.status}: ${getSpotifyErrorMessage(data)}`);
+    }
+
+    if (!Array.isArray(data.items)) {
+      throw new Error("Invalid Spotify response: missing playlist items");
+    }
+
+    items.push(...data.items);
+    url = data.next ?? null;
+  }
+
+  return items;
 }

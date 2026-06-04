@@ -3,73 +3,130 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 
+type SpotifyArtist = {
+  name?: string;
+};
+
+type SpotifyTrack = {
+  id?: string;
+  name?: string;
+  type?: string;
+  artists?: SpotifyArtist[];
+};
+
+type SpotifyPlaylistItem = {
+  item?: SpotifyTrack | null;
+  track?: SpotifyTrack | null;
+};
+
+type SpotifyPlaylist = {
+  id: string;
+  name: string;
+  items?: {
+    total?: number;
+  };
+  tracks?: {
+    total?: number;
+  };
+};
+
+type SpotifyProfile = {
+  display_name?: string;
+};
+
+type ApiErrorResponse = {
+  error?: boolean | string;
+  message?: string;
+};
+
+type PlaylistsResponse = ApiErrorResponse & {
+  items?: SpotifyPlaylist[];
+};
+
+type PlaylistTracksResponse = ApiErrorResponse & {
+  items?: SpotifyPlaylistItem[];
+};
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : "Unknown error";
+}
+
+function getTrackFromPlaylistItem(item: SpotifyPlaylistItem): SpotifyTrack | null {
+  return item.item ?? item.track ?? null;
+}
+
 export default function Page() {
   const { data: session, status } = useSession();
 
-  const [profile, setProfile] = useState<any>(null);
-  const [playlists, setPlaylists] = useState<any[]>([]);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
-  const [tracks, setTracks] = useState<any[]>([]);
+  const [profile, setProfile] = useState<SpotifyProfile | null>(null);
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [playlistsLoaded, setPlaylistsLoaded] = useState(false);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null);
+  const [tracks, setTracks] = useState<SpotifyPlaylistItem[]>([]);
   const [view, setView] = useState<"ai" | "playlist">("ai");
 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [loadingTracks, setLoadingTracks] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // PROFILE (unchanged if you still use it)
+  const accessToken = session?.accessToken;
+
+  // LOAD PROFILE
   useEffect(() => {
-    fetch("/api/me")
+    if (!accessToken) return;
+
+    fetch("/api/me", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken }),
+    })
       .then((r) => r.json())
-      .then(setProfile)
-      .catch(console.error);
-  }, []);
+      .then((data: SpotifyProfile & ApiErrorResponse) => {
+        if (data?.error) {
+          throw new Error(data?.message || "Failed to load profile");
+        }
 
-  // PLAYLISTS (clean DTO)
+        setProfile(data);
+      })
+      .catch((err: unknown) => {
+        console.error(err);
+        setError(getErrorMessage(err));
+      });
+  }, [accessToken]);
+
+  // LOAD PLAYLISTS
   useEffect(() => {
-    if (!session) return;
+    if (!accessToken) return;
 
     fetch("/api/playlists", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        spotifyId: (session as any).spotifyId,
-      }),
+      body: JSON.stringify({ accessToken }),
     })
       .then((r) => r.json())
-      .then((data) => setPlaylists(data.playlists ?? []))
-      .catch(console.error);
-  }, [session]);
+      .then((data: PlaylistsResponse) => {
+        if (data?.error) {
+          throw new Error(data?.message || "Failed to load playlists");
+        }
 
-  // OPEN PLAYLIST
-  async function openPlaylist(pl: any) {
-    setView("playlist");
-    setSelectedPlaylist(pl);
-    setTracks([]);
-    setAiAnalysis(null);
-    setLoadingAI(false);
+        setPlaylists(data.items ?? []);
+      })
+      .catch((err: unknown) => {
+        console.error(err);
+        setError(getErrorMessage(err));
+      })
+      .finally(() => setPlaylistsLoaded(true));
+  }, [accessToken]);
 
-    const res = await fetch("/api/playlist", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        playlistId: pl.id,
-      }),
-    });
-
-    const full = await res.json();
-
-    if (!res.ok || full?.error) {
-      console.error("Failed to load playlist:", full);
-      return;
-    }
-
-    // ✅ CLEAN DTO: no Spotify nesting anymore
-    setSelectedPlaylist(full);
-    setTracks(full.tracks ?? []);
-
-    const simplified = (full.tracks ?? []).map((t: any) => ({
-      name: t.name,
-      artists: t.artists,
-    }));
+  async function generateAiAnalysis(playlistItems: SpotifyPlaylistItem[]) {
+    const simplified = playlistItems
+      .map(getTrackFromPlaylistItem)
+      .filter((track): track is SpotifyTrack => Boolean(track?.name))
+      .map((track) => ({
+        name: track.name,
+        artists: track.artists?.map((artist) => artist.name).filter(Boolean) ?? [],
+      }));
 
     if (!simplified.length) return;
 
@@ -82,33 +139,82 @@ export default function Page() {
         body: JSON.stringify({ playlist: simplified }),
       });
 
-      const aiData = await aiRes.json();
+      const aiData = (await aiRes.json()) as ApiErrorResponse & { result?: string };
+
+      if (!aiRes.ok || aiData?.error) {
+        throw new Error(aiData?.message || String(aiData?.error) || "AI analysis failed");
+      }
+
       setAiAnalysis(aiData?.result ?? null);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("AI failed:", err);
+      setError(getErrorMessage(err));
     } finally {
       setLoadingAI(false);
     }
   }
 
-  // LOADING
+  // OPEN PLAYLIST
+  async function openPlaylist(pl: SpotifyPlaylist) {
+    if (!accessToken) return;
+
+    setView("playlist");
+    setSelectedPlaylist(pl);
+    setTracks([]);
+    setAiAnalysis(null);
+    setLoadingAI(false);
+    setLoadingTracks(true);
+    setError(null);
+
+    try {
+      const tracksRes = await fetch("/api/playlist-tracks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playlistId: pl.id,
+          accessToken,
+        }),
+      });
+
+      const tracksData = (await tracksRes.json()) as PlaylistTracksResponse;
+
+      if (!tracksRes.ok || tracksData?.error) {
+        throw new Error(
+          tracksData?.message ||
+            "Could not load playlist tracks. Spotify may not expose items for this playlist."
+        );
+      }
+
+      const playlistItems = tracksData.items ?? [];
+      setTracks(playlistItems);
+      await generateAiAnalysis(playlistItems);
+    } catch (err: unknown) {
+      console.error("Failed to open playlist:", err);
+      setError(getErrorMessage(err));
+      setTracks([]);
+    } finally {
+      setLoadingTracks(false);
+    }
+  }
+
+  // LOADING STATE
   if (status === "loading") {
     return (
-      <div className="h-screen flex items-center justify-center bg-black text-white">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        Loading VibeForge...
       </div>
     );
   }
 
-  // LOGIN
+  // LOGIN SCREEN
   if (!session) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-black text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white">
         <h1 className="text-5xl font-bold">VibeForge</h1>
 
         <button
           onClick={() => signIn("spotify", { callbackUrl: "/" })}
-          className="mt-6 px-6 py-3 bg-green-500 text-black rounded-full font-semibold hover:scale-105 transition"
+          className="mt-6 px-6 py-3 bg-green-500 text-black rounded-full font-semibold"
         >
           Login with Spotify
         </button>
@@ -116,23 +222,24 @@ export default function Page() {
     );
   }
 
+  // MAIN UI
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-zinc-950 to-black text-white">
+    <div className="min-h-screen bg-black text-white">
       {/* HEADER */}
-      <div className="fixed top-0 left-0 right-0 h-14 bg-black/60 backdrop-blur border-b border-zinc-800 flex items-center justify-between px-4 z-50">
-        <h1 className="font-bold text-green-400">VibeForge</h1>
+      <div className="fixed top-0 left-0 right-0 h-14 border-b border-zinc-800 bg-black flex items-center justify-between px-4 z-50">
+        <h1 className="font-bold">VibeForge</h1>
 
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <button
             onClick={() => setView("ai")}
-            className="text-sm text-zinc-400 hover:text-white transition"
+            className="text-sm text-zinc-400 hover:text-white"
           >
             AI Mode
           </button>
 
           <button
             onClick={() => signOut()}
-            className="text-sm text-zinc-400 hover:text-white transition"
+            className="text-sm text-zinc-400 hover:text-white"
           >
             Logout
           </button>
@@ -140,42 +247,55 @@ export default function Page() {
       </div>
 
       {/* SIDEBAR */}
-      <div className="fixed left-0 top-14 w-72 h-[calc(100vh-56px)] bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
-        <h2 className="text-xs uppercase tracking-widest text-zinc-500 mb-4">
-          Playlists
-        </h2>
+      <div className="fixed left-0 top-14 h-[calc(100vh-56px)] w-72 bg-zinc-950 border-r border-zinc-800 p-4 overflow-y-auto">
+        <h2 className="text-lg font-semibold mb-4">Playlists</h2>
 
-        {playlists.map((pl: any, i: number) => (
+        {!playlistsLoaded && (
+          <p className="text-sm text-zinc-500">Loading playlists...</p>
+        )}
+
+        {playlistsLoaded && playlists.length === 0 && (
+          <p className="text-sm text-zinc-500">No playlists found.</p>
+        )}
+
+        {playlists.map((pl) => (
           <div
             key={pl.id}
             onClick={() => openPlaylist(pl)}
-            className="p-3 mb-2 rounded-lg bg-zinc-900/40 hover:bg-zinc-800 cursor-pointer transition transform hover:translate-x-1"
-            style={{
-              animation: `fadeIn 0.2s ease ${i * 0.02}s both`,
-            }}
+            className="p-3 rounded-lg mb-2 bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
           >
-            <p className="font-medium">{pl.name}</p>
-            <p className="text-xs text-zinc-500">{pl.trackCount ?? 0} tracks</p>
+            <p className="text-sm font-medium">{pl.name}</p>
+
+            <p className="text-xs text-zinc-500">
+              {pl.items?.total ?? pl.tracks?.total ?? 0} tracks
+            </p>
           </div>
         ))}
       </div>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
       <div className="ml-72 pt-20 p-6">
-        {/* AI VIEW */}
+        {error && (
+          <div className="mb-6 p-4 rounded-lg bg-red-950/60 border border-red-900 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {/* AI MODE */}
         {view === "ai" && (
           <div className="max-w-2xl">
             <h2 className="text-3xl font-bold mb-6">AI Mode</h2>
 
-            <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-xl">
+            <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
               <input
                 placeholder="Describe a vibe..."
-                className="w-full p-3 bg-black border border-zinc-800 rounded-lg focus:border-green-500 outline-none"
+                className="w-full p-3 bg-black border border-zinc-800 rounded-lg"
               />
             </div>
 
-            <div className="mt-8 text-sm text-zinc-400">
-              Logged in as {profile?.display_name}
+            <div className="mt-10 max-w-md bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+              <p className="text-sm text-zinc-400">Logged in as</p>
+              <p className="font-medium">{profile?.display_name}</p>
             </div>
           </div>
         )}
@@ -183,58 +303,57 @@ export default function Page() {
         {/* PLAYLIST VIEW */}
         {view === "playlist" && selectedPlaylist && (
           <div className="max-w-3xl">
-            <h2 className="text-3xl font-bold mb-4 text-green-400">
+            <h2 className="text-2xl font-bold mb-6">
               {selectedPlaylist.name}
             </h2>
 
+            {loadingTracks && (
+              <div className="mb-4 text-sm text-zinc-400">
+                Loading tracks...
+              </div>
+            )}
+
             {loadingAI && (
-              <div className="text-sm text-zinc-500 mb-4 animate-pulse">
+              <div className="mb-4 text-sm text-zinc-400">
                 Generating AI analysis...
               </div>
             )}
 
             {aiAnalysis && (
-              <div className="mb-6 p-4 bg-zinc-900/40 border border-zinc-800 rounded-xl">
-                <pre className="text-sm whitespace-pre-wrap text-zinc-300">
+              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                <h3 className="font-semibold mb-2">AI Analysis</h3>
+                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
                   {aiAnalysis}
                 </pre>
               </div>
             )}
 
-            {/* TRACKS */}
-            <div className="space-y-2">
-              {tracks.map((t: any, i: number) => (
+            {/* TRACK LIST */}
+            {!loadingTracks && tracks.length === 0 && (
+              <p className="text-sm text-zinc-500">
+                No tracks found for this playlist.
+              </p>
+            )}
+
+            {tracks.map((playlistItem, i) => {
+              const track = getTrackFromPlaylistItem(playlistItem);
+              if (!track) return null;
+
+              return (
                 <div
-                  key={i}
-                  className="p-3 bg-zinc-900/40 border border-zinc-800 rounded-lg hover:bg-zinc-800/60 transition transform hover:translate-x-1"
-                  style={{
-                    animation: `fadeIn 0.15s ease ${i * 0.015}s both`,
-                  }}
+                  key={track.id ?? i}
+                  className="p-3 mb-2 rounded-lg bg-zinc-900 border border-zinc-800"
                 >
-                  <p className="font-medium">{t.name}</p>
-                  <p className="text-xs text-zinc-500">
-                    {t.artists?.join(", ")}
+                  <p className="font-medium">{track.name}</p>
+                  <p className="text-sm text-zinc-400">
+                    {track.artists?.map((artist) => artist.name).join(", ")}
                   </p>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
-
-      {/* ANIMATION */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }

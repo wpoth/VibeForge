@@ -1,62 +1,26 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { getUserPlaylists } from "@/lib/spotify";
+
+function getErrorMessage(err: unknown) {
+  return err instanceof Error ? err.message : "Unknown error";
+}
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    const { spotifyId } = await req.json();
+    const { accessToken } = (await req.json()) as { accessToken?: string };
 
-    if (!session?.accessToken) {
+    if (!accessToken) {
       return Response.json(
-        { error: true, message: "No session / access token" },
-        { status: 401 }
-      );
-    }
-
-    if (!spotifyId) {
-      return Response.json(
-        { error: true, message: "Missing spotifyId" },
+        { error: "Missing accessToken" },
         { status: 400 }
       );
     }
 
-    const res = await fetch(
-      `https://api.spotify.com/v1/users/${spotifyId}/playlists`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.accessToken}`,
-        },
-      }
-    );
+    const playlists = await getUserPlaylists(accessToken);
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return Response.json(
-        {
-          error: true,
-          status: res.status,
-          spotify: data,
-        },
-        { status: res.status }
-      );
-    }
-
-    return Response.json({
-      playlists: (data.items ?? []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        trackCount: p.tracks?.total ?? 0,
-      })),
-    });
-  } catch (err: any) {
-    console.error("PLAYLISTS API CRASH:", err);
-
+    return Response.json({ items: playlists });
+  } catch (err: unknown) {
     return Response.json(
-      {
-        error: true,
-        message: err.message || "Unknown error",
-      },
+      { error: true, message: getErrorMessage(err) },
       { status: 500 }
     );
   }
