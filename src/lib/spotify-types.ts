@@ -35,6 +35,7 @@ export type SpotifyPlaylistItem = {
 export type SpotifyPlaylist = {
   id: string;
   name: string;
+  snapshot_id?: string;
   images?: SpotifyImage[];
   items?: {
     total?: number;

@@ -31,11 +31,22 @@ export async function POST(req: Request) {
     return Response.json({
       id: data.id,
       name: data.name,
-      tracks:
-        data.tracks?.items?.map((t: any) => ({
-          id: t.item.id,
-          name: t.item.name,
-          artists: t.item.artists?.map((a: any) => a.name) ?? [],
+      snapshot_id: data.snapshot_id,
+      items:
+        data.tracks?.items?.map((t: any, index: number) => ({
+          position: index,
+          added_at: t.added_at,
+          added_by: t.added_by,
+          track: {
+            id: t.track?.id ?? t.item?.id,
+            uri: t.track?.uri ?? t.item?.uri,
+            name: t.track?.name ?? t.item?.name,
+            artists:
+              (t.track?.artists ?? t.item?.artists)?.map((a: any) => ({
+                name: a.name,
+              })) ?? [],
+            album: t.track?.album ?? t.item?.album,
+          },
         })) ?? [],
     });
   } catch (err: any) {

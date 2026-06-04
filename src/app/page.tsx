@@ -21,10 +21,17 @@ import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
+import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
+
 export default function Page() {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
 
+  const {
+    currentlyPlaying,
+    isPlaying,
+    currentlyPlayingError,
+  } = useCurrentlyPlaying(accessToken);
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
 
@@ -140,7 +147,8 @@ export default function Page() {
       aiAnalysisError ||
       aiPlaylistCreatorError ||
       playlistRemovalError ||
-      trackRemovalError;
+      trackRemovalError ||
+      currentlyPlayingError;
 
     if (nextError) {
       setError(nextError);
@@ -219,7 +227,11 @@ export default function Page() {
 
   return (
     <AppShell>
-      <Header onAiModeClick={handleAiModeClick} />
+      <Header
+        onAiModeClick={handleAiModeClick}
+        currentlyPlaying={currentlyPlaying}
+        isPlaying={isPlaying}
+      />
 
       <Sidebar
         playlists={playlists}
@@ -281,9 +293,8 @@ export default function Page() {
       <ConfirmDialog
         open={confirmingBulkRemove}
         title="Remove selected songs?"
-        description={`This will remove ${selectedTrackUris.length} selected song${
-          selectedTrackUris.length === 1 ? "" : "s"
-        } from "${selectedPlaylist?.name ?? "this playlist"}".`}
+        description={`This will remove ${selectedTrackUris.length} selected song${selectedTrackUris.length === 1 ? "" : "s"
+          } from "${selectedPlaylist?.name ?? "this playlist"}".`}
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
         loading={removingSelectedTracks}
@@ -296,9 +307,8 @@ export default function Page() {
         title="Remove song?"
         description={
           trackToRemove
-            ? `This will remove "${
-                getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
-              }" from "${selectedPlaylist?.name ?? "this playlist"}".`
+            ? `This will remove "${getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
+            }" from "${selectedPlaylist?.name ?? "this playlist"}".`
             : ""
         }
         confirmLabel="Remove song"
