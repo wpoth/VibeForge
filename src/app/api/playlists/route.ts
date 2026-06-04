@@ -5,6 +5,12 @@ type SpotifyUserResponse = {
   };
 };
 
+type SpotifyImage = {
+  url: string;
+  height?: number | null;
+  width?: number | null;
+};
+
 type SpotifyPlaylist = {
   id: string;
   name: string;
@@ -14,17 +20,13 @@ type SpotifyPlaylist = {
     id?: string;
     display_name?: string;
   };
+  images?: SpotifyImage[];
   items?: {
     total?: number;
   };
   tracks?: {
     total?: number;
   };
-  images?: {
-    url: string;
-    height?: number | null;
-    width?: number | null;
-  }[];
 };
 
 type SpotifyPlaylistsResponse = {
@@ -37,12 +39,16 @@ type SpotifyPlaylistsResponse = {
 
 export async function POST(req: Request) {
   try {
-    const { accessToken } = await req.json();
+    const body = await req.json();
+    const accessToken = body?.accessToken;
 
     if (!accessToken) {
       return Response.json(
-        { error: "Missing access token" },
-        { status: 401 }
+        {
+          error: true,
+          message: "Missing access token",
+        },
+        { status: 400 }
       );
     }
 
@@ -60,7 +66,8 @@ export async function POST(req: Request) {
     if (!meRes.ok || !meData.id) {
       return Response.json(
         {
-          error: meData?.error?.message ?? "Failed to fetch Spotify user",
+          error: true,
+          message: meData?.error?.message ?? "Failed to fetch Spotify user",
           details: meData,
         },
         { status: meRes.status }
@@ -85,7 +92,8 @@ export async function POST(req: Request) {
       if (!res.ok) {
         return Response.json(
           {
-            error: data?.error?.message ?? "Failed to fetch playlists",
+            error: true,
+            message: data?.error?.message ?? "Failed to fetch playlists",
             details: data,
           },
           { status: res.status }
@@ -112,7 +120,10 @@ export async function POST(req: Request) {
     console.error("Playlist route error:", error);
 
     return Response.json(
-      { error: "Internal server error" },
+      {
+        error: true,
+        message: "Internal server error",
+      },
       { status: 500 }
     );
   }

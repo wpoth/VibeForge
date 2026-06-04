@@ -130,13 +130,23 @@ export default function Page() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken }),
     })
-      .then((r) => r.json())
-      .then((data: PlaylistsResponse) => {
-        console.log("PLAYLISTS RESPONSE:", data);
+      .then(async (r) => {
+        const data = (await r.json()) as PlaylistsResponse;
 
-        if (data?.error) {
-          throw new Error(data?.message || String(data.error));
+        if (!r.ok || data?.error) {
+          console.error("PLAYLISTS ERROR RESPONSE:", data);
+
+          throw new Error(
+            data?.message ||
+            String(data?.error) ||
+            `Failed to load playlists: ${r.status}`
+          );
         }
+
+        return data;
+      })
+      .then((data) => {
+        console.log("PLAYLISTS RESPONSE:", data);
 
         setPlaylists(data.items ?? []);
         setHiddenPlaylists(data.hidden ?? 0);
@@ -151,7 +161,7 @@ export default function Page() {
         setPlaylistsLoaded(true);
       });
   }, [accessToken]);
-
+  
   async function generateAiAnalysis(playlistItems: SpotifyPlaylistItem[]) {
     const simplified = playlistItems
       .map(getTrackFromPlaylistItem)
