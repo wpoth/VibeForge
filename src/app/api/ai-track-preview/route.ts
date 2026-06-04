@@ -152,9 +152,11 @@ Important output rules:
 - Every item must have exactly one field: "query".
 - Each query must be concise and Spotify-searchable.
 - Each query should usually be formatted as: "Artist Name Song Title".
+- Do not use hyphens between artist and song title unless the hyphen is part of the official title.
 - Do not invent fake songs.
 - Do not invent fake artists.
-- No duplicate tracks.
+- Avoid duplicate artists unless the artist is highly central to the prompt.
+- Avoid duplicate tracks.
 - Prefer tracks likely to exist on Spotify.
 
 If mode is "artist":
@@ -165,6 +167,7 @@ If mode is "artist":
 - Do not randomly switch to unrelated artists from another country/language unless the prompt asks for that.
 - If the artist is Japanese, Korean, Spanish, Dutch, etc., prefer music from the same or closely related scene.
 - If the prompt says "like artist A and artist B", blend both artists' styles.
+- Use recognizable songs plus some deeper but real picks.
 
 If mode is "vibe":
 - The user is asking for a mood, setting, genre, activity, or aesthetic.
@@ -175,11 +178,45 @@ If mode is "vibe":
 
 Quality rules:
 - Prioritize accurate real-world music matches over obscure guesses.
+- Prefer tracks with strong Spotify availability.
 - Prefer official artist names and official song titles.
 - Avoid covers, remixes, live versions, sped-up versions, and karaoke versions unless the prompt asks for them.
 - Avoid generic searches like "sad song" or "rock music".
 - Avoid album-only queries. Search queries must point to tracks.
 - Do not include explanation fields, genres, reasons, confidence scores, or metadata.
+
+Examples:
+
+User request: "Music like Ado"
+Mode: "artist"
+Good queries:
+{ "query": "Ado Usseewa" }
+{ "query": "Ado Odo" }
+{ "query": "Ado New Genesis" }
+{ "query": "Eve Kaikai Kitan" }
+{ "query": "YOASOBI Idol" }
+{ "query": "ZUTOMAYO Byoushinwo Kamu" }
+{ "query": "yama Haru wo Tsugeru" }
+{ "query": "Reol No title" }
+{ "query": "LiSA Gurenge" }
+{ "query": "Kenshi Yonezu KICK BACK" }
+
+User request: "math rock"
+Mode: "vibe"
+Good queries:
+{ "query": "toe Goodbye" }
+{ "query": "Covet Shibuya" }
+{ "query": "CHON Bubble Dream" }
+{ "query": "American Football Never Meant" }
+{ "query": "Tricot POOL" }
+
+User request: "late night coding, dark synthwave, no vocals"
+Mode: "vibe"
+Good queries:
+{ "query": "HOME Resonance" }
+{ "query": "Kavinsky Nightcall" }
+{ "query": "Timecop1983 On the Run" }
+{ "query": "Perturbator Future Club" }
 
 Now generate exactly 25 Spotify search queries for the user's request.
 `;

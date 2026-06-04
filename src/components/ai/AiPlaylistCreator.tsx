@@ -227,8 +227,8 @@ export function AiPlaylistCreator({
                 ? "Adding selected..."
                 : "Creating playlist..."
               : aiPlaylistTarget === "existing"
-                ? "Add selected songs"
-                : "Create with selected"}
+              ? "Add selected songs"
+              : "Create with selected"}
           </button>
         </div>
 
