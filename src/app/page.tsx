@@ -4,639 +4,182 @@ import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { PlaylistView } from "@/components/playlist/PlaylistView";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { getPlaylistTrackCount } from "@/lib/ui-helpers";
 
-import type {
-  AiPlaylistResponse,
-  ApiErrorResponse,
-  PlaylistTracksResponse,
-  PlaylistsResponse,
-  SpotifyPlaylist,
-  SpotifyPlaylistItem,
-  SpotifyProfile,
-  SpotifyTrack,
-} from "@/lib/spotify-types";
+import { useAiAnalysis } from "@/hooks/useAiAnalysis";
+import { useAiPlaylistCreator } from "@/hooks/useAiPlaylistCreator";
+import { usePlaylistRemoval } from "@/hooks/usePlaylistRemoval";
+import { usePlaylistTracks } from "@/hooks/usePlaylistTracks";
+import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
+import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
+import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 
-import {
-  getErrorMessage,
-  getTrackFromPlaylistItem,
-} from "@/lib/ui-helpers";
+import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
+import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 export default function Page() {
   const { data: session, status } = useSession();
-
-  const [profile, setProfile] = useState<SpotifyProfile | null>(null);
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
-  const [playlistsLoaded, setPlaylistsLoaded] = useState(false);
-  const [hiddenPlaylists, setHiddenPlaylists] = useState(0);
-
-  const [selectedPlaylist, setSelectedPlaylist] =
-    useState<SpotifyPlaylist | null>(null);
-
-  const [tracks, setTracks] = useState<SpotifyPlaylistItem[]>([]);
-  const [view, setView] = useState<"ai" | "playlist">("ai");
-
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [loadingTracks, setLoadingTracks] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiPlaylistName, setAiPlaylistName] = useState("");
-  const [aiPlaylistMode, setAiPlaylistMode] = useState<"vibe" | "artist">(
-    "vibe"
-  );
-  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
-  const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState<string | null>(
-    null
-  );
-
-  const [aiPlaylistTarget, setAiPlaylistTarget] = useState<"new" | "existing">(
-    "new"
-  );
-
-  const [selectedTargetPlaylistId, setSelectedTargetPlaylistId] = useState("");
-  const [aiPlaylistSuccessMessage, setAiPlaylistSuccessMessage] =
-    useState<string | null>(null);
-
-  const [playlistToRemove, setPlaylistToRemove] =
-    useState<SpotifyPlaylist | null>(null);
-  const [removingPlaylist, setRemovingPlaylist] = useState(false);
   const accessToken = session?.accessToken;
 
-  const [trackToRemove, setTrackToRemove] =
-    useState<SpotifyPlaylistItem | null>(null);
-  const [removingTrack, setRemovingTrack] = useState(false);
+  const [view, setView] = useState<"ai" | "playlist">("ai");
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedTrackUris, setSelectedTrackUris] = useState<string[]>([]);
-  const [removingSelectedTracks, setRemovingSelectedTracks] = useState(false);
-  const [confirmingBulkRemove, setConfirmingBulkRemove] = useState(false);
+  const { profile, profileError } = useSpotifyProfile(accessToken);
+
+  const {
+    playlists,
+    playlistsLoaded,
+    hiddenPlaylists,
+    playlistsError,
+    setPlaylists,
+    setHiddenPlaylists,
+    loadPlaylists,
+  } = useSpotifyPlaylists(accessToken);
+
+  const {
+    selectedPlaylist,
+    setSelectedPlaylist,
+    tracks,
+    setTracks,
+    loadingTracks,
+    openPlaylist,
+    resetPlaylistView,
+    playlistTracksError,
+  } = usePlaylistTracks({
+    accessToken,
+    onViewChange: setView,
+  });
+
+  const {
+    aiAnalysis,
+    setAiAnalysis,
+    loadingAI,
+    generateAiAnalysis,
+    aiAnalysisError,
+  } = useAiAnalysis();
+
+  const {
+    aiPrompt,
+    setAiPrompt,
+    aiPlaylistName,
+    setAiPlaylistName,
+    aiPlaylistMode,
+    setAiPlaylistMode,
+    aiPlaylistTarget,
+    setAiPlaylistTarget,
+    selectedTargetPlaylistId,
+    setSelectedTargetPlaylistId,
+    creatingPlaylist,
+    createdPlaylistUrl,
+    aiPlaylistSuccessMessage,
+    createAiPlaylist,
+    aiPlaylistCreatorError,
+  } = useAiPlaylistCreator({
+    accessToken,
+    playlists,
+    selectedPlaylist,
+    setPlaylists,
+    setSelectedPlaylist,
+    loadPlaylists,
+    openPlaylist,
+  });
+
+  const {
+    playlistToRemove,
+    removingPlaylist,
+    requestRemovePlaylist,
+    confirmRemovePlaylist,
+    cancelRemovePlaylist,
+    playlistRemovalError,
+  } = usePlaylistRemoval({
+    accessToken,
+    selectedPlaylist,
+    setPlaylists,
+    setSelectedPlaylist,
+    setTracks,
+    setAiAnalysis,
+    onViewChange: setView,
+  });
+
+  const {
+    trackToRemove,
+    removingTrack,
+    selectionMode,
+    selectedTrackUris,
+    removingSelectedTracks,
+    confirmingBulkRemove,
+    requestRemoveTrack,
+    confirmRemoveTrack,
+    cancelRemoveTrack,
+    toggleSelectionMode,
+    clearTrackSelection,
+    selectAllTracks,
+    toggleTrackSelection,
+    requestRemoveSelectedTracks,
+    confirmRemoveSelectedTracks,
+    cancelRemoveSelectedTracks,
+    trackRemovalError,
+  } = useTrackRemoval({
+    accessToken,
+    selectedPlaylist,
+    tracks,
+    setTracks,
+    setPlaylists,
+    setSelectedPlaylist,
+  });
 
   useEffect(() => {
-    if (!accessToken) return;
+    const nextError =
+      profileError ||
+      playlistsError ||
+      playlistTracksError ||
+      aiAnalysisError ||
+      aiPlaylistCreatorError ||
+      playlistRemovalError ||
+      trackRemovalError;
 
-    fetch("/api/me", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken }),
-    })
-      .then((r) => r.json())
-      .then((data: SpotifyProfile & ApiErrorResponse) => {
-        if (data?.error) {
-          throw new Error(data?.message || "Failed to load profile");
-        }
-
-        setProfile(data);
-      })
-      .catch((err: unknown) => {
-        console.error(err);
-        setError(getErrorMessage(err));
-      });
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (!accessToken) return;
-
-    loadPlaylists();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken]);
-
-  async function loadPlaylists() {
-    if (!accessToken) return;
-
-    setPlaylistsLoaded(false);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/playlists", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken }),
-      });
-
-      const data = (await res.json()) as PlaylistsResponse;
-
-      if (!res.ok || data?.error) {
-        throw new Error(
-          data?.message ||
-          String(data?.error) ||
-          `Failed to load playlists: ${res.status}`
-        );
-      }
-
-      setPlaylists(data.items ?? []);
-      setHiddenPlaylists(data.hidden ?? 0);
-    } catch (err: unknown) {
-      console.error(err);
-      setError(getErrorMessage(err));
-      setPlaylists([]);
-      setHiddenPlaylists(0);
-    } finally {
-      setPlaylistsLoaded(true);
+    if (nextError) {
+      setError(nextError);
     }
+  }, [
+    profileError,
+    playlistsError,
+    playlistTracksError,
+    aiAnalysisError,
+    aiPlaylistCreatorError,
+    playlistRemovalError,
+    trackRemovalError,
+  ]);
+
+  function handleAiModeClick() {
+    setView("ai");
   }
 
-  async function generateAiAnalysis(playlistItems: SpotifyPlaylistItem[]) {
-    const simplified = playlistItems
-      .map(getTrackFromPlaylistItem)
-      .filter((track): track is SpotifyTrack => Boolean(track?.name))
-      .map((track) => ({
-        name: track.name,
-        artists:
-          track.artists?.map((artist) => artist.name).filter(Boolean) ?? [],
-      }));
-
-    if (!simplified.length) return;
-
-    setLoadingAI(true);
+  async function handlePlaylistClick(playlist: SpotifyPlaylist) {
     setError(null);
-
-    try {
-      const aiRes = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlist: simplified }),
-      });
-
-      const aiData = (await aiRes.json()) as ApiErrorResponse & {
-        result?: string;
-      };
-
-      if (!aiRes.ok || aiData?.error) {
-        throw new Error(
-          aiData?.message || String(aiData?.error) || "AI analysis failed"
-        );
-      }
-
-      setAiAnalysis(aiData?.result ?? null);
-    } catch (err: unknown) {
-      console.error("AI failed:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setLoadingAI(false);
-    }
-  }
-
-  async function openPlaylist(playlist: SpotifyPlaylist) {
-    if (!accessToken) return;
-
-    setView("playlist");
-    setSelectedPlaylist(playlist);
-    setTracks([]);
     setAiAnalysis(null);
-    setLoadingAI(false);
-    setLoadingTracks(true);
+    await openPlaylist(playlist);
+  }
+
+  async function handleGenerateAiAnalysis() {
     setError(null);
-    setSelectionMode(false);
-    setSelectedTrackUris([]);
-    try {
-      const tracksRes = await fetch("/api/playlist-tracks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playlistId: playlist.id,
-          accessToken,
-        }),
-      });
-
-      const tracksData = (await tracksRes.json()) as PlaylistTracksResponse;
-
-      if (!tracksRes.ok || tracksData?.error) {
-        throw new Error(
-          tracksData?.message ||
-          "Could not load playlist tracks. Spotify may not expose items for this playlist."
-        );
-      }
-
-      setTracks(tracksData.items ?? []);
-    } catch (err: unknown) {
-      console.error("Failed to open playlist:", err);
-      setError(getErrorMessage(err));
-      setTracks([]);
-    } finally {
-      setLoadingTracks(false);
-    }
+    await generateAiAnalysis(tracks);
   }
 
-  function requestRemovePlaylist(playlist: SpotifyPlaylist) {
-    setPlaylistToRemove(playlist);
-  }
-
-  async function confirmRemovePlaylist() {
-    if (!accessToken || !playlistToRemove) return;
-
-    const playlist = playlistToRemove;
-
-    setRemovingPlaylist(true);
+  function handleRequestRemoveTrack(playlistItem: SpotifyPlaylistItem) {
     setError(null);
-
-    try {
-      const res = await fetch("/api/remove-playlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          accessToken,
-          playlistId: playlist.id,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data?.error) {
-        throw new Error(
-          data?.message || String(data?.error) || "Failed to remove playlist"
-        );
-      }
-
-      setPlaylists((currentPlaylists) =>
-        currentPlaylists.filter((item) => item.id !== playlist.id)
-      );
-
-      if (selectedPlaylist?.id === playlist.id) {
-        setSelectedPlaylist(null);
-        setTracks([]);
-        setAiAnalysis(null);
-        setView("ai");
-      }
-
-      setPlaylistToRemove(null);
-    } catch (err: unknown) {
-      console.error("Remove playlist failed:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setRemovingPlaylist(false);
-    }
+    requestRemoveTrack(playlistItem);
   }
 
-  function toggleSelectionMode() {
-    setSelectionMode((current) => {
-      const next = !current;
-
-      if (!next) {
-        setSelectedTrackUris([]);
-      }
-
-      return next;
-    });
-  }
-
-  function clearTrackSelection() {
-    setSelectedTrackUris([]);
-  }
-
-  function selectAllTracks() {
-    const uris = tracks
-      .map((playlistItem) => {
-        const track = getTrackFromPlaylistItem(playlistItem);
-        return track?.uri;
-      })
-      .filter((uri): uri is string => Boolean(uri));
-
-    setSelectedTrackUris(Array.from(new Set(uris)));
-  }
-
-  function toggleTrackSelection(playlistItem: SpotifyPlaylistItem) {
-    const track = getTrackFromPlaylistItem(playlistItem);
-
-    if (!track?.uri) {
-      setError("Could not select this song because it is missing a Spotify URI.");
-      return;
-    }
-
-    setSelectedTrackUris((currentUris) => {
-      if (currentUris.includes(track.uri!)) {
-        return currentUris.filter((uri) => uri !== track.uri);
-      }
-
-      return [...currentUris, track.uri!];
-    });
-  }
-
-  function requestRemoveSelectedTracks() {
-    if (!selectedTrackUris.length) return;
-    setConfirmingBulkRemove(true);
-  }
-  async function confirmRemoveSelectedTracks() {
-    if (!accessToken || !selectedPlaylist || !selectedTrackUris.length) return;
-
-    const urisToRemove = selectedTrackUris;
-
-    setRemovingSelectedTracks(true);
+  function handleRequestRemovePlaylist(playlist: SpotifyPlaylist) {
     setError(null);
-
-    try {
-      const res = await fetch("/api/remove-playlist-item", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          accessToken,
-          playlistId: selectedPlaylist.id,
-          itemUris: urisToRemove,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data?.error) {
-        throw new Error(
-          data?.message || String(data?.error) || "Failed to remove songs"
-        );
-      }
-
-      setTracks((currentTracks) =>
-        currentTracks.filter((playlistItem) => {
-          const track = getTrackFromPlaylistItem(playlistItem);
-          return !track?.uri || !urisToRemove.includes(track.uri);
-        })
-      );
-
-      setPlaylists((currentPlaylists) =>
-        currentPlaylists.map((playlist) => {
-          if (playlist.id !== selectedPlaylist.id) return playlist;
-
-          const currentTotal =
-            playlist.items?.total ?? playlist.tracks?.total ?? tracks.length;
-
-          const nextTotal = Math.max(currentTotal - urisToRemove.length, 0);
-
-          return {
-            ...playlist,
-            items: { total: nextTotal },
-            tracks: { total: nextTotal },
-          };
-        })
-      );
-
-      setSelectedPlaylist((currentPlaylist) => {
-        if (!currentPlaylist || currentPlaylist.id !== selectedPlaylist.id) {
-          return currentPlaylist;
-        }
-
-        const currentTotal =
-          currentPlaylist.items?.total ??
-          currentPlaylist.tracks?.total ??
-          tracks.length;
-
-        const nextTotal = Math.max(currentTotal - urisToRemove.length, 0);
-
-        return {
-          ...currentPlaylist,
-          items: { total: nextTotal },
-          tracks: { total: nextTotal },
-        };
-      });
-
-      setSelectedTrackUris([]);
-      setSelectionMode(false);
-      setConfirmingBulkRemove(false);
-    } catch (err: unknown) {
-      console.error("Remove selected songs failed:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setRemovingSelectedTracks(false);
-    }
-  }
-  async function createAiPlaylist() {
-    if (!accessToken) return;
-
-    if (!aiPrompt.trim()) {
-      setError("Type a vibe or artist first.");
-      return;
-    }
-
-    if (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId) {
-      setError("Choose a playlist to add songs to.");
-      return;
-    }
-    setCreatingPlaylist(true);
-    setCreatedPlaylistUrl(null);
-    setAiPlaylistSuccessMessage(null);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/ai-playlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessToken,
-          prompt: aiPrompt,
-          mode: aiPlaylistMode,
-          playlistName: aiPlaylistName,
-          isPublic: false,
-          action: aiPlaylistTarget === "existing" ? "append" : "create",
-          targetPlaylistId:
-            aiPlaylistTarget === "existing" ? selectedTargetPlaylistId : undefined,
-        }),
-      });
-
-      const data = (await res.json()) as AiPlaylistResponse;
-
-      console.log("AI PLAYLIST RESPONSE:", data);
-
-      if (!res.ok || data?.error) {
-        throw new Error(
-          data?.message || String(data?.error) || "Failed to create playlist"
-        );
-      }
-
-      if (data.action === "append") {
-        const addedCount = data.tracks?.length ?? 0;
-
-        setPlaylists((currentPlaylists) =>
-          currentPlaylists.map((playlist) => {
-            if (playlist.id !== selectedTargetPlaylistId) return playlist;
-
-            const currentTotal =
-              playlist.items?.total ?? playlist.tracks?.total ?? 0;
-
-            const nextTotal = currentTotal + addedCount;
-
-            return {
-              ...playlist,
-              items: { total: nextTotal },
-              tracks: { total: nextTotal },
-            };
-          })
-        );
-
-        setSelectedPlaylist((currentPlaylist) => {
-          if (!currentPlaylist || currentPlaylist.id !== selectedTargetPlaylistId) {
-            return currentPlaylist;
-          }
-
-          const currentTotal =
-            currentPlaylist.items?.total ?? currentPlaylist.tracks?.total ?? 0;
-
-          const nextTotal = currentTotal + addedCount;
-
-          return {
-            ...currentPlaylist,
-            items: { total: nextTotal },
-            tracks: { total: nextTotal },
-          };
-        });
-
-        if (selectedPlaylist?.id === selectedTargetPlaylistId) {
-          await openPlaylist(selectedPlaylist);
-        }
-
-        setCreatedPlaylistUrl(null);
-        setAiPlaylistSuccessMessage(
-          `Added ${addedCount} songs to the selected playlist.`
-        );
-
-        return;
-      }
-
-      setCreatedPlaylistUrl(data.playlist?.url ?? null);
-      setAiPlaylistSuccessMessage("Playlist created successfully.");
-      const createdPlaylist = data.playlist;
-
-      if (createdPlaylist?.id) {
-        const playlistId = createdPlaylist.id;
-        const playlistName = createdPlaylist.name ?? "Generated Playlist";
-
-        const total =
-          createdPlaylist.items?.total ??
-          createdPlaylist.tracks?.total ??
-          data.tracks?.length ??
-          0;
-
-        const newPlaylist: SpotifyPlaylist = {
-          id: playlistId,
-          name: playlistName,
-          items: { total },
-          tracks: { total },
-          images: createdPlaylist.images ?? [],
-        };
-
-        setPlaylists((currentPlaylists) => {
-          const alreadyExists = currentPlaylists.some(
-            (playlist) => playlist.id === playlistId
-          );
-
-          if (alreadyExists) return currentPlaylists;
-
-          return [newPlaylist, ...currentPlaylists];
-        });
-      }
-
-      await loadPlaylists();
-    } catch (err: unknown) {
-      console.error("Create AI playlist failed:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setCreatingPlaylist(false);
-    }
-  }
-  function requestRemoveTrack(playlistItem: SpotifyPlaylistItem) {
-    setTrackToRemove(playlistItem);
+    requestRemovePlaylist(playlist);
   }
 
-  async function confirmRemoveTrack() {
-    if (!accessToken || !selectedPlaylist || !trackToRemove) return;
-
-    const track = getTrackFromPlaylistItem(trackToRemove);
-
-    if (!track?.uri) {
-      setError("Could not remove song because it is missing a Spotify URI.");
-      setTrackToRemove(null);
-      return;
-    }
-
-    setRemovingTrack(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/remove-playlist-item", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          accessToken,
-          playlistId: selectedPlaylist.id,
-          itemUri: track.uri,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || data?.error) {
-        throw new Error(
-          data?.message || String(data?.error) || "Failed to remove song"
-        );
-      }
-
-      setTracks((currentTracks) => {
-        let removed = false;
-
-        return currentTracks.filter((playlistItem) => {
-          const currentTrack = getTrackFromPlaylistItem(playlistItem);
-
-          if (!removed && currentTrack?.uri === track.uri) {
-            removed = true;
-            return false;
-          }
-
-          return true;
-        });
-      });
-
-      setPlaylists((currentPlaylists) =>
-        currentPlaylists.map((playlist) => {
-          if (playlist.id !== selectedPlaylist.id) return playlist;
-
-          const currentTotal =
-            playlist.items?.total ?? playlist.tracks?.total ?? tracks.length;
-
-          const nextTotal = Math.max(currentTotal - 1, 0);
-
-          return {
-            ...playlist,
-            items: { total: nextTotal },
-            tracks: { total: nextTotal },
-          };
-        })
-      );
-
-      setSelectedPlaylist((currentPlaylist) => {
-        if (!currentPlaylist || currentPlaylist.id !== selectedPlaylist.id) {
-          return currentPlaylist;
-        }
-
-        const currentTotal =
-          currentPlaylist.items?.total ??
-          currentPlaylist.tracks?.total ??
-          tracks.length;
-
-        const nextTotal = Math.max(currentTotal - 1, 0);
-
-        return {
-          ...currentPlaylist,
-          items: { total: nextTotal },
-          tracks: { total: nextTotal },
-        };
-      });
-
-      setTrackToRemove(null);
-    } catch (err: unknown) {
-      console.error("Remove song failed:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setRemovingTrack(false);
-    }
-  }
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
@@ -654,7 +197,10 @@ export default function Page() {
         </div>
 
         <div className="relative z-10 flex flex-col items-center px-4">
-          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">VibeForge</h1>
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">
+            VibeForge
+          </h1>
+
           <p className="mt-4 max-w-md text-center text-zinc-400">
             Analyze your playlists, discover the mood behind your music, and
             generate insights only when you need them.
@@ -673,15 +219,15 @@ export default function Page() {
 
   return (
     <AppShell>
-      <Header onAiModeClick={() => setView("ai")} />
+      <Header onAiModeClick={handleAiModeClick} />
 
       <Sidebar
         playlists={playlists}
         playlistsLoaded={playlistsLoaded}
         hiddenPlaylists={hiddenPlaylists}
         selectedPlaylist={selectedPlaylist}
-        onPlaylistClick={openPlaylist}
-        onPlaylistRemove={requestRemovePlaylist}
+        onPlaylistClick={handlePlaylistClick}
+        onPlaylistRemove={handleRequestRemovePlaylist}
       />
 
       <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
@@ -724,27 +270,25 @@ export default function Page() {
             onToggleSelectionMode={toggleSelectionMode}
             onClearSelection={clearTrackSelection}
             onSelectAllTracks={selectAllTracks}
-            onGenerateAiAnalysis={() => generateAiAnalysis(tracks)}
-            onRemoveTrack={requestRemoveTrack}
+            onGenerateAiAnalysis={handleGenerateAiAnalysis}
+            onRemoveTrack={handleRequestRemoveTrack}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
           />
         )}
       </main>
+
       <ConfirmDialog
         open={confirmingBulkRemove}
         title="Remove selected songs?"
-        description={`This will remove ${selectedTrackUris.length} selected song${selectedTrackUris.length === 1 ? "" : "s"
-          } from "${selectedPlaylist?.name ?? "this playlist"}".`}
+        description={`This will remove ${selectedTrackUris.length} selected song${
+          selectedTrackUris.length === 1 ? "" : "s"
+        } from "${selectedPlaylist?.name ?? "this playlist"}".`}
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
         loading={removingSelectedTracks}
         onConfirm={confirmRemoveSelectedTracks}
-        onCancel={() => {
-          if (!removingSelectedTracks) {
-            setConfirmingBulkRemove(false);
-          }
-        }}
+        onCancel={cancelRemoveSelectedTracks}
       />
 
       <ConfirmDialog
@@ -752,19 +296,16 @@ export default function Page() {
         title="Remove song?"
         description={
           trackToRemove
-            ? `This will remove "${getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
-            }" from "${selectedPlaylist?.name ?? "this playlist"}".`
+            ? `This will remove "${
+                getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
+              }" from "${selectedPlaylist?.name ?? "this playlist"}".`
             : ""
         }
         confirmLabel="Remove song"
         cancelLabel="Keep song"
         loading={removingTrack}
         onConfirm={confirmRemoveTrack}
-        onCancel={() => {
-          if (!removingTrack) {
-            setTrackToRemove(null);
-          }
-        }}
+        onCancel={cancelRemoveTrack}
       />
 
       <ConfirmDialog
@@ -779,11 +320,7 @@ export default function Page() {
         cancelLabel="Keep playlist"
         loading={removingPlaylist}
         onConfirm={confirmRemovePlaylist}
-        onCancel={() => {
-          if (!removingPlaylist) {
-            setPlaylistToRemove(null);
-          }
-        }}
+        onCancel={cancelRemovePlaylist}
       />
     </AppShell>
   );
