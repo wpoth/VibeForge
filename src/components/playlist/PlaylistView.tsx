@@ -68,7 +68,6 @@ export function PlaylistView({
       )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
-        {/* LEFT: SONGS */}
         <div className="min-w-0">
           {tracks.length > 0 && !aiAnalysis && !selectionMode && (
             <button
@@ -114,7 +113,8 @@ export function PlaylistView({
 
           <div className="space-y-2">
             {tracks.map((playlistItem, index) => {
-              const uri = playlistItem.item?.uri ?? playlistItem.track?.uri ?? "";
+              const uri =
+                playlistItem.item?.uri ?? playlistItem.track?.uri ?? "";
               const selected = uri ? selectedTrackUris.includes(uri) : false;
 
               return (
@@ -132,7 +132,6 @@ export function PlaylistView({
           </div>
         </div>
 
-        {/* RIGHT: STICKY MANAGE PANEL */}
         {tracks.length > 0 && (
           <aside className="order-first xl:order-none xl:sticky xl:top-20 xl:self-start">
             <div className="rounded-2xl border border-white/10 bg-[#12141f]/90 p-4 shadow-xl backdrop-blur-xl">
@@ -152,10 +151,11 @@ export function PlaylistView({
                 <button
                   type="button"
                   onClick={onToggleSelectionMode}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${selectionMode
+                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                    selectionMode
                       ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
                       : "bg-green-500 text-black hover:bg-green-400"
-                    }`}
+                  }`}
                 >
                   {selectionMode ? "Exit select" : "Select songs"}
                 </button>
@@ -193,31 +193,6 @@ export function PlaylistView({
             </div>
           </aside>
         )}
-      </div>
-
-      {!loadingTracks && tracks.length === 0 && (
-        <p className="text-sm text-zinc-500">
-          No tracks found for this playlist.
-        </p>
-      )}
-
-      <div className="space-y-2">
-        {tracks.map((playlistItem, index) => {
-          const uri = playlistItem.item?.uri ?? playlistItem.track?.uri ?? "";
-          const selected = uri ? selectedTrackUris.includes(uri) : false;
-
-          return (
-            <TrackRow
-              key={playlistItem.item?.id ?? playlistItem.track?.id ?? index}
-              playlistItem={playlistItem}
-              index={index}
-              selectionMode={selectionMode}
-              selected={selected}
-              onToggleSelect={onToggleTrackSelection}
-              onRemove={onRemoveTrack}
-            />
-          );
-        })}
       </div>
     </div>
   );
