@@ -197,23 +197,36 @@ export function AiPlaylistCreator({
           </>
         )}
 
-        <button
-          onClick={onCreatePlaylist}
-          disabled={
-            creatingPlaylist ||
-            !aiPrompt.trim() ||
-            (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId)
-          }
-          className="mt-5 w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
-        >
-          {creatingPlaylist
-            ? aiPlaylistTarget === "existing"
-              ? "Adding songs..."
-              : "Creating playlist..."
-            : aiPlaylistTarget === "existing"
-            ? "Add songs to playlist"
-            : "Create Spotify playlist"}
-        </button>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onGeneratePreview}
+            disabled={generatingPreview || !aiPrompt.trim()}
+            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+          >
+            {generatingPreview ? "Generating preview..." : "Generate preview"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onCreatePlaylist}
+            disabled={
+              creatingPlaylist ||
+              generatingPreview ||
+              selectedPreviewTrackUris.length === 0 ||
+              (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId)
+            }
+            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/[0.08] text-white font-semibold hover:bg-white/[0.12] disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {creatingPlaylist
+              ? aiPlaylistTarget === "existing"
+                ? "Adding selected..."
+                : "Creating playlist..."
+              : aiPlaylistTarget === "existing"
+              ? "Add selected songs"
+              : "Create with selected"}
+          </button>
+        </div>
         {previewTracks.length > 0 && (
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
