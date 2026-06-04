@@ -41,11 +41,13 @@ type AiPlaylistCreatorProps = {
 export function AiPlaylistCreator({
   profile,
   playlists,
+
   aiPrompt,
   aiPlaylistName,
   aiPlaylistMode,
   aiPlaylistTarget,
   selectedTargetPlaylistId,
+
   creatingPlaylist,
   createdPlaylistUrl,
   successMessage,
@@ -80,13 +82,14 @@ export function AiPlaylistCreator({
 
       <p className="text-zinc-400 mb-6 sm:mb-8 max-w-2xl">
         Describe a mood, setting, genre, or artist direction. VibeForge will
-        find matching Spotify tracks and create a private playlist in your
-        account.
+        find matching Spotify tracks and let you preview them before changing
+        your playlists.
       </p>
 
       <div className="p-4 sm:p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
         <div className="grid grid-cols-2 gap-2 mb-4 sm:flex">
           <button
+            type="button"
             onClick={() => onModeChange("vibe")}
             className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${
               aiPlaylistMode === "vibe"
@@ -98,6 +101,7 @@ export function AiPlaylistCreator({
           </button>
 
           <button
+            type="button"
             onClick={() => onModeChange("artist")}
             className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${
               aiPlaylistMode === "artist"
@@ -223,10 +227,11 @@ export function AiPlaylistCreator({
                 ? "Adding selected..."
                 : "Creating playlist..."
               : aiPlaylistTarget === "existing"
-              ? "Add selected songs"
-              : "Create with selected"}
+                ? "Add selected songs"
+                : "Create with selected"}
           </button>
         </div>
+
         {previewTracks.length > 0 && (
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
