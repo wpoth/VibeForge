@@ -17,8 +17,8 @@ export function Sidebar({
   onPlaylistClick,
 }: SidebarProps) {
   return (
-    <div className="custom-sidebar-scrollbar fixed left-0 top-14 h-[calc(100vh-56px)] w-80 bg-white/[0.03] backdrop-blur-xl border-r border-white/10 p-4 overflow-y-auto z-20">
-      <div className="mb-5">
+    <aside className="custom-sidebar-scrollbar relative z-20 mt-14 w-full border-b border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 overflow-x-hidden lg:fixed lg:left-0 lg:top-14 lg:mt-0 lg:h-[calc(100vh-56px)] lg:w-80 lg:border-b-0 lg:border-r lg:overflow-y-auto">
+      <div className="mb-4 lg:mb-5">
         <h2 className="text-lg font-semibold">Playlists</h2>
         <p className="text-xs text-zinc-500 mt-1">
           Owned and collaborative playlists
@@ -43,14 +43,16 @@ export function Sidebar({
         </div>
       )}
 
-      {playlists.map((playlist) => (
-        <PlaylistCard
-          key={playlist.id}
-          playlist={playlist}
-          isSelected={selectedPlaylist?.id === playlist.id}
-          onClick={() => onPlaylistClick(playlist)}
-        />
-      ))}
-    </div>
+      <div className="flex gap-3 overflow-x-auto pb-2 lg:block lg:overflow-x-visible lg:pb-0">
+        {playlists.map((playlist) => (
+          <PlaylistCard
+            key={playlist.id}
+            playlist={playlist}
+            isSelected={selectedPlaylist?.id === playlist.id}
+            onClick={() => onPlaylistClick(playlist)}
+          />
+        ))}
+      </div>
+    </aside>
   );
 }

@@ -26,23 +26,23 @@ export function AiPlaylistCreator({
   onCreatePlaylist,
 }: AiPlaylistCreatorProps) {
   return (
-    <div className="max-w-3xl">
+    <div className="w-full max-w-3xl">
       <p className="text-sm text-green-400 font-medium mb-3">
         AI Playlist Creator
       </p>
 
-      <h2 className="text-4xl font-bold mb-3 tracking-tight">
+      <h2 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
         Turn a vibe or artist into a playlist.
       </h2>
 
-      <p className="text-zinc-400 mb-8 max-w-2xl">
+      <p className="text-zinc-400 mb-6 sm:mb-8 max-w-2xl">
         Describe a mood, setting, genre, or artist direction. VibeForge will
         find matching Spotify tracks and create a private playlist in your
         account.
       </p>
 
-      <div className="p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
-        <div className="flex gap-2 mb-4">
+      <div className="p-4 sm:p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
+        <div className="grid grid-cols-2 gap-2 mb-4 sm:flex">
           <button
             onClick={() => onModeChange("vibe")}
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
@@ -95,7 +95,7 @@ export function AiPlaylistCreator({
         <button
           onClick={onCreatePlaylist}
           disabled={creatingPlaylist || !aiPrompt.trim()}
-          className="mt-5 px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+          className="mt-5 w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
         >
           {creatingPlaylist ? "Creating playlist..." : "Create Spotify playlist"}
         </button>
@@ -118,9 +118,9 @@ export function AiPlaylistCreator({
         )}
       </div>
 
-      <div className="mt-10 max-w-md bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+      <div className="mt-8 sm:mt-10 max-w-md bg-white/[0.04] border border-white/10 rounded-2xl p-4">
         <p className="text-sm text-zinc-400">Logged in as</p>
-        <p className="font-medium">{profile?.display_name}</p>
+        <p className="font-medium truncate">{profile?.display_name}</p>
       </div>
     </div>
   );

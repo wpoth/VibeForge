@@ -22,7 +22,7 @@ export function TrackRow({ playlistItem, index }: TrackRowProps) {
         size="sm"
       />
 
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="font-medium truncate">{track.name}</p>
         <p className="text-sm text-zinc-400 truncate">
           {track.artists

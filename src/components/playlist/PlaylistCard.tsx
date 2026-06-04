@@ -16,7 +16,7 @@ export function PlaylistCard({
   return (
     <div
       onClick={onClick}
-      className={`p-3 rounded-xl mb-2 cursor-pointer transition flex gap-3 border ${
+      className={`min-w-56 max-w-56 p-3 rounded-xl cursor-pointer transition flex gap-3 border lg:min-w-0 lg:max-w-none lg:mb-2 ${
         isSelected
           ? "bg-green-500/10 border-green-400/40 shadow-lg shadow-green-500/10"
           : "bg-white/[0.04] border-white/5 hover:bg-white/[0.08] hover:border-white/10"

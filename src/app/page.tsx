@@ -294,8 +294,8 @@ export default function Page() {
           <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
         </div>
 
-        <div className="relative z-10 flex flex-col items-center">
-          <h1 className="text-6xl font-bold tracking-tight">VibeForge</h1>
+        <div className="relative z-10 flex flex-col items-center px-4">
+         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">VibeForge</h1>
           <p className="mt-4 max-w-md text-center text-zinc-400">
             Analyze your playlists, discover the mood behind your music, and
             generate insights only when you need them.
@@ -324,7 +324,7 @@ export default function Page() {
         onPlaylistClick={openPlaylist}
       />
 
-      <main className="relative z-10 ml-80 pt-20 p-6">
+      <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
         {error && (
           <div className="mb-6 p-4 rounded-xl bg-red-950/60 border border-red-900/80 text-sm text-red-200">
             {error}
