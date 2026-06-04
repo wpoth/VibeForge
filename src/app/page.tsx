@@ -201,6 +201,52 @@ export default function Page() {
     }
   }
 
+  async function removePlaylist(playlist: SpotifyPlaylist) {
+    if (!accessToken) return;
+
+    const confirmed = window.confirm(
+      `Remove "${playlist.name}" from your Spotify library?`
+    );
+
+    if (!confirmed) return;
+
+    setError(null);
+
+    try {
+      const res = await fetch("/api/remove-playlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          playlistId: playlist.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to remove playlist"
+        );
+      }
+
+      setPlaylists((currentPlaylists) =>
+        currentPlaylists.filter((item) => item.id !== playlist.id)
+      );
+
+      if (selectedPlaylist?.id === playlist.id) {
+        setSelectedPlaylist(null);
+        setTracks([]);
+        setAiAnalysis(null);
+        setView("ai");
+      }
+    } catch (err: unknown) {
+      console.error("Remove playlist failed:", err);
+      setError(getErrorMessage(err));
+    }
+  }
   async function createAiPlaylist() {
     if (!accessToken) return;
 
@@ -295,7 +341,7 @@ export default function Page() {
         </div>
 
         <div className="relative z-10 flex flex-col items-center px-4">
-         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">VibeForge</h1>
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">VibeForge</h1>
           <p className="mt-4 max-w-md text-center text-zinc-400">
             Analyze your playlists, discover the mood behind your music, and
             generate insights only when you need them.
@@ -322,6 +368,7 @@ export default function Page() {
         hiddenPlaylists={hiddenPlaylists}
         selectedPlaylist={selectedPlaylist}
         onPlaylistClick={openPlaylist}
+        onPlaylistRemove={removePlaylist}
       />
 
       <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">

@@ -7,14 +7,15 @@ type SidebarProps = {
   hiddenPlaylists: number;
   selectedPlaylist: SpotifyPlaylist | null;
   onPlaylistClick: (playlist: SpotifyPlaylist) => void;
+  onPlaylistRemove: (playlist: SpotifyPlaylist) => void;
 };
-
 export function Sidebar({
   playlists,
   playlistsLoaded,
   hiddenPlaylists,
   selectedPlaylist,
   onPlaylistClick,
+  onPlaylistRemove,
 }: SidebarProps) {
   return (
     <aside className="custom-sidebar-scrollbar relative z-20 mt-14 w-full border-b border-white/10 bg-white/[0.03] backdrop-blur-xl p-4 overflow-x-hidden lg:fixed lg:left-0 lg:top-14 lg:mt-0 lg:h-[calc(100vh-56px)] lg:w-80 lg:border-b-0 lg:border-r lg:overflow-y-auto">
@@ -50,6 +51,7 @@ export function Sidebar({
             playlist={playlist}
             isSelected={selectedPlaylist?.id === playlist.id}
             onClick={() => onPlaylistClick(playlist)}
+            onRemove={() => onPlaylistRemove(playlist)}
           />
         ))}
       </div>
