@@ -8,7 +8,7 @@ type SpotifyRemovePlaylistItemsResponse = {
 
 export async function POST(req: Request) {
   try {
-    const { accessToken, playlistId, itemUri } = await req.json();
+    const { accessToken, playlistId, itemUri, itemUris } = await req.json();
 
     if (!accessToken) {
       return Response.json(
@@ -24,9 +24,19 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!itemUri || typeof itemUri !== "string") {
+    const uris: string[] = Array.isArray(itemUris)
+      ? itemUris
+      : itemUri
+        ? [itemUri]
+        : [];
+
+    const validUris = uris.filter(
+      (uri) => typeof uri === "string" && uri.startsWith("spotify:")
+    );
+
+    if (!validUris.length) {
       return Response.json(
-        { error: true, message: "Missing item URI" },
+        { error: true, message: "Missing item URI(s)" },
         { status: 400 }
       );
     }
@@ -40,11 +50,7 @@ export async function POST(req: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: [
-            {
-              uri: itemUri,
-            },
-          ],
+          items: validUris.map((uri) => ({ uri })),
         }),
       }
     );
@@ -57,7 +63,7 @@ export async function POST(req: Request) {
           error: true,
           message:
             data?.error?.message ??
-            `Failed to remove item. Spotify returned ${res.status}.`,
+            `Failed to remove item(s). Spotify returned ${res.status}.`,
           details: data,
         },
         { status: res.status }
@@ -66,7 +72,8 @@ export async function POST(req: Request) {
 
     return Response.json({
       success: true,
-      removedItemUri: itemUri,
+      removedItemUris: validUris,
+      removedCount: validUris.length,
       snapshotId: data.snapshot_id,
     });
   } catch (error) {
@@ -78,7 +85,7 @@ export async function POST(req: Request) {
         message:
           error instanceof Error
             ? error.message
-            : "Failed to remove playlist item",
+            : "Failed to remove playlist item(s)",
       },
       { status: 500 }
     );

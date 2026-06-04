@@ -64,6 +64,11 @@ export default function Page() {
     useState<SpotifyPlaylistItem | null>(null);
   const [removingTrack, setRemovingTrack] = useState(false);
 
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedTrackUris, setSelectedTrackUris] = useState<string[]>([]);
+  const [removingSelectedTracks, setRemovingSelectedTracks] = useState(false);
+  const [confirmingBulkRemove, setConfirmingBulkRemove] = useState(false);
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -179,7 +184,8 @@ export default function Page() {
     setLoadingAI(false);
     setLoadingTracks(true);
     setError(null);
-
+    setSelectionMode(false);
+    setSelectedTrackUris([]);
     try {
       const tracksRes = await fetch("/api/playlist-tracks", {
         method: "POST",
@@ -258,6 +264,137 @@ export default function Page() {
       setError(getErrorMessage(err));
     } finally {
       setRemovingPlaylist(false);
+    }
+  }
+
+  function toggleSelectionMode() {
+    setSelectionMode((current) => {
+      const next = !current;
+
+      if (!next) {
+        setSelectedTrackUris([]);
+      }
+
+      return next;
+    });
+  }
+
+  function clearTrackSelection() {
+    setSelectedTrackUris([]);
+  }
+
+  function selectAllTracks() {
+    const uris = tracks
+      .map((playlistItem) => {
+        const track = getTrackFromPlaylistItem(playlistItem);
+        return track?.uri;
+      })
+      .filter((uri): uri is string => Boolean(uri));
+
+    setSelectedTrackUris(Array.from(new Set(uris)));
+  }
+
+  function toggleTrackSelection(playlistItem: SpotifyPlaylistItem) {
+    const track = getTrackFromPlaylistItem(playlistItem);
+
+    if (!track?.uri) {
+      setError("Could not select this song because it is missing a Spotify URI.");
+      return;
+    }
+
+    setSelectedTrackUris((currentUris) => {
+      if (currentUris.includes(track.uri!)) {
+        return currentUris.filter((uri) => uri !== track.uri);
+      }
+
+      return [...currentUris, track.uri!];
+    });
+  }
+
+  function requestRemoveSelectedTracks() {
+    if (!selectedTrackUris.length) return;
+    setConfirmingBulkRemove(true);
+  }
+  async function confirmRemoveSelectedTracks() {
+    if (!accessToken || !selectedPlaylist || !selectedTrackUris.length) return;
+
+    const urisToRemove = selectedTrackUris;
+
+    setRemovingSelectedTracks(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/remove-playlist-item", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          playlistId: selectedPlaylist.id,
+          itemUris: urisToRemove,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to remove songs"
+        );
+      }
+
+      setTracks((currentTracks) =>
+        currentTracks.filter((playlistItem) => {
+          const track = getTrackFromPlaylistItem(playlistItem);
+          return !track?.uri || !urisToRemove.includes(track.uri);
+        })
+      );
+
+      setPlaylists((currentPlaylists) =>
+        currentPlaylists.map((playlist) => {
+          if (playlist.id !== selectedPlaylist.id) return playlist;
+
+          const currentTotal =
+            playlist.items?.total ?? playlist.tracks?.total ?? tracks.length;
+
+          const nextTotal = Math.max(currentTotal - urisToRemove.length, 0);
+
+          return {
+            ...playlist,
+            items: { total: nextTotal },
+            tracks: { total: nextTotal },
+          };
+        })
+      );
+
+      setSelectedPlaylist((currentPlaylist) => {
+        if (!currentPlaylist || currentPlaylist.id !== selectedPlaylist.id) {
+          return currentPlaylist;
+        }
+
+        const currentTotal =
+          currentPlaylist.items?.total ??
+          currentPlaylist.tracks?.total ??
+          tracks.length;
+
+        const nextTotal = Math.max(currentTotal - urisToRemove.length, 0);
+
+        return {
+          ...currentPlaylist,
+          items: { total: nextTotal },
+          tracks: { total: nextTotal },
+        };
+      });
+
+      setSelectedTrackUris([]);
+      setSelectionMode(false);
+      setConfirmingBulkRemove(false);
+    } catch (err: unknown) {
+      console.error("Remove selected songs failed:", err);
+      setError(getErrorMessage(err));
+    } finally {
+      setRemovingSelectedTracks(false);
     }
   }
   async function createAiPlaylist() {
@@ -510,11 +647,34 @@ export default function Page() {
             loadingTracks={loadingTracks}
             loadingAI={loadingAI}
             aiAnalysis={aiAnalysis}
+            selectionMode={selectionMode}
+            selectedTrackUris={selectedTrackUris}
+            onToggleSelectionMode={toggleSelectionMode}
+            onClearSelection={clearTrackSelection}
+            onSelectAllTracks={selectAllTracks}
             onGenerateAiAnalysis={() => generateAiAnalysis(tracks)}
             onRemoveTrack={requestRemoveTrack}
+            onToggleTrackSelection={toggleTrackSelection}
+            onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
           />
         )}
       </main>
+      <ConfirmDialog
+        open={confirmingBulkRemove}
+        title="Remove selected songs?"
+        description={`This will remove ${selectedTrackUris.length} selected song${selectedTrackUris.length === 1 ? "" : "s"
+          } from "${selectedPlaylist?.name ?? "this playlist"}".`}
+        confirmLabel="Remove songs"
+        cancelLabel="Keep songs"
+        loading={removingSelectedTracks}
+        onConfirm={confirmRemoveSelectedTracks}
+        onCancel={() => {
+          if (!removingSelectedTracks) {
+            setConfirmingBulkRemove(false);
+          }
+        }}
+      />
+
       <ConfirmDialog
         open={Boolean(trackToRemove)}
         title="Remove song?"
@@ -531,6 +691,25 @@ export default function Page() {
         onCancel={() => {
           if (!removingTrack) {
             setTrackToRemove(null);
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(playlistToRemove)}
+        title="Remove playlist?"
+        description={
+          playlistToRemove
+            ? `This will remove "${playlistToRemove.name}" from your Spotify library.`
+            : ""
+        }
+        confirmLabel="Remove playlist"
+        cancelLabel="Keep playlist"
+        loading={removingPlaylist}
+        onConfirm={confirmRemovePlaylist}
+        onCancel={() => {
+          if (!removingPlaylist) {
+            setPlaylistToRemove(null);
           }
         }}
       />

@@ -9,25 +9,65 @@ import {
 type TrackRowProps = {
   playlistItem: SpotifyPlaylistItem;
   index: number;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (playlistItem: SpotifyPlaylistItem) => void;
   onRemove?: (playlistItem: SpotifyPlaylistItem) => void;
 };
 
-export function TrackRow({ playlistItem, index, onRemove }: TrackRowProps) {
+export function TrackRow({
+  playlistItem,
+  index,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
+  onRemove,
+}: TrackRowProps) {
   const track = getTrackFromPlaylistItem(playlistItem);
+  if (!track) return null;
+
   const addedLabel = getRelativeAddedTime(playlistItem.added_at);
   const recentlyAdded = wasRecentlyAdded(playlistItem.added_at);
-  if (!track) return null;
 
   function handleRemoveClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
     onRemove?.(playlistItem);
   }
 
+  function handleSelectClick(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onToggleSelect?.(playlistItem);
+  }
+
+  function handleRowClick() {
+    if (selectionMode) {
+      onToggleSelect?.(playlistItem);
+    }
+  }
+
   return (
     <div
       key={track.id ?? index}
-      className="group p-3 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition flex items-center gap-3"
+      onClick={handleRowClick}
+      className={`group p-3 rounded-xl border transition flex items-center gap-3 ${selected
+          ? "bg-green-500/10 border-green-400/40"
+          : "bg-white/[0.04] border-white/10 hover:bg-white/[0.07]"
+        } ${selectionMode ? "cursor-pointer" : ""}`}
     >
+      {selectionMode && (
+        <button
+          type="button"
+          onClick={handleSelectClick}
+          className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition ${selected
+              ? "bg-green-500 border-green-400 text-black"
+              : "bg-white/[0.04] border-white/20 text-transparent hover:border-green-400/50"
+            }`}
+          aria-label={selected ? `Deselect ${track.name}` : `Select ${track.name}`}
+        >
+          ✓
+        </button>
+      )}
+
       <CoverImage
         images={track.album?.images}
         alt={`${track.name} cover`}
@@ -52,14 +92,10 @@ export function TrackRow({ playlistItem, index, onRemove }: TrackRowProps) {
             .join(", ")}
         </p>
 
-        {addedLabel && (
-          <p className="mt-1 text-xs text-zinc-500">
-            {addedLabel}
-          </p>
-        )}
+        {addedLabel && <p className="mt-1 text-xs text-zinc-500">{addedLabel}</p>}
       </div>
 
-      {onRemove && (
+      {!selectionMode && onRemove && (
         <button
           type="button"
           onClick={handleRemoveClick}
