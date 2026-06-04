@@ -68,7 +68,7 @@ export function PlaylistView({
       )}
 
       {tracks.length > 0 && (
-        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="sticky top-16 z-30 mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#12141f]/90 p-3 shadow-xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-medium text-white">
               {selectionMode
@@ -84,11 +84,10 @@ export function PlaylistView({
             <button
               type="button"
               onClick={onToggleSelectionMode}
-              className={`rounded-lg cursor-pointer px-3 py-2 text-sm font-medium transition ${
-                selectionMode
+              className={`rounded-lg cursor-pointer px-3 py-2 text-sm font-medium transition ${selectionMode
                   ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
                   : "bg-green-500 text-black hover:bg-green-400"
-              }`}
+                }`}
             >
               {selectionMode ? "Exit select" : "Select songs"}
             </button>
