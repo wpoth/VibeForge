@@ -4,7 +4,7 @@ import SpotifyProvider from "next-auth/providers/spotify";
 async function refreshAccessToken(token: any) {
   try {
     const basicAuth = Buffer.from(
-      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`,
     ).toString("base64");
 
     const res = await fetch("https://accounts.spotify.com/api/token", {
@@ -37,13 +37,25 @@ async function refreshAccessToken(token: any) {
   }
 }
 
+const scopes = [
+  "user-read-email",
+  "user-read-private",
+  "playlist-read-private",
+  "playlist-read-collaborative",
+  "playlist-modify-public",
+  "playlist-modify-private",
+].join(" ");
+
 export const authOptions = {
   providers: [
     SpotifyProvider({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
-      authorization:
-        "https://accounts.spotify.com/authorize?scope=user-read-email user-read-private playlist-read-private playlist-read-collaborative playlist-modify-public playlist- modify-private"
+      authorization: {
+        params: {
+          scope: scopes,
+        },
+      },
     }),
   ],
 
