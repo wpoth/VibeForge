@@ -1,6 +1,10 @@
 import { CoverImage } from "@/components/common/CoverImage";
 import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
-import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
+import {
+  getRelativeAddedTime,
+  getTrackFromPlaylistItem,
+  wasRecentlyAdded,
+} from "@/lib/ui-helpers";
 
 type TrackRowProps = {
   playlistItem: SpotifyPlaylistItem;
@@ -10,6 +14,8 @@ type TrackRowProps = {
 
 export function TrackRow({ playlistItem, index, onRemove }: TrackRowProps) {
   const track = getTrackFromPlaylistItem(playlistItem);
+  const addedLabel = getRelativeAddedTime(playlistItem.added_at);
+  const recentlyAdded = wasRecentlyAdded(playlistItem.added_at);
   if (!track) return null;
 
   function handleRemoveClick(event: React.MouseEvent<HTMLButtonElement>) {
@@ -29,13 +35,28 @@ export function TrackRow({ playlistItem, index, onRemove }: TrackRowProps) {
       />
 
       <div className="min-w-0 flex-1">
-        <p className="font-medium truncate">{track.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-medium truncate">{track.name}</p>
+
+          {recentlyAdded && (
+            <span className="shrink-0 rounded-full border border-green-400/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-300">
+              New
+            </span>
+          )}
+        </div>
+
         <p className="text-sm text-zinc-400 truncate">
           {track.artists
             ?.map((artist) => artist.name)
             .filter(Boolean)
             .join(", ")}
         </p>
+
+        {addedLabel && (
+          <p className="mt-1 text-xs text-zinc-500">
+            {addedLabel}
+          </p>
+        )}
       </div>
 
       {onRemove && (

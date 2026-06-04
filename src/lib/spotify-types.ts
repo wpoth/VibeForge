@@ -23,6 +23,11 @@ export type SpotifyTrack = {
 };
 
 export type SpotifyPlaylistItem = {
+  added_at?: string | null;
+  added_by?: {
+    id?: string;
+    uri?: string;
+  } | null;
   item?: SpotifyTrack | null;
   track?: SpotifyTrack | null;
 };
