@@ -22,6 +22,7 @@ import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
+import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 
 export default function Page() {
   const { data: session, status } = useSession();
@@ -32,6 +33,15 @@ export default function Page() {
     isPlaying,
     currentlyPlayingError,
   } = useCurrentlyPlaying(accessToken);
+
+  const {
+    playingTrackUri,
+    playbackLoading,
+    playbackError,
+    playTrack,
+  } = useSpotifyPlayback({
+    accessToken,
+  });
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
 
@@ -161,6 +171,7 @@ export default function Page() {
     aiPlaylistCreatorError,
     playlistRemovalError,
     trackRemovalError,
+    playbackError,
   ]);
 
   function handleAiModeClick() {
@@ -279,11 +290,14 @@ export default function Page() {
             aiAnalysis={aiAnalysis}
             selectionMode={selectionMode}
             selectedTrackUris={selectedTrackUris}
+            playingTrackUri={playingTrackUri}
+            playbackLoading={playbackLoading}
             onToggleSelectionMode={toggleSelectionMode}
             onClearSelection={clearTrackSelection}
             onSelectAllTracks={selectAllTracks}
             onGenerateAiAnalysis={handleGenerateAiAnalysis}
             onRemoveTrack={handleRequestRemoveTrack}
+            onPlayTrack={playTrack}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
           />

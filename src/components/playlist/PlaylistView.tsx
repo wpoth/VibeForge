@@ -12,10 +12,12 @@ type PlaylistViewProps = {
   loadingTracks: boolean;
   loadingAI: boolean;
   aiAnalysis: string | null;
-
+  playingTrackUri: string | null;
+  playbackLoading: boolean;
   selectionMode: boolean;
   selectedTrackUris: string[];
 
+  onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleSelectionMode: () => void;
   onClearSelection: () => void;
   onSelectAllTracks: () => void;
@@ -33,6 +35,7 @@ export function PlaylistView({
   aiAnalysis,
   selectionMode,
   selectedTrackUris,
+  playingTrackUri,
   onToggleSelectionMode,
   onClearSelection,
   onSelectAllTracks,
@@ -151,11 +154,10 @@ export function PlaylistView({
                 <button
                   type="button"
                   onClick={onToggleSelectionMode}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                    selectionMode
+                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${selectionMode
                       ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
                       : "bg-green-500 text-black hover:bg-green-400"
-                  }`}
+                    }`}
                 >
                   {selectionMode ? "Exit select" : "Select songs"}
                 </button>

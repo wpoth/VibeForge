@@ -59,6 +59,7 @@ const scopes = [
   "playlist-modify-private",
   "user-library-modify",
   "user-read-currently-playing",
+  "user-modify-playback-state",
 ].join(" ");
 
 export const authOptions = {
