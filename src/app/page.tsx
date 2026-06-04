@@ -433,6 +433,26 @@ export default function Page() {
               </div>
             )}
 
+            {aiAnalysis && (
+              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <h3 className="font-semibold">AI Analysis</h3>
+
+                  <button
+                    onClick={() => generateAiAnalysis(tracks)}
+                    disabled={loadingAI}
+                    className="text-xs px-3 py-1 rounded-full bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Regenerate
+                  </button>
+                </div>
+
+                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
+                  {aiAnalysis}
+                </pre>
+              </div>
+            )}
+
             {/* TRACK LIST */}
             {!loadingTracks && tracks.length === 0 && (
               <p className="text-sm text-zinc-500">
