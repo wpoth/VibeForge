@@ -58,7 +58,7 @@ export function TrackRow({
         <button
           type="button"
           onClick={handleSelectClick}
-          className={`h-5 w-5 rounded-md border flex items-center justify-center shrink-0 transition ${selected
+          className={`h-5 w-5 rounded-md border cursor-pointer flex items-center justify-center shrink-0 transition ${selected
               ? "bg-green-500 border-green-400 text-black"
               : "bg-white/[0.04] border-white/20 text-transparent hover:border-green-400/50"
             }`}
@@ -99,7 +99,7 @@ export function TrackRow({
         <button
           type="button"
           onClick={handleRemoveClick}
-          className="h-8 w-8 rounded-lg bg-red-500/10 text-red-300 border border-red-400/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 transition shrink-0"
+          className="h-8 w-8 rounded-lg bg-red-500/10 cursor-pointer text-red-300 border border-red-400/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 transition shrink-0"
           title="Remove song"
           aria-label={`Remove ${track.name}`}
         >

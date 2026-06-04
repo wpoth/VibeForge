@@ -18,14 +18,14 @@ export function Header({ onAiModeClick }: HeaderProps) {
       <div className="flex gap-3 shrink-0">
         <button
           onClick={onAiModeClick}
-          className="text-sm text-zinc-400 hover:text-white transition"
+          className="text-sm cursor-pointer text-zinc-400 hover:text-white transition"
         >
           AI Mode
         </button>
 
         <button
           onClick={() => signOut()}
-          className="text-sm text-zinc-400 hover:text-white transition"
+          className="text-sm cursor-pointer text-zinc-400 hover:text-white transition"
         >
           Logout
         </button>

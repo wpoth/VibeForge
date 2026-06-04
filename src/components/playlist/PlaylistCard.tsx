@@ -42,7 +42,7 @@ export function PlaylistCard({
       <button
         type="button"
         onClick={handleRemoveClick}
-        className="absolute right-2 top-2 h-7 w-7 rounded-lg bg-red-500/10 text-red-300 border border-red-400/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-red-500/20 transition"
+        className="absolute right-2 cursor-pointer top-2 h-7 w-7 rounded-lg bg-red-500/10 text-red-300 border border-red-400/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-red-500/20 transition"
         title="Remove playlist"
         aria-label={`Remove ${playlist.name}`}
       >

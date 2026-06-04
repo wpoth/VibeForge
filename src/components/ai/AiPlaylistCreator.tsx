@@ -58,7 +58,7 @@ export function AiPlaylistCreator({
                 <div className="grid grid-cols-2 gap-2 mb-4 sm:flex">
                     <button
                         onClick={() => onModeChange("vibe")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition ${aiPlaylistMode === "vibe"
+                        className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "vibe"
                             ? "bg-green-500 text-black"
                             : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                             }`}
@@ -68,7 +68,7 @@ export function AiPlaylistCreator({
 
                     <button
                         onClick={() => onModeChange("artist")}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition ${aiPlaylistMode === "artist"
+                        className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "artist"
                             ? "bg-green-500 text-black"
                             : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                             }`}
@@ -86,7 +86,7 @@ export function AiPlaylistCreator({
                         <button
                             type="button"
                             onClick={() => onTargetChange("new")}
-                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${aiPlaylistTarget === "new"
+                            className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "new"
                                 ? "bg-green-500 text-black"
                                 : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                                 }`}
@@ -97,7 +97,7 @@ export function AiPlaylistCreator({
                         <button
                             type="button"
                             onClick={() => onTargetChange("existing")}
-                            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${aiPlaylistTarget === "existing"
+                            className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "existing"
                                 ? "bg-green-500 text-black"
                                 : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                                 }`}
@@ -170,7 +170,7 @@ export function AiPlaylistCreator({
                         !aiPrompt.trim() ||
                         (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId)
                     }
-                    className="mt-5 w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+                    className="mt-5 w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 cursor-pointer text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
                 >
                     {creatingPlaylist
                         ? aiPlaylistTarget === "existing"

@@ -413,7 +413,7 @@ export default function Page() {
       setError("Type a vibe or artist first.");
       return;
     }
-    
+
     if (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId) {
       setError("Choose a playlist to add songs to.");
       return;
@@ -662,7 +662,7 @@ export default function Page() {
 
           <button
             onClick={() => signIn("spotify", { callbackUrl: "/" })}
-            className="mt-8 px-7 py-3 bg-green-500 text-black rounded-full font-semibold hover:bg-green-400 transition shadow-lg shadow-green-500/20"
+            className="mt-8 px-7 py-3 bg-green-500 cursor-pointer text-black rounded-full font-semibold hover:bg-green-400 transition shadow-lg shadow-green-500/20"
           >
             Login with Spotify
           </button>

@@ -27,7 +27,7 @@ export function ConfirmDialog({
         type="button"
         aria-label="Close confirmation dialog"
         onClick={loading ? undefined : onCancel}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute cursor-pointer inset-0 bg-black/70 backdrop-blur-sm"
       />
 
       <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#12141f] p-5 shadow-2xl">
@@ -44,7 +44,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl cursor-pointer border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {cancelLabel}
           </button>
@@ -53,7 +53,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl cursor-pointer bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Removing..." : confirmLabel}
           </button>

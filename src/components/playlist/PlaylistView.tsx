@@ -84,7 +84,7 @@ export function PlaylistView({
             <button
               type="button"
               onClick={onToggleSelectionMode}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+              className={`rounded-lg cursor-pointer px-3 py-2 text-sm font-medium transition ${
                 selectionMode
                   ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
                   : "bg-green-500 text-black hover:bg-green-400"
@@ -98,7 +98,7 @@ export function PlaylistView({
                 <button
                   type="button"
                   onClick={onSelectAllTracks}
-                  className="rounded-lg bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.1]"
+                  className="rounded-lg cursor-pointer bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.1]"
                 >
                   Select all
                 </button>
@@ -107,7 +107,7 @@ export function PlaylistView({
                   type="button"
                   onClick={onClearSelection}
                   disabled={selectedTrackUris.length === 0}
-                  className="rounded-lg bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg cursor-pointer bg-white/[0.06] px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Clear
                 </button>
@@ -116,7 +116,7 @@ export function PlaylistView({
                   type="button"
                   onClick={onRequestRemoveSelectedTracks}
                   disabled={selectedTrackUris.length === 0}
-                  className="rounded-lg bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg cursor-pointer bg-red-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Remove selected
                 </button>
@@ -128,9 +128,10 @@ export function PlaylistView({
 
       {tracks.length > 0 && !aiAnalysis && !selectionMode && (
         <button
+          type="button"
           onClick={onGenerateAiAnalysis}
           disabled={loadingAI}
-          className="mb-4 w-full sm:w-auto px-4 py-2 rounded-lg bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+          className="mb-4 w-full sm:w-auto px-4 py-2 rounded-lg cursor-pointer bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
         >
           Generate AI analysis
         </button>
@@ -150,7 +151,7 @@ export function PlaylistView({
             <button
               onClick={onGenerateAiAnalysis}
               disabled={loadingAI}
-              className="w-full sm:w-auto text-xs px-3 py-2 sm:py-1 rounded-full bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="w-full sm:w-auto cursor-pointer text-xs px-3 py-2 sm:py-1 rounded-full bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1] disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               Regenerate
             </button>
