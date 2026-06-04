@@ -114,7 +114,33 @@ export default function Page() {
     error: session?.error,
   });
 
-  
+  async function testCreatePlaylist() {
+    if (!accessToken) {
+      console.error("No access token");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/test-create-playlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ accessToken }),
+      });
+
+      const data = await res.json();
+
+      console.log("TEST CREATE PLAYLIST RESPONSE:", {
+        status: res.status,
+        ok: res.ok,
+        data,
+      });
+    } catch (err) {
+      console.error("TEST CREATE PLAYLIST FAILED:", err);
+    }
+  }
+
   // LOAD PROFILE
   useEffect(() => {
     if (!accessToken) return;
@@ -513,6 +539,13 @@ export default function Page() {
               Turn a vibe or artist into a playlist.
             </h2>
 
+            <button
+              onClick={testCreatePlaylist}
+              className="mt-4 px-4 py-2 rounded-lg bg-purple-500 text-white font-semibold hover:bg-purple-400 transition"
+            >
+              Test Spotify playlist creation
+            </button>
+            
             <p className="text-zinc-400 mb-8 max-w-2xl">
               Describe a mood, setting, genre, or artist direction. VibeForge will find
               matching Spotify tracks and create a private playlist in your account.
