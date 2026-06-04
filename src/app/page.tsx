@@ -60,6 +60,10 @@ export default function Page() {
   const [removingPlaylist, setRemovingPlaylist] = useState(false);
   const accessToken = session?.accessToken;
 
+  const [trackToRemove, setTrackToRemove] =
+    useState<SpotifyPlaylistItem | null>(null);
+  const [removingTrack, setRemovingTrack] = useState(false);
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -332,7 +336,104 @@ export default function Page() {
       setCreatingPlaylist(false);
     }
   }
+  function requestRemoveTrack(playlistItem: SpotifyPlaylistItem) {
+    setTrackToRemove(playlistItem);
+  }
 
+  async function confirmRemoveTrack() {
+    if (!accessToken || !selectedPlaylist || !trackToRemove) return;
+
+    const track = getTrackFromPlaylistItem(trackToRemove);
+
+    if (!track?.uri) {
+      setError("Could not remove song because it is missing a Spotify URI.");
+      setTrackToRemove(null);
+      return;
+    }
+
+    setRemovingTrack(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/remove-playlist-item", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          playlistId: selectedPlaylist.id,
+          itemUri: track.uri,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to remove song"
+        );
+      }
+
+      setTracks((currentTracks) => {
+        let removed = false;
+
+        return currentTracks.filter((playlistItem) => {
+          const currentTrack = getTrackFromPlaylistItem(playlistItem);
+
+          if (!removed && currentTrack?.uri === track.uri) {
+            removed = true;
+            return false;
+          }
+
+          return true;
+        });
+      });
+
+      setPlaylists((currentPlaylists) =>
+        currentPlaylists.map((playlist) => {
+          if (playlist.id !== selectedPlaylist.id) return playlist;
+
+          const currentTotal =
+            playlist.items?.total ?? playlist.tracks?.total ?? tracks.length;
+
+          const nextTotal = Math.max(currentTotal - 1, 0);
+
+          return {
+            ...playlist,
+            items: { total: nextTotal },
+            tracks: { total: nextTotal },
+          };
+        })
+      );
+
+      setSelectedPlaylist((currentPlaylist) => {
+        if (!currentPlaylist || currentPlaylist.id !== selectedPlaylist.id) {
+          return currentPlaylist;
+        }
+
+        const currentTotal =
+          currentPlaylist.items?.total ??
+          currentPlaylist.tracks?.total ??
+          tracks.length;
+
+        const nextTotal = Math.max(currentTotal - 1, 0);
+
+        return {
+          ...currentPlaylist,
+          items: { total: nextTotal },
+          tracks: { total: nextTotal },
+        };
+      });
+
+      setTrackToRemove(null);
+    } catch (err: unknown) {
+      console.error("Remove song failed:", err);
+      setError(getErrorMessage(err));
+    } finally {
+      setRemovingTrack(false);
+    }
+  }
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
@@ -410,24 +511,26 @@ export default function Page() {
             loadingAI={loadingAI}
             aiAnalysis={aiAnalysis}
             onGenerateAiAnalysis={() => generateAiAnalysis(tracks)}
+            onRemoveTrack={requestRemoveTrack}
           />
         )}
       </main>
       <ConfirmDialog
-        open={Boolean(playlistToRemove)}
-        title="Remove playlist?"
+        open={Boolean(trackToRemove)}
+        title="Remove song?"
         description={
-          playlistToRemove
-            ? `This will remove "${playlistToRemove.name}" from your Spotify library. Spotify does not permanently delete playlists through the Web API.`
+          trackToRemove
+            ? `This will remove "${getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
+            }" from "${selectedPlaylist?.name ?? "this playlist"}".`
             : ""
         }
-        confirmLabel="Remove playlist"
-        cancelLabel="Keep playlist"
-        loading={removingPlaylist}
-        onConfirm={confirmRemovePlaylist}
+        confirmLabel="Remove song"
+        cancelLabel="Keep song"
+        loading={removingTrack}
+        onConfirm={confirmRemoveTrack}
         onCancel={() => {
-          if (!removingPlaylist) {
-            setPlaylistToRemove(null);
+          if (!removingTrack) {
+            setTrackToRemove(null);
           }
         }}
       />

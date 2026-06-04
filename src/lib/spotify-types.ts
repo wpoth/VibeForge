@@ -15,6 +15,7 @@ export type SpotifyAlbum = {
 
 export type SpotifyTrack = {
   id?: string;
+  uri?: string;
   name?: string;
   type?: string;
   artists?: SpotifyArtist[];

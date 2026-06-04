@@ -13,6 +13,7 @@ type PlaylistViewProps = {
   loadingAI: boolean;
   aiAnalysis: string | null;
   onGenerateAiAnalysis: () => void;
+  onRemoveTrack: (playlistItem: SpotifyPlaylistItem) => void;
 };
 
 export function PlaylistView({
@@ -22,6 +23,7 @@ export function PlaylistView({
   loadingAI,
   aiAnalysis,
   onGenerateAiAnalysis,
+  onRemoveTrack,
 }: PlaylistViewProps) {
   return (
     <div className="w-full max-w-4xl">
@@ -97,6 +99,7 @@ export function PlaylistView({
             key={playlistItem.item?.id ?? playlistItem.track?.id ?? index}
             playlistItem={playlistItem}
             index={index}
+            onRemove={onRemoveTrack}
           />
         ))}
       </div>
