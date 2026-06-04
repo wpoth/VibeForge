@@ -2,9 +2,10 @@ import { useState } from "react";
 
 import type {
   AiPlaylistResponse,
+  AiPreviewTrack,
+  AiTrackPreviewResponse,
   SpotifyPlaylist,
 } from "@/lib/spotify-types";
-
 import { getErrorMessage } from "@/lib/ui-helpers";
 
 type UseAiPlaylistCreatorArgs = {
@@ -27,9 +28,7 @@ type UseAiPlaylistCreatorResult = {
   aiPlaylistMode: "vibe" | "artist";
   setAiPlaylistMode: React.Dispatch<React.SetStateAction<"vibe" | "artist">>;
   aiPlaylistTarget: "new" | "existing";
-  setAiPlaylistTarget: React.Dispatch<
-    React.SetStateAction<"new" | "existing">
-  >;
+  setAiPlaylistTarget: React.Dispatch<React.SetStateAction<"new" | "existing">>;
   selectedTargetPlaylistId: string;
   setSelectedTargetPlaylistId: React.Dispatch<React.SetStateAction<string>>;
   creatingPlaylist: boolean;
@@ -37,6 +36,14 @@ type UseAiPlaylistCreatorResult = {
   aiPlaylistSuccessMessage: string | null;
   createAiPlaylist: () => Promise<void>;
   aiPlaylistCreatorError: string | null;
+  previewTracks: AiPreviewTrack[];
+  selectedPreviewTrackUris: string[];
+  generatingPreview: boolean;
+  generateTrackPreview: () => Promise<void>;
+  togglePreviewTrack: (trackUri: string) => void;
+  selectAllPreviewTracks: () => void;
+  clearPreviewSelection: () => void;
+  clearPreview: () => void;
 };
 
 export function useAiPlaylistCreator({
@@ -50,25 +57,116 @@ export function useAiPlaylistCreator({
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiPlaylistName, setAiPlaylistName] = useState("");
   const [aiPlaylistMode, setAiPlaylistMode] = useState<"vibe" | "artist">(
-    "vibe"
+    "vibe",
   );
 
   const [aiPlaylistTarget, setAiPlaylistTarget] = useState<"new" | "existing">(
-    "new"
+    "new",
   );
 
   const [selectedTargetPlaylistId, setSelectedTargetPlaylistId] = useState("");
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState<string | null>(
-    null
+    null,
   );
 
-  const [aiPlaylistSuccessMessage, setAiPlaylistSuccessMessage] =
-    useState<string | null>(null);
+  const [aiPlaylistSuccessMessage, setAiPlaylistSuccessMessage] = useState<
+    string | null
+  >(null);
 
-  const [aiPlaylistCreatorError, setAiPlaylistCreatorError] =
-    useState<string | null>(null);
+  const [aiPlaylistCreatorError, setAiPlaylistCreatorError] = useState<
+    string | null
+  >(null);
 
+  const [previewTracks, setPreviewTracks] = useState<AiPreviewTrack[]>([]);
+  const [selectedPreviewTrackUris, setSelectedPreviewTrackUris] = useState<
+    string[]
+  >([]);
+  const [generatingPreview, setGeneratingPreview] = useState(false);
+
+  const selectedTracks = previewTracks.filter(
+    (track) => track.uri && selectedPreviewTrackUris.includes(track.uri),
+  );
+
+  function togglePreviewTrack(trackUri: string) {
+    setSelectedPreviewTrackUris((currentUris) => {
+      if (currentUris.includes(trackUri)) {
+        return currentUris.filter((uri) => uri !== trackUri);
+      }
+
+      return [...currentUris, trackUri];
+    });
+  }
+
+  function selectAllPreviewTracks() {
+    const uris = previewTracks
+      .map((track) => track.uri)
+      .filter((uri): uri is string => Boolean(uri));
+
+    setSelectedPreviewTrackUris(Array.from(new Set(uris)));
+  }
+
+  function clearPreviewSelection() {
+    setSelectedPreviewTrackUris([]);
+  }
+
+  function clearPreview() {
+    setPreviewTracks([]);
+    setSelectedPreviewTrackUris([]);
+  }
+  async function generateTrackPreview() {
+    if (!accessToken) return;
+
+    if (!aiPrompt.trim()) {
+      setAiPlaylistCreatorError("Type a vibe or artist first.");
+      return;
+    }
+
+    setGeneratingPreview(true);
+    setPreviewTracks([]);
+    setSelectedPreviewTrackUris([]);
+    setCreatedPlaylistUrl(null);
+    setAiPlaylistSuccessMessage(null);
+    setAiPlaylistCreatorError(null);
+
+    try {
+      const res = await fetch("/api/ai-track-preview", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          prompt: aiPrompt,
+          mode: aiPlaylistMode,
+        }),
+      });
+
+      const data = (await res.json()) as AiTrackPreviewResponse;
+
+      console.log("AI TRACK PREVIEW RESPONSE:", data);
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to generate preview",
+        );
+      }
+
+      const tracks = data.tracks ?? [];
+
+      setPreviewTracks(tracks);
+      setSelectedPreviewTrackUris(
+        tracks
+          .map((track) => track.uri)
+          .filter((uri): uri is string => Boolean(uri)),
+      );
+    } catch (error: unknown) {
+      console.error("Generate track preview failed:", error);
+      setAiPlaylistCreatorError(getErrorMessage(error));
+    } finally {
+      setGeneratingPreview(false);
+    }
+  }
   async function createAiPlaylist() {
     if (!accessToken) return;
 
@@ -79,6 +177,12 @@ export function useAiPlaylistCreator({
 
     if (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId) {
       setAiPlaylistCreatorError("Choose a playlist to add songs to.");
+      return;
+    }
+    if (!selectedPreviewTrackUris.length) {
+      setAiPlaylistCreatorError(
+        "Generate a preview and select at least one song.",
+      );
       return;
     }
 
@@ -104,6 +208,7 @@ export function useAiPlaylistCreator({
             aiPlaylistTarget === "existing"
               ? selectedTargetPlaylistId
               : undefined,
+          selectedTracks,
         }),
       });
 
@@ -113,7 +218,7 @@ export function useAiPlaylistCreator({
 
       if (!res.ok || data?.error) {
         throw new Error(
-          data?.message || String(data?.error) || "Failed to create playlist"
+          data?.message || String(data?.error) || "Failed to create playlist",
         );
       }
 
@@ -134,7 +239,7 @@ export function useAiPlaylistCreator({
               items: { total: nextTotal },
               tracks: { total: nextTotal },
             };
-          })
+          }),
         );
 
         setSelectedPlaylist((currentPlaylist) => {
@@ -146,9 +251,7 @@ export function useAiPlaylistCreator({
           }
 
           const currentTotal =
-            currentPlaylist.items?.total ??
-            currentPlaylist.tracks?.total ??
-            0;
+            currentPlaylist.items?.total ?? currentPlaylist.tracks?.total ?? 0;
 
           const nextTotal = currentTotal + addedCount;
 
@@ -165,7 +268,7 @@ export function useAiPlaylistCreator({
 
         setCreatedPlaylistUrl(null);
         setAiPlaylistSuccessMessage(
-          `Added ${addedCount} songs to the selected playlist.`
+          `Added ${addedCount} songs to the selected playlist.`,
         );
 
         return;
@@ -196,7 +299,7 @@ export function useAiPlaylistCreator({
 
         setPlaylists((currentPlaylists) => {
           const alreadyExists = currentPlaylists.some(
-            (playlist) => playlist.id === playlistId
+            (playlist) => playlist.id === playlistId,
           );
 
           if (alreadyExists) return currentPlaylists;
@@ -230,5 +333,13 @@ export function useAiPlaylistCreator({
     aiPlaylistSuccessMessage,
     createAiPlaylist,
     aiPlaylistCreatorError,
+    previewTracks,
+    selectedPreviewTrackUris,
+    generatingPreview,
+    generateTrackPreview,
+    togglePreviewTrack,
+    selectAllPreviewTracks,
+    clearPreviewSelection,
+    clearPreview,
   };
 }

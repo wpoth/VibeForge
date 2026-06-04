@@ -93,6 +93,16 @@ export default function Page() {
     creatingPlaylist,
     createdPlaylistUrl,
     aiPlaylistSuccessMessage,
+
+    previewTracks,
+    selectedPreviewTrackUris,
+    generatingPreview,
+    generateTrackPreview,
+    togglePreviewTrack,
+    selectAllPreviewTracks,
+    clearPreviewSelection,
+    clearPreview,
+
     createAiPlaylist,
     aiPlaylistCreatorError,
   } = useAiPlaylistCreator({
@@ -272,11 +282,19 @@ export default function Page() {
             creatingPlaylist={creatingPlaylist}
             createdPlaylistUrl={createdPlaylistUrl}
             successMessage={aiPlaylistSuccessMessage}
+            previewTracks={previewTracks}
+            selectedPreviewTrackUris={selectedPreviewTrackUris}
+            generatingPreview={generatingPreview}
             onPromptChange={setAiPrompt}
             onPlaylistNameChange={setAiPlaylistName}
             onModeChange={setAiPlaylistMode}
             onTargetChange={setAiPlaylistTarget}
             onTargetPlaylistChange={setSelectedTargetPlaylistId}
+            onGeneratePreview={generateTrackPreview}
+            onTogglePreviewTrack={togglePreviewTrack}
+            onSelectAllPreviewTracks={selectAllPreviewTracks}
+            onClearPreviewSelection={clearPreviewSelection}
+            onClearPreview={clearPreview}
             onCreatePlaylist={createAiPlaylist}
           />
         )}
@@ -307,8 +325,11 @@ export default function Page() {
       <ConfirmDialog
         open={confirmingBulkRemove}
         title="Remove selected songs?"
-        description={`This will remove ${selectedTrackUris.length} selected song${selectedTrackUris.length === 1 ? "" : "s"
-          } from "${selectedPlaylist?.name ?? "this playlist"}".`}
+        description={`This will remove ${
+          selectedTrackUris.length
+        } selected song${selectedTrackUris.length === 1 ? "" : "s"} from "${
+          selectedPlaylist?.name ?? "this playlist"
+        }".`}
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
         loading={removingSelectedTracks}
@@ -321,8 +342,9 @@ export default function Page() {
         title="Remove song?"
         description={
           trackToRemove
-            ? `This will remove "${getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
-            }" from "${selectedPlaylist?.name ?? "this playlist"}".`
+            ? `This will remove "${
+                getTrackFromPlaylistItem(trackToRemove)?.name ?? "this song"
+              }" from "${selectedPlaylist?.name ?? "this playlist"}".`
             : ""
         }
         confirmLabel="Remove song"

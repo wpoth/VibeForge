@@ -95,7 +95,7 @@ export function TrackRow({
             type="button"
             onClick={handlePlayClick}
             disabled={playbackLoading}
-            className={`absolute inset-0 flex items-center justify-center rounded-lg border transition ${
+            className={`absolute cursor-pointer inset-0 flex items-center justify-center rounded-lg border transition ${
               isCurrentTrack
                 ? "bg-green-500/80 text-black border-green-300 opacity-100"
                 : "bg-black/55 text-white border-white/10 opacity-0 group-hover/cover:opacity-100 hover:bg-black/70"

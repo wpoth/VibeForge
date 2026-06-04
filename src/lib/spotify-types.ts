@@ -45,6 +45,27 @@ export type SpotifyPlaylist = {
   };
 };
 
+export type AiPreviewTrack = {
+  id?: string;
+  uri?: string;
+  name?: string;
+  artists?: string[];
+  album?: string;
+  imageUrl?: string | null;
+};
+
+export type AiTrackPreviewResponse = ApiErrorResponse & {
+  success?: boolean;
+  tracks?: AiPreviewTrack[];
+  debug?: {
+    prompt?: string;
+    mode?: string;
+    generatedQueries?: string[];
+    foundTrackCount?: number;
+    durationMs?: number;
+  };
+};
+
 export type SpotifyProfile = {
   display_name?: string;
 };
