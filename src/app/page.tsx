@@ -161,7 +161,7 @@ export default function Page() {
         setPlaylistsLoaded(true);
       });
   }, [accessToken]);
-  
+
   async function generateAiAnalysis(playlistItems: SpotifyPlaylistItem[]) {
     const simplified = playlistItems
       .map(getTrackFromPlaylistItem)
@@ -235,7 +235,6 @@ export default function Page() {
       const playlistItems = tracksData.items ?? [];
 
       setTracks(playlistItems);
-      await generateAiAnalysis(playlistItems);
     } catch (err: unknown) {
       console.error("Failed to open playlist:", err);
       setError(getErrorMessage(err));
@@ -418,18 +417,19 @@ export default function Page() {
               </div>
             )}
 
+            {tracks.length > 0 && !aiAnalysis && (
+              <button
+                onClick={() => generateAiAnalysis(tracks)}
+                disabled={loadingAI}
+                className="mb-4 px-4 py-2 rounded-lg bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Generate AI analysis
+              </button>
+            )}
+
             {loadingAI && (
               <div className="mb-4 text-sm text-zinc-400">
                 Generating AI analysis...
-              </div>
-            )}
-
-            {aiAnalysis && (
-              <div className="mb-6 p-4 rounded-lg bg-zinc-900 border border-zinc-800">
-                <h3 className="font-semibold mb-2">AI Analysis</h3>
-                <pre className="text-sm text-zinc-300 whitespace-pre-wrap">
-                  {aiAnalysis}
-                </pre>
               </div>
             )}
 
