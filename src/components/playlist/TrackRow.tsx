@@ -11,8 +11,11 @@ type TrackRowProps = {
   index: number;
   selectionMode?: boolean;
   selected?: boolean;
+  playingTrackUri?: string | null;
+  playbackLoading?: boolean;
   onToggleSelect?: (playlistItem: SpotifyPlaylistItem) => void;
   onRemove?: (playlistItem: SpotifyPlaylistItem) => void;
+  onPlay?: (playlistItem: SpotifyPlaylistItem) => void;
 };
 
 export function TrackRow({
@@ -20,12 +23,16 @@ export function TrackRow({
   index,
   selectionMode = false,
   selected = false,
+  playingTrackUri = null,
+  playbackLoading = false,
   onToggleSelect,
   onRemove,
+  onPlay,
 }: TrackRowProps) {
   const track = getTrackFromPlaylistItem(playlistItem);
   if (!track) return null;
 
+  const isCurrentTrack = Boolean(track.uri && track.uri === playingTrackUri);
   const addedLabel = getRelativeAddedTime(playlistItem.added_at);
   const recentlyAdded = wasRecentlyAdded(playlistItem.added_at);
 
@@ -34,6 +41,10 @@ export function TrackRow({
     onRemove?.(playlistItem);
   }
 
+  function handlePlayClick(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onPlay?.(playlistItem);
+  }
   function handleSelectClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
     onToggleSelect?.(playlistItem);
@@ -49,30 +60,53 @@ export function TrackRow({
     <div
       key={track.id ?? index}
       onClick={handleRowClick}
-      className={`group p-3 rounded-xl border transition flex items-center gap-3 ${selected
+      className={`group p-3 rounded-xl border transition flex items-center gap-3 ${
+        selected
           ? "bg-green-500/10 border-green-400/40"
           : "bg-white/[0.04] border-white/10 hover:bg-white/[0.07]"
-        } ${selectionMode ? "cursor-pointer" : ""}`}
+      } ${selectionMode ? "cursor-pointer" : ""}`}
     >
       {selectionMode && (
         <button
           type="button"
           onClick={handleSelectClick}
-          className={`h-5 w-5 rounded-md border cursor-pointer flex items-center justify-center shrink-0 transition ${selected
+          className={`h-5 w-5 rounded-md border cursor-pointer flex items-center justify-center shrink-0 transition ${
+            selected
               ? "bg-green-500 border-green-400 text-black"
               : "bg-white/[0.04] border-white/20 text-transparent hover:border-green-400/50"
-            }`}
-          aria-label={selected ? `Deselect ${track.name}` : `Select ${track.name}`}
+          }`}
+          aria-label={
+            selected ? `Deselect ${track.name}` : `Select ${track.name}`
+          }
         >
           ✓
         </button>
       )}
 
-      <CoverImage
-        images={track.album?.images}
-        alt={`${track.name} cover`}
-        size="sm"
-      />
+      <div className="relative shrink-0 group/cover">
+        <CoverImage
+          images={track.album?.images}
+          alt={`${track.name} cover`}
+          size="sm"
+        />
+
+        {!selectionMode && onPlay && (
+          <button
+            type="button"
+            onClick={handlePlayClick}
+            disabled={playbackLoading}
+            className={`absolute inset-0 flex items-center justify-center rounded-lg border transition ${
+              isCurrentTrack
+                ? "bg-green-500/80 text-black border-green-300 opacity-100"
+                : "bg-black/55 text-white border-white/10 opacity-0 group-hover/cover:opacity-100 hover:bg-black/70"
+            } disabled:cursor-not-allowed disabled:opacity-50`}
+            title="Play song"
+            aria-label={`Play ${track.name}`}
+          >
+            <span className="translate-x-[1px] text-sm">▶</span>
+          </button>
+        )}
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -92,7 +126,9 @@ export function TrackRow({
             .join(", ")}
         </p>
 
-        {addedLabel && <p className="mt-1 text-xs text-zinc-500">{addedLabel}</p>}
+        {addedLabel && (
+          <p className="mt-1 text-xs text-zinc-500">{addedLabel}</p>
+        )}
       </div>
 
       {!selectionMode && onRemove && (

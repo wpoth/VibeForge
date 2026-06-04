@@ -1,9 +1,6 @@
 import { CoverImage } from "@/components/common/CoverImage";
 import { TrackRow } from "@/components/playlist/TrackRow";
-import type {
-  SpotifyPlaylist,
-  SpotifyPlaylistItem,
-} from "@/lib/spotify-types";
+import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getPlaylistTrackCount } from "@/lib/ui-helpers";
 
 type PlaylistViewProps = {
@@ -43,6 +40,7 @@ export function PlaylistView({
   onRemoveTrack,
   onToggleTrackSelection,
   onRequestRemoveSelectedTracks,
+  onPlayTrack,
 }: PlaylistViewProps) {
   return (
     <div className="w-full max-w-6xl">
@@ -129,6 +127,7 @@ export function PlaylistView({
                   selected={selected}
                   onToggleSelect={onToggleTrackSelection}
                   onRemove={onRemoveTrack}
+                  onPlay={onPlayTrack}
                 />
               );
             })}
@@ -154,10 +153,11 @@ export function PlaylistView({
                 <button
                   type="button"
                   onClick={onToggleSelectionMode}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${selectionMode
+                  className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                    selectionMode
                       ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
                       : "bg-green-500 text-black hover:bg-green-400"
-                    }`}
+                  }`}
                 >
                   {selectionMode ? "Exit select" : "Select songs"}
                 </button>
