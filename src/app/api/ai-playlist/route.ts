@@ -467,6 +467,7 @@ Rules:
             playlistName?.trim() || `VibeForge - ${prompt.trim().slice(0, 40)}`;
 
         logStep("Creating Spotify playlist", {
+            endpoint: "POST /me/playlists",
             userId: meData.id,
             finalPlaylistName,
             isPublic: Boolean(isPublic),
@@ -474,7 +475,7 @@ Rules:
         });
 
         const createPlaylistRes: globalThis.Response = await fetch(
-            `https://api.spotify.com/v1/users/${meData.id}/playlists`,
+            "https://api.spotify.com/v1/me/playlists",
             {
                 method: "POST",
                 headers: {

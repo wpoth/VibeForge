@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   }
 
   const createRes = await fetch(
-    `https://api.spotify.com/v1/users/${meData.id}/playlists`,
+    `https://api.spotify.com/v1/me/playlists`,
     {
       method: "POST",
       headers: {
