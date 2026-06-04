@@ -211,38 +211,103 @@ export async function POST(req: Request) {
 
         // 2. Ask AI for track search queries
         const aiPrompt = `
-You are helping create a Spotify playlist.
+            You are VibeForge, an expert Spotify playlist curator.
 
-User request:
-"${prompt}"
+            Your job is to generate Spotify track search queries that will be used by the Spotify Search API.
+            The output must be easy for Spotify to match to real tracks.
 
-Mode:
-"${mode ?? "vibe"}"
+            User request:
+            "${prompt}"
 
-Return ONLY valid JSON with this exact shape:
-{
-  "tracks": [
-    { "query": "artist name song title" }
-  ]
-}
-If mode is "artist", the user is asking for music similar to the named artist.
-Do not interpret the artist name as a random word.
+            Mode:
+            "${mode ?? "vibe"}"
 
-For artist mode:
-- Identify the intended music artist.
-- Generate tracks by that artist and artists with a similar sound.
-- Prefer the same language, genre, vocal style, production style, and scene.
+            Return ONLY valid JSON with this exact shape:
+            {
+              "tracks": [
+                { "query": "artist name song title" }
+              ]
+            }
 
-The "tracks" array must contain 25 objects. Each "query" should be a concise search string that would return a relevant track on Spotify. Use the following rules to generate the queries:
-Rules:
-- Use real songs and artists.
-- Match the user's vibe or artist-based request.
-- Avoid duplicates.
-- Use a mix of obvious and slightly deeper picks.
-- Do not include explanations.
-- Do not include markdown.
-- Do not include anything outside the JSON array.
-`;
+            The "tracks" array must contain exactly 25 objects.
+
+            Important output rules:
+            - Return valid JSON only.
+            - Do not include markdown.
+            - Do not include explanations.
+            - Do not include comments.
+            - Do not include text before or after the JSON.
+            - Every item must have exactly one field: "query".
+            - Each query must be concise and Spotify-searchable.
+            - Each query should usually be formatted as: "Artist Name Song Title".
+            - Do not use hyphens between artist and song title unless the hyphen is part of the official title.
+            - Do not invent fake songs.
+            - Do not invent fake artists.
+            - Avoid duplicate artists unless the artist is highly central to the prompt.
+            - Avoid duplicate tracks.
+            - Prefer tracks likely to exist on Spotify.
+
+            If mode is "artist":
+            - The user is asking for music similar to the named artist or artists.
+            - First identify the intended music artist, not just the literal word.
+            - Include some tracks by the requested artist if relevant.
+            - Include tracks by similar artists with matching genre, energy, production style, vocal style, language, era, and scene.
+            - Do not randomly switch to unrelated artists from another country/language unless the prompt asks for that.
+            - If the artist is Japanese, Korean, Spanish, Dutch, etc., prefer music from the same or closely related scene.
+            - If the prompt says "like artist A and artist B", blend both artists' styles.
+            - Use recognizable songs plus some deeper but real picks.
+
+            If mode is "vibe":
+            - The user is asking for a mood, setting, genre, activity, or aesthetic.
+            - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
+            - Prefer variety across artists while keeping the playlist coherent.
+            - If the prompt mentions a genre, stay close to that genre.
+            - If the prompt mentions an activity, choose tracks that fit that activity.
+
+            Quality rules:
+            - Prioritize accurate real-world music matches over obscure guesses.
+            - Prefer tracks with strong Spotify availability.
+            - Prefer official artist names and official song titles.
+            - Avoid covers, remixes, live versions, sped-up versions, and karaoke versions unless the prompt asks for them.
+            - Avoid generic searches like "sad song" or "rock music".
+            - Avoid album-only queries. Search queries must point to tracks.
+            - Do not include explanation fields, genres, reasons, confidence scores, or metadata.
+
+            Examples:
+
+            User request: "Music like Ado"
+            Mode: "artist"
+            Good queries:
+            { "query": "Ado Usseewa" }
+            { "query": "Ado Odo" }
+            { "query": "Ado New Genesis" }
+            { "query": "Eve Kaikai Kitan" }
+            { "query": "YOASOBI Idol" }
+            { "query": "ZUTOMAYO Byoushinwo Kamu" }
+            { "query": "yama Haru wo Tsugeru" }
+            { "query": "Reol No title" }
+            { "query": "LiSA Gurenge" }
+            { "query": "Kenshi Yonezu KICK BACK" }
+
+            User request: "math rock"
+            Mode: "vibe"
+            Good queries:
+            { "query": "toe Goodbye" }
+            { "query": "Covet Shibuya" }
+            { "query": "CHON Bubble Dream" }
+            { "query": "American Football Never Meant" }
+            { "query": "Tricot POOL" }
+
+            User request: "late night coding, dark synthwave, no vocals"
+            Mode: "vibe"
+            Good queries:
+            { "query": "HOME Resonance" }
+            { "query": "Kavinsky Nightcall" }
+            { "query": "Timecop1983 On the Run" }
+            { "query": "Perturbator Future Club" }
+
+            Now generate exactly 25 Spotify search queries for the user's request.
+            `;
 
         logStep("Sending request to Groq", {
             model: "llama-3.1-8b-instant",
@@ -263,14 +328,14 @@ Rules:
                         {
                             role: "system",
                             content:
-                                "You generate Spotify track search queries. Return valid JSON only.",
+                                "You generate accurate Spotify track search queries. Return valid JSON only.",
                         },
                         {
                             role: "user",
                             content: aiPrompt,
                         },
                     ],
-                    temperature: 0.6,
+                    temperature: 0.45,
                     response_format: {
                         type: "json_object",
                     },
