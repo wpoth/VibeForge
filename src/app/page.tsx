@@ -241,9 +241,13 @@ export default function Page() {
 
       const data = await res.json();
 
+      console.log("AI PLAYLIST RESPONSE:", data);
+
       if (!res.ok || data?.error) {
         throw new Error(
-          data?.message || String(data?.error) || "Failed to create playlist"
+          data?.step
+            ? `${data.step}: ${data.message}`
+            : data?.message || String(data?.error) || "Failed to create playlist"
         );
       }
 
