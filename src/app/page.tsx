@@ -95,6 +95,15 @@ export default function Page() {
   const [loadingTracks, setLoadingTracks] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiPlaylistName, setAiPlaylistName] = useState("");
+  const [aiPlaylistMode, setAiPlaylistMode] = useState<"vibe" | "artist">(
+    "vibe"
+  );
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
+  const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState<string | null>(
+    null
+  );
   const accessToken = session?.accessToken;
 
   // LOAD PROFILE
@@ -202,6 +211,62 @@ export default function Page() {
       setError(getErrorMessage(err));
     } finally {
       setLoadingAI(false);
+    }
+  }
+
+  async function createAiPlaylist() {
+    if (!accessToken) return;
+
+    if (!aiPrompt.trim()) {
+      setError("Type a vibe or artist first.");
+      return;
+    }
+
+    setCreatingPlaylist(true);
+    setCreatedPlaylistUrl(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/ai-playlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken,
+          prompt: aiPrompt,
+          mode: aiPlaylistMode,
+          playlistName: aiPlaylistName,
+          isPublic: false,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to create playlist"
+        );
+      }
+
+      setCreatedPlaylistUrl(data.playlist?.url ?? null);
+
+      // Refresh sidebar playlists after creation
+      const playlistsRes = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+
+      const playlistsData = (await playlistsRes.json()) as PlaylistsResponse;
+
+      if (playlistsRes.ok && !playlistsData?.error) {
+        setPlaylists(playlistsData.items ?? []);
+        setHiddenPlaylists(playlistsData.hidden ?? 0);
+      }
+    } catch (err: unknown) {
+      console.error("Create AI playlist failed:", err);
+      setError(getErrorMessage(err));
+    } finally {
+      setCreatingPlaylist(false);
     }
   }
 
@@ -386,8 +451,8 @@ export default function Page() {
               key={pl.id}
               onClick={() => openPlaylist(pl)}
               className={`p-3 rounded-xl mb-2 cursor-pointer transition flex gap-3 border ${isSelected
-                  ? "bg-green-500/10 border-green-400/40 shadow-lg shadow-green-500/10"
-                  : "bg-white/[0.04] border-white/5 hover:bg-white/[0.08] hover:border-white/10"
+                ? "bg-green-500/10 border-green-400/40 shadow-lg shadow-green-500/10"
+                : "bg-white/[0.04] border-white/5 hover:bg-white/[0.08] hover:border-white/10"
                 }`}
             >
               <div className="w-14 h-14 rounded-xl bg-zinc-800 overflow-hidden shrink-0 shadow-lg">
@@ -425,27 +490,94 @@ export default function Page() {
           </div>
         )}
 
-        {/* AI MODE */}
         {view === "ai" && (
           <div className="max-w-3xl">
             <p className="text-sm text-green-400 font-medium mb-3">
-              AI Playlist Intelligence
+              AI Playlist Creator
             </p>
 
             <h2 className="text-4xl font-bold mb-3 tracking-tight">
-              Find the sound behind your mood.
+              Turn a vibe or artist into a playlist.
             </h2>
 
             <p className="text-zinc-400 mb-8 max-w-2xl">
-              Open a playlist, inspect its tracks, and generate an AI vibe
-              analysis only when you need it.
+              Describe a mood, setting, genre, or artist direction. VibeForge will find
+              matching Spotify tracks and create a private playlist in your account.
             </p>
 
             <div className="p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setAiPlaylistMode("vibe")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition ${aiPlaylistMode === "vibe"
+                    ? "bg-green-500 text-black"
+                    : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+                    }`}
+                >
+                  Vibe
+                </button>
+
+                <button
+                  onClick={() => setAiPlaylistMode("artist")}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition ${aiPlaylistMode === "artist"
+                    ? "bg-green-500 text-black"
+                    : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+                    }`}
+                >
+                  Artist-based
+                </button>
+              </div>
+
+              <label className="block text-sm text-zinc-400 mb-2">
+                Playlist prompt
+              </label>
+
+              <textarea
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                placeholder={
+                  aiPlaylistMode === "vibe"
+                    ? "Example: rainy night drive, emotional indie pop, soft synths"
+                    : "Example: music like The Weeknd, Chase Atlantic, and PARTYNEXTDOOR"
+                }
+                className="w-full min-h-32 p-4 bg-black/30 border border-white/10 rounded-xl outline-none focus:border-green-400/60 transition placeholder:text-zinc-600 resize-none"
+              />
+
+              <label className="block text-sm text-zinc-400 mt-5 mb-2">
+                Playlist name
+              </label>
+
               <input
-                placeholder="Describe a vibe..."
+                value={aiPlaylistName}
+                onChange={(event) => setAiPlaylistName(event.target.value)}
+                placeholder="Optional, e.g. Midnight Coding"
                 className="w-full p-4 bg-black/30 border border-white/10 rounded-xl outline-none focus:border-green-400/60 transition placeholder:text-zinc-600"
               />
+
+              <button
+                onClick={createAiPlaylist}
+                disabled={creatingPlaylist || !aiPrompt.trim()}
+                className="mt-5 px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+              >
+                {creatingPlaylist ? "Creating playlist..." : "Create Spotify playlist"}
+              </button>
+
+              {createdPlaylistUrl && (
+                <div className="mt-5 p-4 rounded-xl bg-green-500/10 border border-green-400/30">
+                  <p className="text-sm text-green-300 font-medium">
+                    Playlist created successfully.
+                  </p>
+
+                  <a
+                    href={createdPlaylistUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block mt-2 text-sm text-green-400 hover:text-green-300 underline underline-offset-4"
+                  >
+                    Open in Spotify
+                  </a>
+                </div>
+              )}
             </div>
 
             <div className="mt-10 max-w-md bg-white/[0.04] border border-white/10 rounded-2xl p-4">

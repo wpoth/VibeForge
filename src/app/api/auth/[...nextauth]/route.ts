@@ -43,7 +43,7 @@ export const authOptions = {
       clientId: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
       authorization:
-        "https://accounts.spotify.com/authorize?scope=user-read-email playlist-read-private playlist-read-collaborative",
+        "https://accounts.spotify.com/authorize?scope=user-read-email user-read-private playlist-read-private playlist-read-collaborative playlist-modify-public playlist- modify-private"
     }),
   ],
 
