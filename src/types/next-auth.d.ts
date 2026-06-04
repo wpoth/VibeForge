@@ -5,6 +5,8 @@ declare module "next-auth" {
         accessToken?: string;
         refreshToken?: string;
         spotifyId?: string;
+        error?: string;
+        scope?: string;
     }
 }
 

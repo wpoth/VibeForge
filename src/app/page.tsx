@@ -100,12 +100,21 @@ export default function Page() {
   const [aiPlaylistMode, setAiPlaylistMode] = useState<"vibe" | "artist">(
     "vibe"
   );
+
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [createdPlaylistUrl, setCreatedPlaylistUrl] = useState<string | null>(
     null
   );
+
   const accessToken = session?.accessToken;
 
+  console.log("SESSION SCOPE DEBUG:", {
+    hasAccessToken: Boolean(accessToken),
+    scope: session?.scope,
+    error: session?.error,
+  });
+
+  
   // LOAD PROFILE
   useEffect(() => {
     if (!accessToken) return;
