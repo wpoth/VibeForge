@@ -69,6 +69,20 @@ type SpotifyAddItemsResponse = {
 
 type AiPlaylistAction = "create" | "append";
 
+async function readJsonOrText<T>(res: Response): Promise<T | { rawText: string }> {
+  const text = await res.text();
+
+  if (!text) {
+    return { rawText: "" };
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return { rawText: text };
+  }
+}
+
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -413,30 +427,58 @@ Now generate exactly 25 Spotify search queries for the user's request.
         },
       );
 
-      const aiData = (await aiRes.json()) as GroqResponse;
+      const aiData = await readJsonOrText<GroqResponse>(aiRes);
+
+      const aiContent =
+        "rawText" in aiData ? null : aiData.choices?.[0]?.message?.content ?? null;
+
+      const aiError =
+        "rawText" in aiData ? aiData.rawText : aiData.error?.message ?? null;
 
       logStep("Groq response", {
         status: aiRes.status,
         ok: aiRes.ok,
-        hasContent: Boolean(aiData.choices?.[0]?.message?.content),
-        contentPreview: aiData.choices?.[0]?.message?.content?.slice(0, 500),
-        error: aiData.error,
+        hasContent: Boolean(aiContent),
+        contentPreview: aiContent?.slice(0, 500),
+        error: aiError,
       });
 
       if (!aiRes.ok) {
+        const message =
+          "rawText" in aiData
+            ? aiData.rawText || "AI request failed"
+            : aiData.error?.message ?? "AI request failed";
+
         return Response.json(
           {
             error: true,
-            message: aiData.error?.message ?? "AI request failed",
+            message:
+              aiRes.status === 429
+                ? "Too many AI requests. Please wait a bit and try again."
+                : message,
             details: aiData,
             step: "ai_request",
           },
-          { status: aiRes.status },
+          { status: aiRes.status }
+        );
+      }
+
+      if ("rawText" in aiData) {
+        return Response.json(
+          {
+            error: true,
+            message:
+              aiRes.status === 429
+                ? "Too many AI requests. Please wait a bit and try again."
+                : "AI returned a non-JSON response",
+            rawContent: aiData.rawText,
+            step: "ai_response_format",
+          },
+          { status: aiRes.status === 429 ? 429 : 500 }
         );
       }
 
       const content = aiData.choices?.[0]?.message?.content ?? "";
-
       let parsed: AiTrackSuggestion[];
 
       try {
