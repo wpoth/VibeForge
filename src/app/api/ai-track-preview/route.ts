@@ -170,7 +170,7 @@ Return ONLY valid JSON with this exact shape:
   ]
 }
 
-The "tracks" array must contain exactly 15 objects.
+The "tracks" array must contain exactly 10 objects.
 
 Important output rules:
 - Return valid JSON only.
@@ -276,7 +276,7 @@ Good queries:
 { "query": "Timecop1983 On the Run" }
 { "query": "Perturbator Future Club" }
 
-Now generate exactly 15 Spotify search queries for the user's request.
+Now generate exactly 10 Spotify search queries for the user's request.
 `;
 
     logStep("Sending request to Groq", {
@@ -393,7 +393,7 @@ Now generate exactly 15 Spotify search queries for the user's request.
       parsed
         .map((item) => item.query)
         .filter((query): query is string => typeof query === "string")
-    ).slice(0, 15);
+    ).slice(0, 10);
 
     logStep("Parsed AI queries", {
       count: queries.length,
@@ -435,20 +435,33 @@ Now generate exactly 15 Spotify search queries for the user's request.
           Authorization: `Bearer ${accessToken}`,
         },
       });
-
       if (searchRes.status === 429) {
         const retryAfterHeader = searchRes.headers.get("retry-after");
         const retryAfterSeconds = Number(retryAfterHeader);
 
         const waitMs = Number.isFinite(retryAfterSeconds)
-          ? retryAfterSeconds * 1000
+          ? Math.min(retryAfterSeconds * 1000, 5000)
           : 1500;
 
-        logStep("Spotify search rate limited, retrying", {
+        logStep("Spotify search rate limited", {
           query,
           retryAfterHeader,
-          waitMs,
+          cappedWaitMs: waitMs,
         });
+
+        if (retryAfterSeconds > 10) {
+          return Response.json(
+            {
+              error: true,
+              message:
+                "Spotify search is heavily rate-limiting requests right now. Please wait a few minutes and try again.",
+              step: "spotify_search_rate_limited",
+              query,
+              retryAfterHeader,
+            },
+            { status: 429 }
+          );
+        }
 
         await sleep(waitMs);
 
@@ -458,7 +471,6 @@ Now generate exactly 15 Spotify search queries for the user's request.
           },
         });
       }
-
       const searchData = await readJsonOrText<SpotifySearchResponse>(searchRes);
 
       const foundCount = isRawText(searchData)
