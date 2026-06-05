@@ -39,7 +39,9 @@ type SpotifySearchResponse = {
   };
 };
 
-async function readJsonOrText<T>(res: Response): Promise<T | { rawText: string }> {
+type JsonOrText<T> = T | { rawText: string };
+
+async function readJsonOrText<T>(res: Response): Promise<JsonOrText<T>> {
   const text = await res.text();
 
   if (!text) {
@@ -79,6 +81,10 @@ function logError(step: string, data?: unknown) {
   console.error(`[AI_TRACK_PREVIEW_ERROR] ${step}`, data ?? "");
 }
 
+function isRawText<T>(value: JsonOrText<T>): value is { rawText: string } {
+  return "rawText" in value;
+}
+
 export async function POST(req: Request) {
   const startedAt = Date.now();
 
@@ -108,7 +114,7 @@ export async function POST(req: Request) {
           message: "Missing access token",
           step: "validate_request",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -119,7 +125,7 @@ export async function POST(req: Request) {
           message: "Missing prompt",
           step: "validate_request",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -132,7 +138,7 @@ export async function POST(req: Request) {
           message: "Missing GROQ_API_KEY",
           step: "environment",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -185,7 +191,6 @@ If mode is "artist":
 - If the prompt says "like artist A and artist B", blend both artists' styles.
 - Use recognizable songs plus some deeper but real picks.
 
-If mode is "vibe":
 If the user asks for an anime, game, movie, show, series, franchise, soundtrack, opening, ending, OST, OP, ED, theme song, or character-related playlist:
 - Treat the title as a media franchise, not as a normal word.
 - Identify the intended anime/game/movie/show first.
@@ -196,6 +201,8 @@ If the user asks for an anime, game, movie, show, series, franchise, soundtrack,
 - Do not interpret anime titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
 - For Japanese anime, prefer Japanese artists, official soundtrack composers, and songs actually used in that anime.
 - Avoid fan covers, remixes, AMVs, nightcore, slowed versions, sped-up versions, karaoke, and unofficial tribute songs unless the user asks for them.
+
+If mode is "vibe":
 - The user is asking for a mood, setting, genre, activity, or aesthetic.
 - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
 - Prefer variety across artists while keeping the playlist coherent.
@@ -289,21 +296,23 @@ Now generate exactly 25 Spotify search queries for the user's request.
               content: aiPrompt,
             },
           ],
-          temperature: 0.45,
+          temperature: 0.25,
           response_format: {
             type: "json_object",
           },
         }),
-      },
+      }
     );
 
     const aiData = await readJsonOrText<GroqResponse>(aiRes);
 
-    const aiContent =
-      "rawText" in aiData ? null : aiData.choices?.[0]?.message?.content ?? null;
+    const aiContent = isRawText(aiData)
+      ? null
+      : aiData.choices?.[0]?.message?.content ?? null;
 
-    const aiError =
-      "rawText" in aiData ? aiData.rawText : aiData.error?.message ?? null;
+    const aiError = isRawText(aiData)
+      ? aiData.rawText
+      : aiData.error?.message ?? null;
 
     logStep("Groq response", {
       status: aiRes.status,
@@ -314,10 +323,9 @@ Now generate exactly 25 Spotify search queries for the user's request.
     });
 
     if (!aiRes.ok) {
-      const message =
-        "rawText" in aiData
-          ? aiData.rawText || "AI request failed"
-          : aiData.error?.message ?? "AI request failed";
+      const message = isRawText(aiData)
+        ? aiData.rawText || "AI request failed"
+        : aiData.error?.message ?? "AI request failed";
 
       return Response.json(
         {
@@ -333,18 +341,15 @@ Now generate exactly 25 Spotify search queries for the user's request.
       );
     }
 
-    if ("rawText" in aiData) {
+    if (isRawText(aiData)) {
       return Response.json(
         {
           error: true,
-          message:
-            aiRes.status === 429
-              ? "Too many AI requests. Please wait a bit and try again."
-              : "AI returned a non-JSON response",
+          message: "AI returned a non-JSON response",
           rawContent: aiData.rawText,
           step: "ai_response_format",
         },
-        { status: aiRes.status === 429 ? 429 : 500 }
+        { status: 500 }
       );
     }
 
@@ -371,15 +376,20 @@ Now generate exactly 25 Spotify search queries for the user's request.
           rawContent: content,
           step: "parse_ai_json",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
     const queries = uniqueStrings(
       parsed
         .map((item) => item.query)
-        .filter((query): query is string => typeof query === "string"),
+        .filter((query): query is string => typeof query === "string")
     ).slice(0, 25);
+
+    logStep("Parsed AI queries", {
+      count: queries.length,
+      queries,
+    });
 
     if (!queries.length) {
       return Response.json(
@@ -388,7 +398,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           message: "AI generated no usable track queries",
           step: "parse_ai_queries",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -399,6 +409,10 @@ Now generate exactly 25 Spotify search queries for the user's request.
       status: number;
       error?: unknown;
     }[] = [];
+
+    logStep("Starting Spotify search", {
+      queryCount: queries.length,
+    });
 
     for (const query of queries) {
       const searchUrl = new URL("https://api.spotify.com/v1/search");
@@ -413,13 +427,65 @@ Now generate exactly 25 Spotify search queries for the user's request.
         },
       });
 
-      const searchData = (await searchRes.json()) as SpotifySearchResponse;
+      const searchData = await readJsonOrText<SpotifySearchResponse>(searchRes);
+
+      const foundCount = isRawText(searchData)
+        ? 0
+        : searchData.tracks?.items?.length ?? 0;
+
+      const firstTrack = isRawText(searchData)
+        ? null
+        : searchData.tracks?.items?.[0] ?? null;
+
+      const searchError = isRawText(searchData)
+        ? searchData.rawText
+        : searchData.error?.message ?? null;
+
+      logStep("Spotify search result", {
+        query,
+        status: searchRes.status,
+        ok: searchRes.ok,
+        foundCount,
+        firstTrack: firstTrack
+          ? {
+            id: firstTrack.id,
+            name: firstTrack.name,
+            uri: firstTrack.uri,
+            artists: firstTrack.artists?.map((artist) => artist.name),
+          }
+          : null,
+        error: searchError,
+      });
 
       if (!searchRes.ok) {
         searchFailures.push({
           query,
           status: searchRes.status,
-          error: searchData.error,
+          error: searchError,
+        });
+
+        if (searchRes.status === 429) {
+          return Response.json(
+            {
+              error: true,
+              message:
+                "Spotify search is rate-limiting requests. Please wait a bit and try again.",
+              step: "spotify_search_rate_limited",
+              query,
+              details: searchData,
+            },
+            { status: 429 }
+          );
+        }
+
+        continue;
+      }
+
+      if (isRawText(searchData)) {
+        searchFailures.push({
+          query,
+          status: searchRes.status,
+          error: searchData.rawText,
         });
 
         continue;
@@ -431,7 +497,22 @@ Now generate exactly 25 Spotify search queries for the user's request.
         foundTracks.push(track);
         foundUris.push(track.uri);
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 120));
     }
+
+    logStep("Spotify search complete", {
+      foundTrackCount: foundTracks.length,
+      foundUriCount: foundUris.length,
+      searchFailureCount: searchFailures.length,
+      searchFailures,
+      foundTracks: foundTracks.map((track) => ({
+        id: track.id,
+        name: track.name,
+        uri: track.uri,
+        artists: track.artists?.map((artist) => artist.name),
+      })),
+    });
 
     if (!foundTracks.length) {
       return Response.json(
@@ -442,7 +523,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           queries,
           searchFailures,
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -462,6 +543,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
         mode: mode ?? "vibe",
         generatedQueries: queries,
         foundTrackCount: foundTracks.length,
+        searchFailureCount: searchFailures.length,
         durationMs: Date.now() - startedAt,
       },
     };
@@ -484,7 +566,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
             : "Failed to generate track preview",
         step: "unhandled_error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
