@@ -152,6 +152,8 @@ Important output rules:
 - Every item must have exactly one field: "query".
 - Each query must be concise and Spotify-searchable.
 - Each query should usually be formatted as: "Artist Name Song Title".
+- For anime/game/movie/show soundtrack requests, always prefer official artist/composer + exact song title.
+- For OST tracks, use composer name + track title, for example "Shiro Sagisu Number One".
 - Do not use hyphens between artist and song title unless the hyphen is part of the official title.
 - Do not invent fake songs.
 - Do not invent fake artists.
@@ -170,6 +172,16 @@ If mode is "artist":
 - Use recognizable songs plus some deeper but real picks.
 
 If mode is "vibe":
+If the user asks for an anime, game, movie, show, series, franchise, soundtrack, opening, ending, OST, OP, ED, theme song, or character-related playlist:
+- Treat the title as a media franchise, not as a normal word.
+- Identify the intended anime/game/movie/show first.
+- Generate official opening themes, ending themes, insert songs, OST tracks, and closely related official music.
+- Prefer exact artist + song title queries.
+- Include the franchise name only when it helps Spotify search, but the query should still contain the real artist and song title.
+- Do not include unrelated mainstream artists unless they are actually connected to the franchise.
+- Do not interpret anime titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
+- For Japanese anime, prefer Japanese artists, official soundtrack composers, and songs actually used in that anime.
+- Avoid fan covers, remixes, AMVs, nightcore, slowed versions, sped-up versions, karaoke, and unofficial tribute songs unless the user asks for them.
 - The user is asking for a mood, setting, genre, activity, or aesthetic.
 - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
 - Prefer variety across artists while keeping the playlist coherent.
@@ -186,6 +198,22 @@ Quality rules:
 - Do not include explanation fields, genres, reasons, confidence scores, or metadata.
 
 Examples:
+
+User request: "make a playlist containing bleach anime openings endings and ost"
+Mode: "vibe"
+Good queries:
+{ "query": "ORANGE RANGE Asterisk" }
+{ "query": "UVERworld D-tecnoLife" }
+{ "query": "High and Mighty Color Ichirin no Hana" }
+{ "query": "YUI Rolling star" }
+{ "query": "Aqua Timez ALONES" }
+{ "query": "KELUN CHU-BURA" }
+{ "query": "SCANDAL Shoujo S" }
+{ "query": "SID Ranbu no Melody" }
+{ "query": "miwa chAngE" }
+{ "query": "Shiro Sagisu Number One" }
+{ "query": "Shiro Sagisu Treachery" }
+{ "query": "Shiro Sagisu Invasion" }
 
 User request: "Music like Ado"
 Mode: "artist"
