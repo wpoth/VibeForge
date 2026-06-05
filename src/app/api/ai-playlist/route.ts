@@ -154,8 +154,9 @@ function spotifyTrackMatchesPreview(
   spotifyTrack: SpotifyTrack,
   previewTrack: SelectedPreviewTrack
 ) {
-  const expectedName = previewTrack.name;
-  const actualName = spotifyTrack.name;
+  const expectedName = normalizeText(previewTrack.name);
+  const actualName = normalizeText(spotifyTrack.name);
+  const fallbackQuery = normalizeText(previewTrack.query);
 
   const expectedArtists =
     previewTrack.artists?.map(normalizeText).filter(Boolean) ?? [];
@@ -165,12 +166,17 @@ function spotifyTrackMatchesPreview(
       ?.map((artist) => normalizeText(artist.name))
       .filter(Boolean) ?? [];
 
-  const nameMatches = expectedName
-    ? textMatches(expectedName, actualName)
-    : Boolean(spotifyTrack.uri);
+  const nameMatches =
+    !expectedName ||
+    !actualName ||
+    actualName === expectedName ||
+    actualName.includes(expectedName) ||
+    expectedName.includes(actualName) ||
+    Boolean(fallbackQuery && fallbackQuery.includes(actualName));
 
   const artistMatches =
     expectedArtists.length === 0 ||
+    actualArtists.length === 0 ||
     expectedArtists.some((expectedArtist) =>
       actualArtists.some(
         (actualArtist) =>
@@ -189,7 +195,7 @@ function buildStrictSpotifyQuery(track: SelectedPreviewTrack) {
   const fallbackQuery = track.query?.trim();
 
   if (trackName && primaryArtist) {
-    return `track:${trackName} artist:${primaryArtist}`;
+    return `track:"${trackName}" artist:"${primaryArtist}"`;
   }
 
   return fallbackQuery ?? "";
@@ -287,7 +293,11 @@ async function resolveSelectedPreviewTrack({
   const fallbackQuery = selectedTrack.query?.trim();
 
   const queries = Array.from(
-    new Set([strictQuery, fallbackQuery].filter((query): query is string => Boolean(query)))
+    new Set(
+      [strictQuery, fallbackQuery]
+        .filter((query): query is string => Boolean(query?.trim()))
+        .map((query) => query.trim())
+    )
   );
 
   for (const query of queries) {
@@ -315,11 +325,12 @@ async function resolveSelectedPreviewTrack({
     }
 
     if (!spotifyTrackMatchesPreview(result.track, selectedTrack)) {
-      logStep("Resolved track rejected because it did not match preview", {
+      logStep("Resolved track weak match, trying next query", {
         query,
         expected: {
           name: selectedTrack.name,
           artists: selectedTrack.artists,
+          fallbackQuery: selectedTrack.query,
         },
         actual: {
           name: result.track.name,
