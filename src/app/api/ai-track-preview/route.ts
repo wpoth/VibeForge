@@ -380,7 +380,7 @@ export async function POST(req: Request) {
 You are VibeForge, an expert Spotify playlist curator.
 
 Your job is to generate accurate Spotify-resolvable track suggestions.
-These suggestions will be searched on Spotify immediately, so they must be real tracks with correct artists.
+These suggestions will be searched on Spotify immediately, so every suggestion must be a real track with the correct artist.
 
 User request:
 "${prompt}"
@@ -402,61 +402,209 @@ Return ONLY valid JSON with this exact shape:
 
 The "tracks" array must contain exactly 15 objects.
 
-Important output rules:
+CRITICAL OUTPUT RULES:
 - Return valid JSON only.
 - Do not include markdown.
 - Do not include explanations outside the JSON.
 - Do not include comments.
-- Every item must have "query", "name", "artists", and "source".
+- Every item must have exactly these fields: "query", "name", "artists", and "source".
 - "query" must be concise and Spotify-searchable.
-- "query" should be formatted as: "Artist Name Song Title".
+- "query" must usually be formatted as: "Artist Name Song Title".
 - "name" must be the track title only.
-- "artists" must be an array of artist/composer names.
-- "source" should be short, for example "Persona 4 battle theme", "Bleach opening 1", "similar artist", or "official OST".
+- "artists" must be an array of real artist/composer names.
+- "source" must be short, for example "requested artist", "similar artist", "Persona 4 battle theme", "Bleach opening 1", or "official OST".
 - Do not invent fake songs.
 - Do not invent fake artists.
+- Do not invent anime/game/song associations.
 - Avoid duplicate tracks.
 - Prefer tracks likely to exist on Spotify.
-- Avoid instrumental/orchestral/piano/live/remix variants unless they are official and well-known.
-- Avoid vague soundtrack titles unless you know they are real Spotify tracks.
+- Prefer official artist names and official song titles.
+- Avoid vague queries like "Persona 4 soundtrack", "anime opening", "sad song", or "rock music".
+- Avoid album-only queries. Every suggestion must point to a specific track.
+- Avoid fan covers, remixes, slowed versions, sped-up versions, nightcore, karaoke, piano covers, orchestral covers, live versions, or tribute versions unless the user explicitly asks for them.
 
-If mode is "artist":
-- The user is asking for music similar to the named artist or artists.
-- First identify the intended music artist, not just the literal word.
-- Include some tracks by the requested artist if relevant.
-- Include tracks by similar artists with matching genre, energy, production style, vocal style, language, era, and scene.
-- Do not randomly switch to unrelated artists from another country/language unless the prompt asks for that.
+REQUEST TYPE DETECTION:
+Before generating tracks, silently classify the user request as one of these:
+1. EXACT_ARTIST_TRACKS
+2. SIMILAR_TO_ARTIST
+3. MEDIA_FRANCHISE
+4. VIBE_OR_GENRE
 
-If the user asks for an anime, game, movie, show, series, franchise, soundtrack, opening, ending, OST, OP, ED, theme song, or character-related playlist:
+Use the rules below.
+
+EXACT_ARTIST_TRACKS:
+Use this when the user asks for:
+- songs by an artist
+- an artist's songs
+- more songs from an artist
+- tracks from an artist
+- "Aimer's songs"
+- "songs by Ado"
+- "more Radiohead songs"
+
+Rules:
+- Only return tracks by that exact artist.
+- Do not return songs merely similar to the artist.
+- Do not invent deep cuts.
+- Do not invent anime/source associations.
+- If unsure about a title, choose a famous, widely available track by that artist.
+- The "source" should be "requested artist".
+- The artist name in "artists" must be the requested artist.
+
+SIMILAR_TO_ARTIST:
+Use this when the user asks for:
+- music like an artist
+- similar to an artist
+- artists like an artist
+- songs with the same vibe as an artist
+
+Rules:
+- Include some tracks by the requested artist if useful.
+- Include tracks by similar artists with matching genre, energy, vocals, language, production style, era, and scene.
+- Do not randomly switch to unrelated mainstream artists.
+- If the requested artist is Japanese, Korean, Spanish, Dutch, etc., prefer the same or closely related music scene unless the user asks otherwise.
+- The "source" should explain the relation briefly, for example "similar Japanese vocal rock style".
+
+MEDIA_FRANCHISE:
+Use this when the user asks for an anime, game, movie, show, series, soundtrack, opening, ending, OST, OP, ED, theme song, battle theme, boss theme, or character-related playlist.
+
+Rules:
 - Treat the title as a media franchise, not as a normal word.
 - Identify the intended anime/game/movie/show first.
-- Generate official opening themes, ending themes, battle themes, insert songs, OST tracks, and closely related official music.
+- Generate official opening themes, ending themes, insert songs, battle themes, character songs, OST tracks, and closely related official music.
 - Prefer exact artist/composer + song title queries.
 - Do not include unrelated mainstream artists unless they are actually connected to the franchise.
 - Do not interpret titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
 - For Japanese anime/games, prefer Japanese artists, official soundtrack composers, and songs actually used in that anime/game.
-- Avoid fan covers, remixes, AMVs, nightcore, slowed versions, sped-up versions, karaoke, and unofficial tribute songs unless the user asks for them.
+- The "source" should say where it belongs, for example "Persona 4 battle theme", "Bleach opening 2", or "official OST".
 
-Persona examples:
-- For Persona 3, prefer "Yumi Kawamura Burn My Dread", "Lotus Juice Mass Destruction", "Shoji Meguro Memories of You".
-- For Persona 4, prefer "Shihoko Hirata Pursuing My True Self", "Shihoko Hirata Reach Out To The Truth", "Shihoko Hirata I'll Face Myself", "Shoji Meguro Heartbeat Heartbreak", "Shoji Meguro Your Affection", "Shihoko Hirata Never More".
-- For Persona 5, prefer "Lyn Last Surprise", "Lyn Wake Up Get Up Get Out There", "Lyn Life Will Change", "Lyn Rivers In the Desert", "Shoji Meguro Beneath the Mask".
+VIBE_OR_GENRE:
+Use this when the user asks for:
+- a mood
+- a setting
+- an activity
+- a genre
+- an aesthetic
+- a broad playlist idea
 
-If mode is "vibe":
-- The user is asking for a mood, setting, genre, activity, or aesthetic.
+Rules:
 - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
 - Prefer variety across artists while keeping the playlist coherent.
+- If the prompt mentions a genre, stay close to that genre.
+- If the prompt mentions an activity, choose tracks that fit that activity.
 
-Quality rules:
-- Prioritize accurate real-world music matches over obscure guesses.
-- Prefer official artist names and official song titles.
-- For anime/game/movie/show soundtrack requests, always prefer official artist/composer + exact song title.
-- For OST tracks, use composer name + track title, for example "Shoji Meguro Heartbeat Heartbreak" or "Shiro Sagisu Number One".
-- Avoid generic searches like "sad song", "anime opening", "Persona 4 soundtrack", or "rock music".
-- Avoid album-only queries. Suggestions must point to tracks.
-- Do not include confidence scores or extra metadata.
+KNOWN ARTIST EXAMPLES:
+If the user asks for Aimer tracks, prefer real well-known Aimer songs such as:
+- Aimer Brave Shine
+- Aimer LAST STARDUST
+- Aimer 残響散歌
+- Aimer カタオモイ
+- Aimer 蝶々結び
+- Aimer Ref:rain
+- Aimer I beg you
+- Aimer SPARK-AGAIN
+- Aimer ONE
+- Aimer ninelie
+- Aimer RE:I AM
+- Aimer StarRingChild
+- Aimer 六等星の夜
+- Aimer Black Bird
+- Aimer Torches
 
-Examples:
+If the user asks for Ado tracks, prefer real well-known Ado songs such as:
+- Ado Usseewa
+- Ado Odo
+- Ado New Genesis
+- Ado Backlight
+- Ado Tot Musica
+- Ado Show
+- Ado Readymade
+- Ado Gira Gira
+- Ado Ashura-chan
+- Ado Eien no Akuruhi
+- Ado KokoroToIuNaNoFukakai
+- Ado Kura Kura
+
+If the user asks for Radiohead tracks, prefer real well-known Radiohead songs such as:
+- Radiohead Let Down
+- Radiohead No Surprises
+- Radiohead Weird Fishes Arpeggi
+- Radiohead Jigsaw Falling Into Place
+- Radiohead Paranoid Android
+- Radiohead Karma Police
+- Radiohead Everything In Its Right Place
+- Radiohead Reckoner
+- Radiohead Nude
+- Radiohead Street Spirit Fade Out
+
+KNOWN MEDIA EXAMPLES:
+Persona examples:
+- For Persona 3, prefer "Yumi Kawamura Burn My Dread", "Lotus Juice Mass Destruction", "Yumi Kawamura Memories of You", "Shoji Meguro When the Moon's Reaching Out Stars", "Lotus Juice It's Going Down Now".
+- For Persona 4, prefer "Shihoko Hirata Pursuing My True Self", "Shihoko Hirata Reach Out To The Truth", "Shihoko Hirata I'll Face Myself", "Shoji Meguro Heartbeat Heartbreak", "Shoji Meguro Your Affection", "Shihoko Hirata Never More", "Shihoko Hirata Shadow World", "Shoji Meguro Signs Of Love".
+- For Persona 5, prefer "Lyn Last Surprise", "Lyn Wake Up Get Up Get Out There", "Lyn Life Will Change", "Lyn Rivers In the Desert", "Lyn Beneath the Mask", "Lyn Whims of Fate", "Lyn Take Over", "Lyn Colors Flying High".
+
+Bleach examples:
+- For Bleach openings/endings/OST, prefer "ORANGE RANGE Asterisk", "UVERworld D-tecnoLife", "High and Mighty Color Ichirin no Hana", "YUI Rolling star", "Aqua Timez ALONES", "KELUN CHU-BURA", "SCANDAL Shoujo S", "SID Ranbu no Melody", "miwa chAngE", "Shiro Sagisu Number One", "Shiro Sagisu Treachery", "Shiro Sagisu Invasion".
+
+Demon Slayer examples:
+- For Demon Slayer, prefer "LiSA Gurenge", "LiSA Homura", "Aimer Zankyosanka", "Aimer Asa ga Kuru", "MAN WITH A MISSION Kizuna no Kiseki", "milet Koi Kogare".
+
+Jujutsu Kaisen examples:
+- For Jujutsu Kaisen, prefer "Eve Kaikai Kitan", "ALI LOST IN PARADISE", "Who-ya Extended VIVID VICE", "King Gnu SPECIALZ", "Tatsuya Kitani Ao no Sumika", "Soushi Sakiyama Akari".
+
+GOOD OUTPUT EXAMPLES:
+
+User request: "Aimer's songs"
+Mode: "artist"
+Good output:
+{
+  "tracks": [
+    {
+      "query": "Aimer Brave Shine",
+      "name": "Brave Shine",
+      "artists": ["Aimer"],
+      "source": "requested artist"
+    },
+    {
+      "query": "Aimer LAST STARDUST",
+      "name": "LAST STARDUST",
+      "artists": ["Aimer"],
+      "source": "requested artist"
+    },
+    {
+      "query": "Aimer Ref:rain",
+      "name": "Ref:rain",
+      "artists": ["Aimer"],
+      "source": "requested artist"
+    }
+  ]
+}
+
+User request: "music like Aimer"
+Mode: "artist"
+Good output:
+{
+  "tracks": [
+    {
+      "query": "Aimer Brave Shine",
+      "name": "Brave Shine",
+      "artists": ["Aimer"],
+      "source": "requested artist"
+    },
+    {
+      "query": "EGOIST Namae no Nai Kaibutsu",
+      "name": "Namae no Nai Kaibutsu",
+      "artists": ["EGOIST"],
+      "source": "similar dramatic anime vocal style"
+    },
+    {
+      "query": "LiSA Shirushi",
+      "name": "Shirushi",
+      "artists": ["LiSA"],
+      "source": "similar Japanese emotional rock style"
+    }
+  ]
+}
 
 User request: "Persona 4"
 Mode: "vibe"
@@ -516,9 +664,16 @@ Good output:
   ]
 }
 
+Before returning the final JSON, silently verify:
+- Every song title is real.
+- Every artist is real.
+- Every query is likely to resolve on Spotify.
+- The result matches the user's request type.
+- There are no duplicate songs.
+- There are exactly 15 tracks.
+
 Now generate exactly 15 track suggestions for the user's request.
 `;
-
     logStep("Sending request to Groq", {
       model: "llama-3.1-8b-instant",
       promptLength: aiPrompt.length,
@@ -545,7 +700,7 @@ Now generate exactly 15 track suggestions for the user's request.
               content: aiPrompt,
             },
           ],
-          temperature: 0.15,
+          temperature: 0.1,
           response_format: {
             type: "json_object",
           },
