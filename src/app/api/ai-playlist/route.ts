@@ -71,7 +71,11 @@ type SpotifyAddItemsResponse = {
 
 type AiPlaylistAction = "create" | "append";
 
-async function readJsonOrText<T>(res: Response): Promise<T | { rawText: string }> {
+type JsonOrText<T extends object> = T | { rawText: string };
+
+async function readJsonOrText<T extends object>(
+  res: Response
+): Promise<JsonOrText<T>> {
   const text = await res.text();
 
   if (!text) {
@@ -83,6 +87,16 @@ async function readJsonOrText<T>(res: Response): Promise<T | { rawText: string }
   } catch {
     return { rawText: text };
   }
+}
+
+function isRawText<T extends object>(
+  value: JsonOrText<T>
+): value is { rawText: string } {
+  return "rawText" in value;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function uniqueStrings(values: string[]) {
@@ -109,6 +123,81 @@ function logStep(step: string, data?: unknown) {
 
 function logError(step: string, data?: unknown) {
   console.error(`[AI_PLAYLIST_ERROR] ${step}`, data ?? "");
+}
+
+function toSpotifyTrackFromPreview(track: SelectedPreviewTrack): SpotifyTrack {
+  return {
+    id: track.id,
+    uri: track.uri,
+    name: track.name,
+    artists: track.artists?.map((artistName) => ({
+      name: artistName,
+    })),
+  };
+}
+
+async function resolveSpotifyTrack({
+  accessToken,
+  query,
+}: {
+  accessToken: string;
+  query: string;
+}): Promise<{
+  track: SpotifyTrack | null;
+  status: number;
+  error: unknown;
+}> {
+  const searchUrl = new URL("https://api.spotify.com/v1/search");
+  searchUrl.searchParams.set("q", query);
+  searchUrl.searchParams.set("type", "track");
+  searchUrl.searchParams.set("limit", "1");
+  searchUrl.searchParams.set("market", "NL");
+
+  const searchRes: globalThis.Response = await fetch(searchUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const searchData = await readJsonOrText<SpotifySearchResponse>(searchRes);
+
+  const searchError = isRawText(searchData)
+    ? searchData.rawText
+    : searchData.error?.message ?? null;
+
+  logStep("Spotify search result", {
+    query,
+    status: searchRes.status,
+    ok: searchRes.ok,
+    foundCount: isRawText(searchData)
+      ? 0
+      : searchData.tracks?.items?.length ?? 0,
+    firstTrack: !isRawText(searchData) && searchData.tracks?.items?.[0]
+      ? {
+        id: searchData.tracks.items[0].id,
+        name: searchData.tracks.items[0].name,
+        uri: searchData.tracks.items[0].uri,
+        artists: searchData.tracks.items[0].artists?.map(
+          (artist) => artist.name
+        ),
+      }
+      : null,
+    error: searchError,
+  });
+
+  if (!searchRes.ok || isRawText(searchData)) {
+    return {
+      track: null,
+      status: searchRes.status,
+      error: searchError,
+    };
+  }
+
+  return {
+    track: searchData.tracks?.items?.[0] ?? null,
+    status: searchRes.status,
+    error: null,
+  };
 }
 
 export async function POST(req: Request) {
@@ -157,7 +246,7 @@ export async function POST(req: Request) {
           message: "Missing access token",
           step: "validate_request",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -168,7 +257,7 @@ export async function POST(req: Request) {
           message: "Missing prompt",
           step: "validate_request",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -179,7 +268,7 @@ export async function POST(req: Request) {
           message: "Invalid action. Use 'create' or 'append'.",
           step: "validate_action",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -193,7 +282,7 @@ export async function POST(req: Request) {
           message: "Missing target playlist ID",
           step: "validate_append_target",
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -206,7 +295,7 @@ export async function POST(req: Request) {
           message: "Missing GROQ_API_KEY",
           step: "environment",
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -218,7 +307,7 @@ export async function POST(req: Request) {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      },
+      }
     );
 
     const meData = (await meRes.json()) as SpotifyUserResponse;
@@ -239,14 +328,14 @@ export async function POST(req: Request) {
           details: meData,
           step: "fetch_spotify_user",
         },
-        { status: meRes.status },
+        { status: meRes.status }
       );
     }
 
     let foundTracks: SpotifyTrack[] = [];
     let foundUris: string[] = [];
     let queries: string[] = [];
-    let searchFailures: {
+    const searchFailures: {
       query: string;
       status: number;
       error?: unknown;
@@ -255,7 +344,8 @@ export async function POST(req: Request) {
     const validSelectedTracks = Array.isArray(selectedTracks)
       ? selectedTracks.filter((track) => {
         const hasUri =
-          typeof track.uri === "string" && track.uri.startsWith("spotify:");
+          typeof track.uri === "string" &&
+          track.uri.startsWith("spotify:");
 
         const hasQuery =
           typeof track.query === "string" && Boolean(track.query.trim());
@@ -265,7 +355,7 @@ export async function POST(req: Request) {
       : [];
 
     if (validSelectedTracks.length > 0) {
-      logStep("Using selected preview tracks", {
+      logStep("Resolving selected preview tracks", {
         selectedTrackCount: validSelectedTracks.length,
         tracks: validSelectedTracks.map((track) => ({
           uri: track.uri,
@@ -280,22 +370,14 @@ export async function POST(req: Request) {
           typeof track.uri === "string" && track.uri.startsWith("spotify:")
       );
 
-      foundTracks = tracksWithUris.map((track) => ({
-        id: track.id,
-        uri: track.uri,
-        name: track.name,
-        artists: track.artists?.map((artistName) => ({
-          name: artistName,
-        })),
-      }));
+      for (const selectedTrack of tracksWithUris) {
+        const spotifyTrack = toSpotifyTrackFromPreview(selectedTrack);
 
-      foundUris = Array.from(
-        new Set(
-          tracksWithUris
-            .map((track) => track.uri)
-            .filter((uri): uri is string => Boolean(uri))
-        )
-      );
+        if (spotifyTrack.uri && !foundUris.includes(spotifyTrack.uri)) {
+          foundTracks.push(spotifyTrack);
+          foundUris.push(spotifyTrack.uri);
+        }
+      }
 
       const tracksNeedingSearch = validSelectedTracks.filter(
         (track) => !track.uri && track.query
@@ -306,66 +388,51 @@ export async function POST(req: Request) {
 
         if (!query) continue;
 
-        const searchUrl = new URL("https://api.spotify.com/v1/search");
-        searchUrl.searchParams.set("q", query);
-        searchUrl.searchParams.set("type", "track");
-        searchUrl.searchParams.set("limit", "1");
-        searchUrl.searchParams.set("market", "NL");
-
         logStep("Resolving selected preview track", {
           query,
           name: selectedTrack.name,
           artists: selectedTrack.artists,
         });
 
-        const searchRes: globalThis.Response = await fetch(searchUrl, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const searchData = (await searchRes.json()) as SpotifySearchResponse;
-
-        logStep("Selected preview track resolve result", {
+        const result = await resolveSpotifyTrack({
+          accessToken,
           query,
-          status: searchRes.status,
-          ok: searchRes.ok,
-          foundCount: searchData.tracks?.items?.length ?? 0,
-          firstTrack: searchData.tracks?.items?.[0]
-            ? {
-              id: searchData.tracks.items[0].id,
-              name: searchData.tracks.items[0].name,
-              uri: searchData.tracks.items[0].uri,
-              artists: searchData.tracks.items[0].artists?.map(
-                (artist) => artist.name
-              ),
-            }
-            : null,
-          error: searchData.error,
         });
 
-        if (!searchRes.ok) {
+        if (result.status === 429) {
+          return Response.json(
+            {
+              error: true,
+              message:
+                "Spotify search is rate-limiting requests right now. Please wait a few minutes and try again.",
+              step: "resolve_selected_preview_tracks_rate_limited",
+              query,
+              searchFailures,
+            },
+            { status: 429 }
+          );
+        }
+
+        if (!result.track?.uri) {
           searchFailures.push({
             query,
-            status: searchRes.status,
-            error: searchData.error,
+            status: result.status,
+            error: result.error,
           });
 
           continue;
         }
 
-        const track = searchData.tracks?.items?.[0];
-
-        if (track?.uri && !foundUris.includes(track.uri)) {
-          foundTracks.push(track);
-          foundUris.push(track.uri);
+        if (!foundUris.includes(result.track.uri)) {
+          foundTracks.push(result.track);
+          foundUris.push(result.track.uri);
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await sleep(250);
       }
     }
 
-    if (foundUris.length === 0) {
+    if (foundUris.length === 0 && validSelectedTracks.length === 0) {
       const aiPrompt = `
 You are VibeForge, an expert Spotify playlist curator.
 
@@ -385,7 +452,7 @@ Return ONLY valid JSON with this exact shape:
   ]
 }
 
-The "tracks" array must contain exactly 25 objects.
+The "tracks" array must contain exactly 15 objects.
 
 Important output rules:
 - Return valid JSON only.
@@ -401,7 +468,6 @@ Important output rules:
 - Do not use hyphens between artist and song title unless the hyphen is part of the official title.
 - Do not invent fake songs.
 - Do not invent fake artists.
-- Avoid duplicate artists unless the artist is highly central to the prompt.
 - Avoid duplicate tracks.
 - Prefer tracks likely to exist on Spotify.
 
@@ -410,22 +476,18 @@ If mode is "artist":
 - First identify the intended music artist, not just the literal word.
 - Include some tracks by the requested artist if relevant.
 - Include tracks by similar artists with matching genre, energy, production style, vocal style, language, era, and scene.
-- Do not randomly switch to unrelated artists from another country/language unless the prompt asks for that.
-- If the artist is Japanese, Korean, Spanish, Dutch, etc., prefer music from the same or closely related scene.
-- If the prompt says "like artist A and artist B", blend both artists' styles.
-- Use recognizable songs plus some deeper but real picks.
 
-If mode is "vibe":
 If the user asks for an anime, game, movie, show, series, franchise, soundtrack, opening, ending, OST, OP, ED, theme song, or character-related playlist:
 - Treat the title as a media franchise, not as a normal word.
 - Identify the intended anime/game/movie/show first.
 - Generate official opening themes, ending themes, insert songs, OST tracks, and closely related official music.
 - Prefer exact artist + song title queries.
-- Include the franchise name only when it helps Spotify search, but the query should still contain the real artist and song title.
 - Do not include unrelated mainstream artists unless they are actually connected to the franchise.
 - Do not interpret anime titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
 - For Japanese anime, prefer Japanese artists, official soundtrack composers, and songs actually used in that anime.
 - Avoid fan covers, remixes, AMVs, nightcore, slowed versions, sped-up versions, karaoke, and unofficial tribute songs unless the user asks for them.
+
+If mode is "vibe":
 - The user is asking for a mood, setting, genre, activity, or aesthetic.
 - Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
 - Prefer variety across artists while keeping the playlist coherent.
@@ -436,48 +498,33 @@ Quality rules:
 - Prioritize accurate real-world music matches over obscure guesses.
 - Prefer tracks with strong Spotify availability.
 - Prefer official artist names and official song titles.
-- Avoid covers, remixes, live versions, sped-up versions, and karaoke versions unless the prompt asks for them.
-- Avoid generic searches like "sad song" or "rock music".
+- Avoid covers, remixes, live versions, sped-up versions, karaoke versions, and unofficial tribute songs unless the prompt asks for them.
+- Avoid generic searches like "sad song", "anime opening", or "rock music".
 - Avoid album-only queries. Search queries must point to tracks.
-- Do not include explanation fields, genres, reasons, confidence scores, or metadata.
+- Do not include confidence scores or extra metadata.
 
 Examples:
 
-User request: "Music like Ado"
-Mode: "artist"
-Good queries:
-{ "query": "Ado Usseewa" }
-{ "query": "Ado Odo" }
-{ "query": "Ado New Genesis" }
-{ "query": "Eve Kaikai Kitan" }
-{ "query": "YOASOBI Idol" }
-{ "query": "ZUTOMAYO Byoushinwo Kamu" }
-{ "query": "yama Haru wo Tsugeru" }
-{ "query": "Reol No title" }
-{ "query": "LiSA Gurenge" }
-{ "query": "Kenshi Yonezu KICK BACK" }
-
-User request: "math rock"
+User request: "make a playlist containing bleach anime openings endings and ost"
 Mode: "vibe"
 Good queries:
-{ "query": "toe Goodbye" }
-{ "query": "Covet Shibuya" }
-{ "query": "CHON Bubble Dream" }
-{ "query": "American Football Never Meant" }
-{ "query": "Tricot POOL" }
+{ "query": "ORANGE RANGE Asterisk" }
+{ "query": "UVERworld D-tecnoLife" }
+{ "query": "High and Mighty Color Ichirin no Hana" }
+{ "query": "YUI Rolling star" }
+{ "query": "Aqua Timez ALONES" }
+{ "query": "KELUN CHU-BURA" }
+{ "query": "SCANDAL Shoujo S" }
+{ "query": "SID Ranbu no Melody" }
+{ "query": "miwa chAngE" }
+{ "query": "Shiro Sagisu Number One" }
+{ "query": "Shiro Sagisu Treachery" }
+{ "query": "Shiro Sagisu Invasion" }
 
-User request: "late night coding, dark synthwave, no vocals"
-Mode: "vibe"
-Good queries:
-{ "query": "HOME Resonance" }
-{ "query": "Kavinsky Nightcall" }
-{ "query": "Timecop1983 On the Run" }
-{ "query": "Perturbator Future Club" }
-
-Now generate exactly 25 Spotify search queries for the user's request.
+Now generate exactly 15 Spotify search queries for the user's request.
 `;
 
-      logStep("Sending request to Groq", {
+      logStep("Sending fallback request to Groq", {
         model: "llama-3.1-8b-instant",
         promptLength: aiPrompt.length,
       });
@@ -503,23 +550,25 @@ Now generate exactly 25 Spotify search queries for the user's request.
                 content: aiPrompt,
               },
             ],
-            temperature: 0.45,
+            temperature: 0.25,
             response_format: {
               type: "json_object",
             },
           }),
-        },
+        }
       );
 
       const aiData = await readJsonOrText<GroqResponse>(aiRes);
 
-      const aiContent =
-        "rawText" in aiData ? null : aiData.choices?.[0]?.message?.content ?? null;
+      const aiContent = isRawText(aiData)
+        ? null
+        : aiData.choices?.[0]?.message?.content ?? null;
 
-      const aiError =
-        "rawText" in aiData ? aiData.rawText : aiData.error?.message ?? null;
+      const aiError = isRawText(aiData)
+        ? aiData.rawText
+        : aiData.error?.message ?? null;
 
-      logStep("Groq response", {
+      logStep("Fallback Groq response", {
         status: aiRes.status,
         ok: aiRes.ok,
         hasContent: Boolean(aiContent),
@@ -528,10 +577,9 @@ Now generate exactly 25 Spotify search queries for the user's request.
       });
 
       if (!aiRes.ok) {
-        const message =
-          "rawText" in aiData
-            ? aiData.rawText || "AI request failed"
-            : aiData.error?.message ?? "AI request failed";
+        const message = isRawText(aiData)
+          ? aiData.rawText || "AI request failed"
+          : aiData.error?.message ?? "AI request failed";
 
         return Response.json(
           {
@@ -547,22 +595,20 @@ Now generate exactly 25 Spotify search queries for the user's request.
         );
       }
 
-      if ("rawText" in aiData) {
+      if (isRawText(aiData)) {
         return Response.json(
           {
             error: true,
-            message:
-              aiRes.status === 429
-                ? "Too many AI requests. Please wait a bit and try again."
-                : "AI returned a non-JSON response",
+            message: "AI returned a non-JSON response",
             rawContent: aiData.rawText,
             step: "ai_response_format",
           },
-          { status: aiRes.status === 429 ? 429 : 500 }
+          { status: 500 }
         );
       }
 
       const content = aiData.choices?.[0]?.message?.content ?? "";
+
       let parsed: AiTrackSuggestion[];
 
       try {
@@ -580,20 +626,15 @@ Now generate exactly 25 Spotify search queries for the user's request.
             details: safeError(error),
             step: "parse_ai_json",
           },
-          { status: 500 },
+          { status: 500 }
         );
       }
 
       queries = uniqueStrings(
         parsed
           .map((item) => item.query)
-          .filter((query): query is string => typeof query === "string"),
-      ).slice(0, 25);
-
-      logStep("Parsed AI queries", {
-        count: queries.length,
-        queries,
-      });
+          .filter((query): query is string => typeof query === "string")
+      ).slice(0, 15);
 
       if (!queries.length) {
         return Response.json(
@@ -602,96 +643,80 @@ Now generate exactly 25 Spotify search queries for the user's request.
             message: "AI generated no usable track queries",
             step: "parse_ai_queries",
           },
-          { status: 500 },
+          { status: 500 }
         );
       }
 
-      logStep("Starting Spotify search", {
-        queryCount: queries.length,
-      });
-
       for (const query of queries) {
-        const searchUrl = new URL("https://api.spotify.com/v1/search");
-        searchUrl.searchParams.set("q", query);
-        searchUrl.searchParams.set("type", "track");
-        searchUrl.searchParams.set("limit", "1");
-        searchUrl.searchParams.set("market", "NL");
-
-        const searchRes: globalThis.Response = await fetch(searchUrl, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const searchData = (await searchRes.json()) as SpotifySearchResponse;
-
-        logStep("Spotify search result", {
+        const result = await resolveSpotifyTrack({
+          accessToken,
           query,
-          status: searchRes.status,
-          ok: searchRes.ok,
-          foundCount: searchData.tracks?.items?.length ?? 0,
-          firstTrack: searchData.tracks?.items?.[0]
-            ? {
-              id: searchData.tracks.items[0].id,
-              name: searchData.tracks.items[0].name,
-              uri: searchData.tracks.items[0].uri,
-              artists: searchData.tracks.items[0].artists?.map(
-                (artist) => artist.name,
-              ),
-            }
-            : null,
-          error: searchData.error,
         });
 
-        if (!searchRes.ok) {
+        if (result.status === 429) {
+          return Response.json(
+            {
+              error: true,
+              message:
+                "Spotify search is rate-limiting requests right now. Please wait a few minutes and try again.",
+              step: "spotify_search_rate_limited",
+              query,
+              searchFailures,
+            },
+            { status: 429 }
+          );
+        }
+
+        if (!result.track?.uri) {
           searchFailures.push({
             query,
-            status: searchRes.status,
-            error: searchData.error,
+            status: result.status,
+            error: result.error,
           });
 
           continue;
         }
 
-        const track = searchData.tracks?.items?.[0];
-
-        if (track?.uri && !foundUris.includes(track.uri)) {
-          foundTracks.push(track);
-          foundUris.push(track.uri);
+        if (!foundUris.includes(result.track.uri)) {
+          foundTracks.push(result.track);
+          foundUris.push(result.track.uri);
         }
-      }
 
-      logStep("Spotify search complete", {
-        foundTrackCount: foundTracks.length,
-        foundUriCount: foundUris.length,
-        searchFailureCount: searchFailures.length,
-        searchFailures,
-        foundTracks: foundTracks.map((track) => ({
-          id: track.id,
-          name: track.name,
-          uri: track.uri,
-          artists: track.artists?.map((artist) => artist.name),
-        })),
-      });
-
-      if (!foundUris.length) {
-        return Response.json(
-          {
-            error: true,
-            message: "No matching Spotify tracks found",
-            step: "spotify_search",
-            queries,
-            searchFailures,
-          },
-          { status: 404 },
-        );
+        await sleep(250);
       }
+    }
+
+    if (foundUris.length === 0 && validSelectedTracks.length > 0) {
+      return Response.json(
+        {
+          error: true,
+          message:
+            "None of the selected preview songs could be found on Spotify. Try generating a new preview or selecting different songs.",
+          step: "resolve_selected_preview_tracks",
+          selectedTracks: validSelectedTracks,
+          searchFailures,
+        },
+        { status: 404 }
+      );
+    }
+
+    if (!foundUris.length) {
+      return Response.json(
+        {
+          error: true,
+          message: "No matching Spotify tracks found",
+          step: "spotify_search",
+          queries,
+          searchFailures,
+        },
+        { status: 404 }
+      );
     }
 
     const urisToAdd = foundUris.slice(0, 100);
 
     if (action === "append") {
-      logStep("Adding AI tracks to existing playlist", {
+      logStep("Adding selected AI tracks to existing playlist", {
         endpoint: "POST /playlists/{id}/items",
         playlistId: targetPlaylistId,
         uriCount: urisToAdd.length,
@@ -709,7 +734,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           body: JSON.stringify({
             uris: urisToAdd,
           }),
-        },
+        }
       );
 
       const addItemsData =
@@ -725,7 +750,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
             details: addItemsData,
             step: "append_items",
           },
-          { status: addItemsRes.status },
+          { status: addItemsRes.status }
         );
       }
 
@@ -753,8 +778,10 @@ Now generate exactly 25 Spotify search queries for the user's request.
           mode: mode ?? "vibe",
           generatedQueries: queries,
           usedPreviewTracks: validSelectedTracks.length > 0,
+          selectedTrackCount: validSelectedTracks.length,
           foundTrackCount: foundTracks.length,
           addedTrackCount: urisToAdd.length,
+          searchFailureCount: searchFailures.length,
           durationMs: Date.now() - startedAt,
         },
       };
@@ -788,7 +815,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           description: `Generated by VibeForge from prompt: "${prompt}"`,
           public: Boolean(isPublic),
         }),
-      },
+      }
     );
 
     const createdPlaylist =
@@ -804,7 +831,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           details: createdPlaylist,
           step: "create_playlist",
         },
-        { status: createPlaylistRes.status },
+        { status: createPlaylistRes.status }
       );
     }
 
@@ -826,7 +853,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
         body: JSON.stringify({
           uris: urisToAdd,
         }),
-      },
+      }
     );
 
     const addItemsData = (await addItemsRes.json()) as SpotifyAddItemsResponse;
@@ -842,7 +869,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
           details: addItemsData,
           step: "add_items",
         },
-        { status: addItemsRes.status },
+        { status: addItemsRes.status }
       );
     }
 
@@ -872,8 +899,10 @@ Now generate exactly 25 Spotify search queries for the user's request.
         mode: mode ?? "vibe",
         generatedQueries: queries,
         usedPreviewTracks: validSelectedTracks.length > 0,
+        selectedTrackCount: validSelectedTracks.length,
         foundTrackCount: foundTracks.length,
         addedTrackCount: urisToAdd.length,
+        searchFailureCount: searchFailures.length,
         durationMs: Date.now() - startedAt,
       },
     };
@@ -896,7 +925,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
             : "Failed to generate playlist",
         step: "unhandled_error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
