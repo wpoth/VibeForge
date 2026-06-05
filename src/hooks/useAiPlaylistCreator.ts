@@ -84,8 +84,8 @@ export function useAiPlaylistCreator({
   >([]);
   const [generatingPreview, setGeneratingPreview] = useState(false);
 
-  const selectedTracks = previewTracks.filter((track) =>
-    selectedPreviewTrackUris.includes(track.query)
+  const selectedTracks = previewTracks.filter(
+    (track) => track.uri && selectedPreviewTrackUris.includes(track.uri)
   );
 
   function togglePreviewTrack(trackKey: string) {
@@ -99,13 +99,12 @@ export function useAiPlaylistCreator({
   }
 
   function selectAllPreviewTracks() {
-    const keys = previewTracks
-      .map((track) => track.query)
-      .filter((query): query is string => Boolean(query));
+    const uris = previewTracks
+      .map((track) => track.uri)
+      .filter((uri): uri is string => Boolean(uri));
 
-    setSelectedPreviewTrackUris(Array.from(new Set(keys)));
+    setSelectedPreviewTrackUris(Array.from(new Set(uris)));
   }
-
   function clearPreviewSelection() {
     setSelectedPreviewTrackUris([]);
   }
@@ -155,10 +154,11 @@ export function useAiPlaylistCreator({
       const tracks = data.tracks ?? [];
 
       setPreviewTracks(tracks);
+
       setSelectedPreviewTrackUris(
         tracks
-          .map((track) => track.query)
-          .filter((query): query is string => Boolean(query))
+          .map((track) => track.uri)
+          .filter((uri): uri is string => Boolean(uri))
       );
     } catch (error: unknown) {
       console.error("Generate track preview failed:", error);

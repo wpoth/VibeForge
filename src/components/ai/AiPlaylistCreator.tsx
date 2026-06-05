@@ -271,7 +271,7 @@ export function AiPlaylistCreator({
 
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
               {previewTracks.map((track: AiPreviewTrack) => {
-                const trackKey = track.query;
+                const trackKey = track.uri;
 
                 if (!trackKey) return null;
 
