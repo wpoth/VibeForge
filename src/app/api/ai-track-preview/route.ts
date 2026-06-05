@@ -58,6 +58,9 @@ async function readJsonOrText<T extends object>(
 }
 
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
@@ -167,7 +170,7 @@ Return ONLY valid JSON with this exact shape:
   ]
 }
 
-The "tracks" array must contain exactly 25 objects.
+The "tracks" array must contain exactly 15 objects.
 
 Important output rules:
 - Return valid JSON only.
@@ -273,7 +276,7 @@ Good queries:
 { "query": "Timecop1983 On the Run" }
 { "query": "Perturbator Future Club" }
 
-Now generate exactly 25 Spotify search queries for the user's request.
+Now generate exactly 15 Spotify search queries for the user's request.
 `;
 
     logStep("Sending request to Groq", {
@@ -390,7 +393,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
       parsed
         .map((item) => item.query)
         .filter((query): query is string => typeof query === "string")
-    ).slice(0, 25);
+    ).slice(0, 15);
 
     logStep("Parsed AI queries", {
       count: queries.length,
@@ -427,11 +430,34 @@ Now generate exactly 25 Spotify search queries for the user's request.
       searchUrl.searchParams.set("limit", "1");
       searchUrl.searchParams.set("market", "NL");
 
-      const searchRes: globalThis.Response = await fetch(searchUrl, {
+      let searchRes: globalThis.Response = await fetch(searchUrl, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
+
+      if (searchRes.status === 429) {
+        const retryAfterHeader = searchRes.headers.get("retry-after");
+        const retryAfterSeconds = Number(retryAfterHeader);
+
+        const waitMs = Number.isFinite(retryAfterSeconds)
+          ? retryAfterSeconds * 1000
+          : 1500;
+
+        logStep("Spotify search rate limited, retrying", {
+          query,
+          retryAfterHeader,
+          waitMs,
+        });
+
+        await sleep(waitMs);
+
+        searchRes = await fetch(searchUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+      }
 
       const searchData = await readJsonOrText<SpotifySearchResponse>(searchRes);
 
@@ -504,7 +530,7 @@ Now generate exactly 25 Spotify search queries for the user's request.
         foundUris.push(track.uri);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      await sleep(250); // Avoid hitting Spotify rate limits
     }
 
     logStep("Spotify search complete", {
