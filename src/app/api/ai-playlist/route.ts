@@ -36,6 +36,18 @@ type SpotifyAddItemsResponse = {
   };
 };
 
+type SpotifyPlaylistTracksResponse = {
+  items?: {
+    track?: {
+      uri?: string;
+    } | null;
+  }[];
+  next?: string | null;
+  error?: {
+    message?: string;
+  };
+};
+
 type AiPlaylistAction = "create" | "append";
 
 function safeError(error: unknown) {
@@ -73,6 +85,63 @@ function getValidSelectedTracks(selectedTracks: unknown): SelectedPreviewTrack[]
       candidate.uri.startsWith("spotify:track:")
     );
   });
+}
+
+async function getExistingPlaylistTrackUris({
+  accessToken,
+  playlistId,
+}: {
+  accessToken: string;
+  playlistId: string;
+}) {
+  const existingUris = new Set<string>();
+
+  let url: string | null =
+    `https://api.spotify.com/v1/playlists/${playlistId}/tracks?fields=items(track(uri)),next&limit=100`;
+
+  while (url) {
+    const res: globalThis.Response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = (await res.json()) as SpotifyPlaylistTracksResponse;
+
+    if (!res.ok) {
+      throw new Error(
+        data?.error?.message ??
+        `Failed to fetch existing playlist tracks. Spotify returned ${res.status}.`
+      );
+    }
+
+    for (const item of data.items ?? []) {
+      if (item.track?.uri) {
+        existingUris.add(item.track.uri);
+      }
+    }
+
+    url = data.next ?? null;
+  }
+
+  return existingUris;
+}
+
+function mapResponseTracks(
+  selectedTracks: SelectedPreviewTrack[],
+  uris: string[]
+) {
+  return selectedTracks
+    .filter((track) => track.uri && uris.includes(track.uri))
+    .map((track) => ({
+      id: track.id,
+      uri: track.uri,
+      name: track.name,
+      artists: track.artists ?? [],
+      album: track.album,
+      imageUrl: track.imageUrl,
+      source: track.source,
+    }));
 }
 
 export async function POST(req: Request) {
@@ -244,11 +313,71 @@ export async function POST(req: Request) {
     const urisToAdd = foundUris.slice(0, 100);
 
     if (action === "append") {
+      const appendPlaylistId = targetPlaylistId;
+
+      if (!appendPlaylistId) {
+        return Response.json(
+          {
+            error: true,
+            message: "Missing target playlist ID",
+            step: "validate_append_target",
+          },
+          { status: 400 }
+        );
+      }
+
+      const existingUris = await getExistingPlaylistTrackUris({
+        accessToken,
+        playlistId: appendPlaylistId,
+      });
+
+      const duplicateUris = urisToAdd.filter((uri) => existingUris.has(uri));
+      const newUrisToAdd = urisToAdd.filter((uri) => !existingUris.has(uri));
+
+      logStep("Filtered duplicate tracks before append", {
+        originalCount: urisToAdd.length,
+        duplicateCount: duplicateUris.length,
+        newCount: newUrisToAdd.length,
+        duplicateUris,
+        newUrisToAdd,
+      });
+
+      if (!newUrisToAdd.length) {
+        const responsePayload = {
+          success: true,
+          action: "append" as const,
+          playlist: {
+            id: targetPlaylistId,
+            items: {
+              total: 0,
+            },
+            tracks: {
+              total: 0,
+            },
+          },
+          tracks: [],
+          skippedDuplicates: duplicateUris.length,
+          message: "All selected songs were already in this playlist.",
+          debug: {
+            prompt,
+            usedPreviewTracks: true,
+            selectedTrackCount: validSelectedTracks.length,
+            addedTrackCount: 0,
+            skippedDuplicateCount: duplicateUris.length,
+            durationMs: Date.now() - startedAt,
+          },
+        };
+
+        logStep("SUCCESS_NO_NEW_TRACKS", responsePayload);
+
+        return Response.json(responsePayload);
+      }
+
       logStep("Adding selected preview tracks to existing playlist", {
         endpoint: "POST /playlists/{id}/items",
         playlistId: targetPlaylistId,
-        uriCount: urisToAdd.length,
-        uris: urisToAdd,
+        uriCount: newUrisToAdd.length,
+        uris: newUrisToAdd,
       });
 
       const addItemsRes: globalThis.Response = await fetch(
@@ -260,7 +389,7 @@ export async function POST(req: Request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            uris: urisToAdd,
+            uris: newUrisToAdd,
           }),
         }
       );
@@ -296,28 +425,20 @@ export async function POST(req: Request) {
         playlist: {
           id: targetPlaylistId,
           items: {
-            total: urisToAdd.length,
+            total: newUrisToAdd.length,
           },
           tracks: {
-            total: urisToAdd.length,
+            total: newUrisToAdd.length,
           },
         },
-        tracks: validSelectedTracks
-          .filter((track) => track.uri && foundUris.includes(track.uri))
-          .map((track) => ({
-            id: track.id,
-            uri: track.uri,
-            name: track.name,
-            artists: track.artists ?? [],
-            album: track.album,
-            imageUrl: track.imageUrl,
-            source: track.source,
-          })),
+        tracks: mapResponseTracks(validSelectedTracks, newUrisToAdd),
+        skippedDuplicates: duplicateUris.length,
         debug: {
           prompt,
           usedPreviewTracks: true,
           selectedTrackCount: validSelectedTracks.length,
-          addedTrackCount: urisToAdd.length,
+          addedTrackCount: newUrisToAdd.length,
+          skippedDuplicateCount: duplicateUris.length,
           durationMs: Date.now() - startedAt,
         },
       };
@@ -441,22 +562,14 @@ export async function POST(req: Request) {
           total: urisToAdd.length,
         },
       },
-      tracks: validSelectedTracks
-        .filter((track) => track.uri && foundUris.includes(track.uri))
-        .map((track) => ({
-          id: track.id,
-          uri: track.uri,
-          name: track.name,
-          artists: track.artists ?? [],
-          album: track.album,
-          imageUrl: track.imageUrl,
-          source: track.source,
-        })),
+      tracks: mapResponseTracks(validSelectedTracks, urisToAdd),
+      skippedDuplicates: 0,
       debug: {
         prompt,
         usedPreviewTracks: true,
         selectedTrackCount: validSelectedTracks.length,
         addedTrackCount: urisToAdd.length,
+        skippedDuplicateCount: 0,
         durationMs: Date.now() - startedAt,
       },
     };
