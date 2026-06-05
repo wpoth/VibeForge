@@ -39,9 +39,11 @@ type SpotifySearchResponse = {
   };
 };
 
-type JsonOrText<T> = T | { rawText: string };
+type JsonOrText<T extends object> = T | { rawText: string };
 
-async function readJsonOrText<T>(res: Response): Promise<JsonOrText<T>> {
+async function readJsonOrText<T extends object>(
+  res: Response
+): Promise<JsonOrText<T>> {
   const text = await res.text();
 
   if (!text) {
@@ -54,6 +56,8 @@ async function readJsonOrText<T>(res: Response): Promise<JsonOrText<T>> {
     return { rawText: text };
   }
 }
+
+
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
@@ -81,7 +85,9 @@ function logError(step: string, data?: unknown) {
   console.error(`[AI_TRACK_PREVIEW_ERROR] ${step}`, data ?? "");
 }
 
-function isRawText<T>(value: JsonOrText<T>): value is { rawText: string } {
+function isRawText<T extends object>(
+  value: JsonOrText<T>
+): value is { rawText: string } {
   return "rawText" in value;
 }
 
