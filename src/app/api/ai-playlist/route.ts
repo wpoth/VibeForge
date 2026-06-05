@@ -16,10 +16,12 @@ type GroqResponse = {
 type SelectedPreviewTrack = {
   id?: string;
   uri?: string;
+  query?: string;
   name?: string;
   artists?: string[];
   album?: string;
   imageUrl?: string | null;
+  source?: string;
 };
 
 type SpotifyUserResponse = {
@@ -251,19 +253,34 @@ export async function POST(req: Request) {
     }[] = [];
 
     const validSelectedTracks = Array.isArray(selectedTracks)
-      ? selectedTracks.filter(
-        (track) =>
-          typeof track.uri === "string" && track.uri.startsWith("spotify:"),
-      )
+      ? selectedTracks.filter((track) => {
+        const hasUri =
+          typeof track.uri === "string" && track.uri.startsWith("spotify:");
+
+        const hasQuery =
+          typeof track.query === "string" && Boolean(track.query.trim());
+
+        return hasUri || hasQuery;
+      })
       : [];
 
     if (validSelectedTracks.length > 0) {
       logStep("Using selected preview tracks", {
         selectedTrackCount: validSelectedTracks.length,
-        uris: validSelectedTracks.map((track) => track.uri),
+        tracks: validSelectedTracks.map((track) => ({
+          uri: track.uri,
+          query: track.query,
+          name: track.name,
+          artists: track.artists,
+        })),
       });
 
-      foundTracks = validSelectedTracks.map((track) => ({
+      const tracksWithUris = validSelectedTracks.filter(
+        (track) =>
+          typeof track.uri === "string" && track.uri.startsWith("spotify:")
+      );
+
+      foundTracks = tracksWithUris.map((track) => ({
         id: track.id,
         uri: track.uri,
         name: track.name,
@@ -274,11 +291,78 @@ export async function POST(req: Request) {
 
       foundUris = Array.from(
         new Set(
-          validSelectedTracks
+          tracksWithUris
             .map((track) => track.uri)
-            .filter((uri): uri is string => Boolean(uri)),
-        ),
+            .filter((uri): uri is string => Boolean(uri))
+        )
       );
+
+      const tracksNeedingSearch = validSelectedTracks.filter(
+        (track) => !track.uri && track.query
+      );
+
+      for (const selectedTrack of tracksNeedingSearch) {
+        const query = selectedTrack.query?.trim();
+
+        if (!query) continue;
+
+        const searchUrl = new URL("https://api.spotify.com/v1/search");
+        searchUrl.searchParams.set("q", query);
+        searchUrl.searchParams.set("type", "track");
+        searchUrl.searchParams.set("limit", "1");
+        searchUrl.searchParams.set("market", "NL");
+
+        logStep("Resolving selected preview track", {
+          query,
+          name: selectedTrack.name,
+          artists: selectedTrack.artists,
+        });
+
+        const searchRes: globalThis.Response = await fetch(searchUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        const searchData = (await searchRes.json()) as SpotifySearchResponse;
+
+        logStep("Selected preview track resolve result", {
+          query,
+          status: searchRes.status,
+          ok: searchRes.ok,
+          foundCount: searchData.tracks?.items?.length ?? 0,
+          firstTrack: searchData.tracks?.items?.[0]
+            ? {
+              id: searchData.tracks.items[0].id,
+              name: searchData.tracks.items[0].name,
+              uri: searchData.tracks.items[0].uri,
+              artists: searchData.tracks.items[0].artists?.map(
+                (artist) => artist.name
+              ),
+            }
+            : null,
+          error: searchData.error,
+        });
+
+        if (!searchRes.ok) {
+          searchFailures.push({
+            query,
+            status: searchRes.status,
+            error: searchData.error,
+          });
+
+          continue;
+        }
+
+        const track = searchData.tracks?.items?.[0];
+
+        if (track?.uri && !foundUris.includes(track.uri)) {
+          foundTracks.push(track);
+          foundUris.push(track.uri);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
     }
 
     if (foundUris.length === 0) {

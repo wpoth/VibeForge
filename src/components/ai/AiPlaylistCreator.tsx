@@ -91,11 +91,10 @@ export function AiPlaylistCreator({
           <button
             type="button"
             onClick={() => onModeChange("vibe")}
-            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${
-              aiPlaylistMode === "vibe"
-                ? "bg-green-500 text-black"
-                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "vibe"
+              ? "bg-green-500 text-black"
+              : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+              }`}
           >
             Vibe
           </button>
@@ -103,11 +102,10 @@ export function AiPlaylistCreator({
           <button
             type="button"
             onClick={() => onModeChange("artist")}
-            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${
-              aiPlaylistMode === "artist"
-                ? "bg-green-500 text-black"
-                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "artist"
+              ? "bg-green-500 text-black"
+              : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+              }`}
           >
             Artist-based
           </button>
@@ -122,11 +120,10 @@ export function AiPlaylistCreator({
             <button
               type="button"
               onClick={() => onTargetChange("new")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${
-                aiPlaylistTarget === "new"
-                  ? "bg-green-500 text-black"
-                  : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
-              }`}
+              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "new"
+                ? "bg-green-500 text-black"
+                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+                }`}
             >
               New playlist
             </button>
@@ -134,11 +131,10 @@ export function AiPlaylistCreator({
             <button
               type="button"
               onClick={() => onTargetChange("existing")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${
-                aiPlaylistTarget === "existing"
-                  ? "bg-green-500 text-black"
-                  : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
-              }`}
+              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "existing"
+                ? "bg-green-500 text-black"
+                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+                }`}
             >
               Existing playlist
             </button>
@@ -227,8 +223,8 @@ export function AiPlaylistCreator({
                 ? "Adding selected..."
                 : "Creating playlist..."
               : aiPlaylistTarget === "existing"
-              ? "Add selected songs"
-              : "Create with selected"}
+                ? "Add selected songs"
+                : "Create with selected"}
           </button>
         </div>
 
@@ -275,20 +271,21 @@ export function AiPlaylistCreator({
 
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
               {previewTracks.map((track: AiPreviewTrack) => {
-                if (!track.uri) return null;
+                const trackKey = track.query;
 
-                const selected = selectedPreviewTrackUris.includes(track.uri);
+                if (!trackKey) return null;
+
+                const selected = selectedPreviewTrackUris.includes(trackKey);
 
                 return (
                   <button
-                    key={track.uri}
+                    key={trackKey}
                     type="button"
-                    onClick={() => onTogglePreviewTrack(track.uri!)}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      selected
-                        ? "border-green-400/40 bg-green-500/10"
-                        : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-                    }`}
+                    onClick={() => onTogglePreviewTrack(trackKey)}
+                    className={`w-full rounded-xl border p-3 text-left transition ${selected
+                      ? "border-green-400/40 bg-green-500/10"
+                      : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-white/[0.06]">
@@ -308,19 +305,25 @@ export function AiPlaylistCreator({
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-white">
-                          {track.name ?? "Unknown track"}
+                          {track.name ?? track.query}
                         </p>
+
                         <p className="truncate text-xs text-zinc-400">
                           {track.artists?.join(", ") || "Unknown artist"}
                         </p>
+
+                        {track.source && (
+                          <p className="mt-1 truncate text-[11px] text-zinc-500">
+                            {track.source}
+                          </p>
+                        )}
                       </div>
 
                       <div
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${
-                          selected
-                            ? "border-green-400 bg-green-500 text-black"
-                            : "border-white/20 text-transparent"
-                        }`}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${selected
+                          ? "border-green-400 bg-green-500 text-black"
+                          : "border-white/20 text-transparent"
+                          }`}
                       >
                         ✓
                       </div>

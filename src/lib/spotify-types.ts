@@ -48,10 +48,12 @@ export type SpotifyPlaylist = {
 export type AiPreviewTrack = {
   id?: string;
   uri?: string;
+  query: string;
   name?: string;
   artists?: string[];
   album?: string;
   imageUrl?: string | null;
+  source?: string;
 };
 
 export type AiTrackPreviewResponse = ApiErrorResponse & {

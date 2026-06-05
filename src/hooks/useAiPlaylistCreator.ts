@@ -84,26 +84,26 @@ export function useAiPlaylistCreator({
   >([]);
   const [generatingPreview, setGeneratingPreview] = useState(false);
 
-  const selectedTracks = previewTracks.filter(
-    (track) => track.uri && selectedPreviewTrackUris.includes(track.uri),
+  const selectedTracks = previewTracks.filter((track) =>
+    selectedPreviewTrackUris.includes(track.query)
   );
 
-  function togglePreviewTrack(trackUri: string) {
-    setSelectedPreviewTrackUris((currentUris) => {
-      if (currentUris.includes(trackUri)) {
-        return currentUris.filter((uri) => uri !== trackUri);
+  function togglePreviewTrack(trackKey: string) {
+    setSelectedPreviewTrackUris((currentKeys) => {
+      if (currentKeys.includes(trackKey)) {
+        return currentKeys.filter((key) => key !== trackKey);
       }
 
-      return [...currentUris, trackUri];
+      return [...currentKeys, trackKey];
     });
   }
 
   function selectAllPreviewTracks() {
-    const uris = previewTracks
-      .map((track) => track.uri)
-      .filter((uri): uri is string => Boolean(uri));
+    const keys = previewTracks
+      .map((track) => track.query)
+      .filter((query): query is string => Boolean(query));
 
-    setSelectedPreviewTrackUris(Array.from(new Set(uris)));
+    setSelectedPreviewTrackUris(Array.from(new Set(keys)));
   }
 
   function clearPreviewSelection() {
@@ -157,8 +157,8 @@ export function useAiPlaylistCreator({
       setPreviewTracks(tracks);
       setSelectedPreviewTrackUris(
         tracks
-          .map((track) => track.uri)
-          .filter((uri): uri is string => Boolean(uri)),
+          .map((track) => track.query)
+          .filter((query): query is string => Boolean(query))
       );
     } catch (error: unknown) {
       console.error("Generate track preview failed:", error);
