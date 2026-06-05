@@ -125,6 +125,76 @@ function logError(step: string, data?: unknown) {
   console.error(`[AI_PLAYLIST_ERROR] ${step}`, data ?? "");
 }
 
+function normalizeText(value?: string) {
+  return (
+    value
+      ?.normalize("NFKD")
+      .toLowerCase()
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim() ?? ""
+  );
+}
+
+function textMatches(expected?: string, actual?: string) {
+  const normalizedExpected = normalizeText(expected);
+  const normalizedActual = normalizeText(actual);
+
+  if (!normalizedExpected || !normalizedActual) return false;
+
+  return (
+    normalizedActual === normalizedExpected ||
+    normalizedActual.includes(normalizedExpected) ||
+    normalizedExpected.includes(normalizedActual)
+  );
+}
+
+function spotifyTrackMatchesPreview(
+  spotifyTrack: SpotifyTrack,
+  previewTrack: SelectedPreviewTrack
+) {
+  const expectedName = previewTrack.name;
+  const actualName = spotifyTrack.name;
+
+  const expectedArtists =
+    previewTrack.artists?.map(normalizeText).filter(Boolean) ?? [];
+
+  const actualArtists =
+    spotifyTrack.artists
+      ?.map((artist) => normalizeText(artist.name))
+      .filter(Boolean) ?? [];
+
+  const nameMatches = expectedName
+    ? textMatches(expectedName, actualName)
+    : Boolean(spotifyTrack.uri);
+
+  const artistMatches =
+    expectedArtists.length === 0 ||
+    expectedArtists.some((expectedArtist) =>
+      actualArtists.some(
+        (actualArtist) =>
+          actualArtist === expectedArtist ||
+          actualArtist.includes(expectedArtist) ||
+          expectedArtist.includes(actualArtist)
+      )
+    );
+
+  return nameMatches && artistMatches;
+}
+
+function buildStrictSpotifyQuery(track: SelectedPreviewTrack) {
+  const trackName = track.name?.trim();
+  const primaryArtist = track.artists?.[0]?.trim();
+  const fallbackQuery = track.query?.trim();
+
+  if (trackName && primaryArtist) {
+    return `track:${trackName} artist:${primaryArtist}`;
+  }
+
+  return fallbackQuery ?? "";
+}
+
 function toSpotifyTrackFromPreview(track: SelectedPreviewTrack): SpotifyTrack {
   return {
     id: track.id,
@@ -172,16 +242,17 @@ async function resolveSpotifyTrack({
     foundCount: isRawText(searchData)
       ? 0
       : searchData.tracks?.items?.length ?? 0,
-    firstTrack: !isRawText(searchData) && searchData.tracks?.items?.[0]
-      ? {
-        id: searchData.tracks.items[0].id,
-        name: searchData.tracks.items[0].name,
-        uri: searchData.tracks.items[0].uri,
-        artists: searchData.tracks.items[0].artists?.map(
-          (artist) => artist.name
-        ),
-      }
-      : null,
+    firstTrack:
+      !isRawText(searchData) && searchData.tracks?.items?.[0]
+        ? {
+          id: searchData.tracks.items[0].id,
+          name: searchData.tracks.items[0].name,
+          uri: searchData.tracks.items[0].uri,
+          artists: searchData.tracks.items[0].artists?.map(
+            (artist) => artist.name
+          ),
+        }
+        : null,
     error: searchError,
   });
 
@@ -197,6 +268,86 @@ async function resolveSpotifyTrack({
     track: searchData.tracks?.items?.[0] ?? null,
     status: searchRes.status,
     error: null,
+  };
+}
+
+async function resolveSelectedPreviewTrack({
+  accessToken,
+  selectedTrack,
+}: {
+  accessToken: string;
+  selectedTrack: SelectedPreviewTrack;
+}): Promise<{
+  track: SpotifyTrack | null;
+  status: number;
+  error: unknown;
+  queryUsed?: string;
+}> {
+  const strictQuery = buildStrictSpotifyQuery(selectedTrack);
+  const fallbackQuery = selectedTrack.query?.trim();
+
+  const queries = Array.from(
+    new Set([strictQuery, fallbackQuery].filter((query): query is string => Boolean(query)))
+  );
+
+  for (const query of queries) {
+    logStep("Resolving selected preview track", {
+      query,
+      name: selectedTrack.name,
+      artists: selectedTrack.artists,
+      source: selectedTrack.source,
+    });
+
+    const result = await resolveSpotifyTrack({
+      accessToken,
+      query,
+    });
+
+    if (result.status === 429) {
+      return {
+        ...result,
+        queryUsed: query,
+      };
+    }
+
+    if (!result.track?.uri) {
+      continue;
+    }
+
+    if (!spotifyTrackMatchesPreview(result.track, selectedTrack)) {
+      logStep("Resolved track rejected because it did not match preview", {
+        query,
+        expected: {
+          name: selectedTrack.name,
+          artists: selectedTrack.artists,
+        },
+        actual: {
+          name: result.track.name,
+          artists: result.track.artists?.map((artist) => artist.name),
+          uri: result.track.uri,
+        },
+      });
+
+      continue;
+    }
+
+    return {
+      ...result,
+      queryUsed: query,
+    };
+  }
+
+  return {
+    track: null,
+    status: 404,
+    error: {
+      message: "No matching Spotify track passed validation",
+      expected: {
+        name: selectedTrack.name,
+        artists: selectedTrack.artists,
+        query: selectedTrack.query,
+      },
+    },
   };
 }
 
@@ -335,6 +486,7 @@ export async function POST(req: Request) {
     let foundTracks: SpotifyTrack[] = [];
     let foundUris: string[] = [];
     let queries: string[] = [];
+
     const searchFailures: {
       query: string;
       status: number;
@@ -362,6 +514,7 @@ export async function POST(req: Request) {
           query: track.query,
           name: track.name,
           artists: track.artists,
+          source: track.source,
         })),
       });
 
@@ -384,19 +537,9 @@ export async function POST(req: Request) {
       );
 
       for (const selectedTrack of tracksNeedingSearch) {
-        const query = selectedTrack.query?.trim();
-
-        if (!query) continue;
-
-        logStep("Resolving selected preview track", {
-          query,
-          name: selectedTrack.name,
-          artists: selectedTrack.artists,
-        });
-
-        const result = await resolveSpotifyTrack({
+        const result = await resolveSelectedPreviewTrack({
           accessToken,
-          query,
+          selectedTrack,
         });
 
         if (result.status === 429) {
@@ -406,7 +549,7 @@ export async function POST(req: Request) {
               message:
                 "Spotify search is rate-limiting requests right now. Please wait a few minutes and try again.",
               step: "resolve_selected_preview_tracks_rate_limited",
-              query,
+              query: result.queryUsed ?? selectedTrack.query,
               searchFailures,
             },
             { status: 429 }
@@ -415,7 +558,7 @@ export async function POST(req: Request) {
 
         if (!result.track?.uri) {
           searchFailures.push({
-            query,
+            query: result.queryUsed ?? selectedTrack.query ?? "unknown query",
             status: result.status,
             error: result.error,
           });
@@ -691,7 +834,7 @@ Now generate exactly 15 Spotify search queries for the user's request.
         {
           error: true,
           message:
-            "None of the selected preview songs could be found on Spotify. Try generating a new preview or selecting different songs.",
+            "None of the selected preview songs could be confidently matched on Spotify. Try selecting different songs or generating a new preview.",
           step: "resolve_selected_preview_tracks",
           selectedTracks: validSelectedTracks,
           searchFailures,
@@ -782,6 +925,7 @@ Now generate exactly 15 Spotify search queries for the user's request.
           foundTrackCount: foundTracks.length,
           addedTrackCount: urisToAdd.length,
           searchFailureCount: searchFailures.length,
+          searchFailures,
           durationMs: Date.now() - startedAt,
         },
       };
@@ -903,6 +1047,7 @@ Now generate exactly 15 Spotify search queries for the user's request.
         foundTrackCount: foundTracks.length,
         addedTrackCount: urisToAdd.length,
         searchFailureCount: searchFailures.length,
+        searchFailures,
         durationMs: Date.now() - startedAt,
       },
     };
