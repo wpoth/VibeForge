@@ -251,7 +251,7 @@ export function NowPlayingPopover({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-[79] bg-black/20 backdrop-blur-[1px] sm:hidden"
+                        className="fixed inset-0 z-[79] bg-black/20 backdrop-blur-[1px] sm:bg-transparent sm:backdrop-blur-0"
                     />
 
                     <motion.div
