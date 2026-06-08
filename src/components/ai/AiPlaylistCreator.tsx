@@ -1,3 +1,4 @@
+import { AiPreviewSkeleton } from "@/components/common/Skeletons";
 import type {
   AiPreviewTrack,
   SpotifyPlaylist,
@@ -72,28 +73,31 @@ export function AiPlaylistCreator({
 }: AiPlaylistCreatorProps) {
   return (
     <div className="w-full max-w-3xl">
-      <p className="text-sm text-green-400 font-medium mb-3">
+      <p className="mb-3 text-sm font-medium text-green-400">
         AI Playlist Creator
       </p>
 
-      <h2 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">
+      <h2 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
         Turn a vibe or artist into a playlist.
       </h2>
 
-      <p className="text-zinc-400 mb-6 sm:mb-8 max-w-2xl">
+      <p className="mb-6 max-w-2xl text-zinc-400 sm:mb-8">
         Describe a mood, setting, genre, or artist direction. VibeForge will
         find matching Spotify tracks and let you preview them before changing
         your playlists.
       </p>
 
-      <div className="p-4 sm:p-6 bg-white/[0.04] border border-white/10 rounded-2xl shadow-2xl">
-        <div className="grid grid-cols-2 gap-2 mb-4 sm:flex">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-2xl sm:p-6">
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex">
           <button
             type="button"
-            onClick={() => onModeChange("vibe")}
-            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "vibe"
-              ? "bg-green-500 text-black"
-              : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+            onClick={() => {
+              onModeChange("vibe");
+              onClearPreview();
+            }}
+            className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${aiPlaylistMode === "vibe"
+                ? "bg-green-500 text-black"
+                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
               }`}
           >
             Vibe
@@ -101,10 +105,13 @@ export function AiPlaylistCreator({
 
           <button
             type="button"
-            onClick={() => onModeChange("artist")}
-            className={`px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition ${aiPlaylistMode === "artist"
-              ? "bg-green-500 text-black"
-              : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+            onClick={() => {
+              onModeChange("artist");
+              onClearPreview();
+            }}
+            className={`cursor-pointer rounded-full px-4 py-2 text-sm font-medium transition ${aiPlaylistMode === "artist"
+                ? "bg-green-500 text-black"
+                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
               }`}
           >
             Artist-based
@@ -120,9 +127,9 @@ export function AiPlaylistCreator({
             <button
               type="button"
               onClick={() => onTargetChange("new")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "new"
-                ? "bg-green-500 text-black"
-                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+              className={`cursor-pointer rounded-xl px-4 py-2 text-sm font-medium transition ${aiPlaylistTarget === "new"
+                  ? "bg-green-500 text-black"
+                  : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                 }`}
             >
               New playlist
@@ -131,9 +138,9 @@ export function AiPlaylistCreator({
             <button
               type="button"
               onClick={() => onTargetChange("existing")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium cursor-pointer transition ${aiPlaylistTarget === "existing"
-                ? "bg-green-500 text-black"
-                : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
+              className={`cursor-pointer rounded-xl px-4 py-2 text-sm font-medium transition ${aiPlaylistTarget === "existing"
+                  ? "bg-green-500 text-black"
+                  : "bg-white/[0.06] text-zinc-300 hover:bg-white/[0.1]"
                 }`}
             >
               Existing playlist
@@ -167,24 +174,27 @@ export function AiPlaylistCreator({
           )}
         </div>
 
-        <label className="block text-sm text-zinc-400 mb-2">
+        <label className="mb-2 block text-sm text-zinc-400">
           Playlist prompt
         </label>
 
         <textarea
           value={aiPrompt}
-          onChange={(event) => onPromptChange(event.target.value)}
+          onChange={(event) => {
+            onPromptChange(event.target.value);
+            onClearPreview();
+          }}
           placeholder={
             aiPlaylistMode === "vibe"
               ? "Example: rainy night drive, emotional indie pop, soft synths"
-              : "Example: music like The Weeknd, Chase Atlantic, and PARTYNEXTDOOR"
+              : "Example: Aimer's songs or music like Aimer"
           }
-          className="w-full min-h-32 p-4 bg-black/30 border border-white/10 rounded-xl outline-none focus:border-green-400/60 transition placeholder:text-zinc-600 resize-none"
+          className="min-h-32 w-full resize-none rounded-xl border border-white/10 bg-black/30 p-4 outline-none transition placeholder:text-zinc-600 focus:border-green-400/60"
         />
 
         {aiPlaylistTarget === "new" && (
           <>
-            <label className="block text-sm text-zinc-400 mt-5 mb-2">
+            <label className="mb-2 mt-5 block text-sm text-zinc-400">
               Playlist name
             </label>
 
@@ -192,7 +202,7 @@ export function AiPlaylistCreator({
               value={aiPlaylistName}
               onChange={(event) => onPlaylistNameChange(event.target.value)}
               placeholder="Optional, e.g. Midnight Coding"
-              className="w-full p-4 bg-black/30 border border-white/10 rounded-xl outline-none focus:border-green-400/60 transition placeholder:text-zinc-600"
+              className="w-full rounded-xl border border-white/10 bg-black/30 p-4 outline-none transition placeholder:text-zinc-600 focus:border-green-400/60"
             />
           </>
         )}
@@ -202,7 +212,7 @@ export function AiPlaylistCreator({
             type="button"
             onClick={onGeneratePreview}
             disabled={generatingPreview || !aiPrompt.trim()}
-            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-green-500 text-black font-semibold hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-500/20"
+            className="w-full rounded-xl bg-green-500 px-5 py-3 font-semibold text-black shadow-lg shadow-green-500/20 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {generatingPreview ? "Generating preview..." : "Generate preview"}
           </button>
@@ -216,7 +226,7 @@ export function AiPlaylistCreator({
               selectedPreviewTrackUris.length === 0 ||
               (aiPlaylistTarget === "existing" && !selectedTargetPlaylistId)
             }
-            className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white/[0.08] text-white font-semibold hover:bg-white/[0.12] disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full rounded-xl bg-white/[0.08] px-5 py-3 font-semibold text-white transition hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {creatingPlaylist
               ? aiPlaylistTarget === "existing"
@@ -228,7 +238,9 @@ export function AiPlaylistCreator({
           </button>
         </div>
 
-        {previewTracks.length > 0 && (
+        {generatingPreview && <AiPreviewSkeleton />}
+
+        {!generatingPreview && previewTracks.length > 0 && (
           <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -283,8 +295,8 @@ export function AiPlaylistCreator({
                     type="button"
                     onClick={() => onTogglePreviewTrack(trackKey)}
                     className={`w-full rounded-xl border p-3 text-left transition ${selected
-                      ? "border-green-400/40 bg-green-500/10"
-                      : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                        ? "border-green-400/40 bg-green-500/10"
+                        : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
                       }`}
                   >
                     <div className="flex items-center gap-3">
@@ -321,8 +333,8 @@ export function AiPlaylistCreator({
 
                       <div
                         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${selected
-                          ? "border-green-400 bg-green-500 text-black"
-                          : "border-white/20 text-transparent"
+                            ? "border-green-400 bg-green-500 text-black"
+                            : "border-white/20 text-transparent"
                           }`}
                       >
                         ✓
@@ -336,8 +348,8 @@ export function AiPlaylistCreator({
         )}
 
         {successMessage && (
-          <div className="mt-5 p-4 rounded-xl bg-green-500/10 border border-green-400/30">
-            <p className="text-sm text-green-300 font-medium">
+          <div className="mt-5 rounded-xl border border-green-400/30 bg-green-500/10 p-4">
+            <p className="text-sm font-medium text-green-300">
               {successMessage}
             </p>
 
@@ -346,7 +358,7 @@ export function AiPlaylistCreator({
                 href={createdPlaylistUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-block mt-2 text-sm text-green-400 hover:text-green-300 underline underline-offset-4"
+                className="mt-2 inline-block text-sm text-green-400 underline underline-offset-4 hover:text-green-300"
               >
                 Open in Spotify
               </a>
@@ -355,9 +367,9 @@ export function AiPlaylistCreator({
         )}
       </div>
 
-      <div className="mt-8 sm:mt-10 max-w-md bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+      <div className="mt-8 max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-4 sm:mt-10">
         <p className="text-sm text-zinc-400">Logged in as</p>
-        <p className="font-medium truncate">{profile?.display_name}</p>
+        <p className="truncate font-medium">{profile?.display_name}</p>
       </div>
     </div>
   );

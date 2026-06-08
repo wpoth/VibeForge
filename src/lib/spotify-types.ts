@@ -1,5 +1,7 @@
 export type SpotifyArtist = {
+  id?: string;
   name?: string;
+  uri?: string;
 };
 
 export type SpotifyImage = {
@@ -108,4 +110,29 @@ export type AiPlaylistResponse = ApiErrorResponse & {
     name?: string;
     artists?: string[];
   }[];
+};
+
+export type SpotifySearchResponse = {
+  tracks?: {
+    items?: SpotifyTrack[];
+  };
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyArtistSearchResponse = {
+  artists?: {
+    items?: SpotifyArtist[];
+  };
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyArtistTopTracksResponse = {
+  tracks?: SpotifyTrack[];
+  error?: {
+    message?: string;
+  };
 };

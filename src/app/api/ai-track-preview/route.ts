@@ -1,3 +1,11 @@
+import type {
+  SpotifyArtist,
+  SpotifyArtistSearchResponse,
+  SpotifyArtistTopTracksResponse,
+  SpotifySearchResponse,
+  SpotifyTrack,
+} from "@/lib/spotify-types";
+
 type AiTrackSuggestion = {
   query: string;
   name?: string;
@@ -11,54 +19,6 @@ type GroqResponse = {
       content?: string;
     };
   }[];
-  error?: {
-    message?: string;
-  };
-};
-
-type SpotifyArtist = {
-  id?: string;
-  name?: string;
-  uri?: string;
-};
-
-type SpotifyTrack = {
-  id?: string;
-  uri?: string;
-  name?: string;
-  artists?: {
-    name?: string;
-  }[];
-  album?: {
-    name?: string;
-    images?: {
-      url: string;
-      height?: number | null;
-      width?: number | null;
-    }[];
-  };
-};
-
-type SpotifySearchResponse = {
-  tracks?: {
-    items?: SpotifyTrack[];
-  };
-  error?: {
-    message?: string;
-  };
-};
-
-type SpotifyArtistSearchResponse = {
-  artists?: {
-    items?: SpotifyArtist[];
-  };
-  error?: {
-    message?: string;
-  };
-};
-
-type SpotifyArtistTopTracksResponse = {
-  tracks?: SpotifyTrack[];
   error?: {
     message?: string;
   };
@@ -218,9 +178,7 @@ async function searchSpotifyTracks({
     ? searchData.rawText
     : searchData.error?.message ?? null;
 
-  const tracks = isRawText(searchData)
-    ? []
-    : searchData.tracks?.items ?? [];
+  const tracks = isRawText(searchData) ? [] : searchData.tracks?.items ?? [];
 
   logStep("Spotify search result", {
     query,
@@ -229,11 +187,11 @@ async function searchSpotifyTracks({
     foundCount: tracks.length,
     firstTrack: tracks[0]
       ? {
-        id: tracks[0].id,
-        name: tracks[0].name,
-        uri: tracks[0].uri,
-        artists: tracks[0].artists?.map((artist) => artist.name),
-      }
+          id: tracks[0].id,
+          name: tracks[0].name,
+          uri: tracks[0].uri,
+          artists: tracks[0].artists?.map((artist) => artist.name),
+        }
       : null,
     error: searchError,
   });
@@ -432,10 +390,10 @@ async function searchSpotifyArtist({
     firstArtist:
       !isRawText(data) && data.artists?.items?.[0]
         ? {
-          id: data.artists.items[0].id,
-          name: data.artists.items[0].name,
-          uri: data.artists.items[0].uri,
-        }
+            id: data.artists.items[0].id,
+            name: data.artists.items[0].name,
+            uri: data.artists.items[0].uri,
+          }
         : null,
     error,
   });
@@ -593,8 +551,9 @@ async function generateArtistTopTracksPreview({
     .map((track) =>
       mapSpotifyTrackToPreviewTrack({
         track,
-        query: `${artistResult.artist?.name ?? artistName} ${track.name ?? ""
-          }`.trim(),
+        query: `${artistResult.artist?.name ?? artistName} ${
+          track.name ?? ""
+        }`.trim(),
         source: "requested artist",
       })
     );
@@ -1157,9 +1116,9 @@ Now generate exactly 15 track suggestions for the user's request.
                 : query,
             artists: Array.isArray(track.artists)
               ? track.artists.filter(
-                (artist): artist is string =>
-                  typeof artist === "string" && Boolean(artist.trim())
-              )
+                  (artist): artist is string =>
+                    typeof artist === "string" && Boolean(artist.trim())
+                )
               : [],
             source:
               typeof track.source === "string" && track.source.trim()
