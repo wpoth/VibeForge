@@ -32,8 +32,12 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const lastAiSuccessMessageRef = useRef<string | null>(null);
 
-  const { currentlyPlaying, isPlaying, currentlyPlayingError } =
-    useCurrentlyPlaying(accessToken);
+  const {
+    currentlyPlaying,
+    isPlaying,
+    currentlyPlayingError,
+    refreshCurrentlyPlaying,
+  } = useCurrentlyPlaying(accessToken);
 
   const { profile, profileError } = useSpotifyProfile(accessToken);
 
@@ -210,12 +214,13 @@ export default function Page() {
     setAiAnalysis(null);
     await openPlaylist(playlist);
   }
-  
+
   async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
     setError(null);
 
     try {
       await playPlaylist(playlist);
+      await refreshCurrentlyPlaying();
 
       toast({
         type: "success",
@@ -238,6 +243,7 @@ export default function Page() {
 
     try {
       await playTrack(playlistItem);
+      await refreshCurrentlyPlaying();
 
       toast({
         type: "success",
@@ -427,9 +433,11 @@ export default function Page() {
   return (
     <AppShell>
       <Header
+        accessToken={accessToken}
         onAiModeClick={handleAiModeClick}
         currentlyPlaying={currentlyPlaying}
         isPlaying={isPlaying}
+        onRefreshPlayback={refreshCurrentlyPlaying}
       />
 
       <Sidebar

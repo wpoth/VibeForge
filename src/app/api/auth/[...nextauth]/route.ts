@@ -59,7 +59,7 @@ const scopes = [
   "playlist-modify-private",
   "user-library-modify",
   "user-read-currently-playing",
-  "user-modify-playback-state",
+  "user-read-playback-state",
   "user-modify-playback-state",
 ].join(" ");
 

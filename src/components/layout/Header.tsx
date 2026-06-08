@@ -1,22 +1,81 @@
-import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
-import { signOut } from "next-auth/react";
+"use client";
+
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { signOut } from "next-auth/react";
+
+import { toast } from "@/components/common/ToastProvider";
+import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
+import { NowPlayingPopover } from "@/components/header/NowPlayingPopover";
+import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
+import { getErrorMessage } from "@/lib/ui-helpers";
 
 type HeaderProps = {
+  accessToken: string | undefined;
   onAiModeClick: () => void;
-  currentlyPlaying?: {
-    title?: string;
-    artists?: string[];
-    imageUrl?: string | null;
-  } | null;
+  currentlyPlaying?: CurrentlyPlayingTrack | null;
   isPlaying?: boolean;
+  onRefreshPlayback?: () => Promise<void>;
 };
 
+type PlayerControlAction = "next" | "previous" | "pause" | "resume";
+
 export function Header({
+  accessToken,
   onAiModeClick,
   currentlyPlaying,
   isPlaying = false,
+  onRefreshPlayback,
 }: HeaderProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [controlLoading, setControlLoading] = useState(false);
+
+  async function controlPlayback(action: PlayerControlAction) {
+    if (!accessToken) {
+      toast({
+        type: "error",
+        title: "Could not control playback",
+        description: "Missing access token.",
+      });
+      return;
+    }
+
+    setControlLoading(true);
+
+    try {
+      const res = await fetch("/api/player-control", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          action,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message ||
+          String(data?.error) ||
+          "Failed to control Spotify playback"
+        );
+      }
+
+      await onRefreshPlayback?.();
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Spotify control failed",
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setControlLoading(false);
+    }
+  }
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -12 }}
@@ -38,15 +97,12 @@ export function Header({
           ♪
         </motion.div>
 
-        <motion.h1
-          layout
-          className="truncate font-bold tracking-tight"
-        >
+        <motion.h1 layout className="truncate font-bold tracking-tight">
           VibeForge
         </motion.h1>
       </motion.div>
 
-      <div className="hidden flex-1 justify-center lg:flex">
+      <div className="relative hidden flex-1 justify-center lg:flex">
         <AnimatePresence mode="wait">
           {currentlyPlaying?.title ? (
             <motion.div
@@ -63,6 +119,7 @@ export function Header({
                 artists={currentlyPlaying.artists}
                 imageUrl={currentlyPlaying.imageUrl}
                 isPlaying={isPlaying}
+                onClick={() => setPopoverOpen((current) => !current)}
               />
             </motion.div>
           ) : (
@@ -77,6 +134,17 @@ export function Header({
             </motion.div>
           )}
         </AnimatePresence>
+
+        <NowPlayingPopover
+          open={popoverOpen}
+          track={currentlyPlaying ?? null}
+          isPlaying={isPlaying}
+          controlLoading={controlLoading}
+          onPrevious={() => controlPlayback("previous")}
+          onNext={() => controlPlayback("next")}
+          onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
+          onClose={() => setPopoverOpen(false)}
+        />
       </div>
 
       <motion.div

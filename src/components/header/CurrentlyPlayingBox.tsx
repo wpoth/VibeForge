@@ -1,78 +1,61 @@
+"use client";
+
+import { motion } from "motion/react";
+
 type CurrentlyPlayingBoxProps = {
     title?: string;
     artists?: string[];
     imageUrl?: string | null;
-    isPlaying: boolean;
+    isPlaying?: boolean;
+    onClick?: () => void;
 };
 
 export function CurrentlyPlayingBox({
     title,
-    artists = [],
+    artists,
     imageUrl,
-    isPlaying,
+    isPlaying = false,
+    onClick,
 }: CurrentlyPlayingBoxProps) {
-    if (!title) {
-        return (
-            <div className="hidden max-w-xs items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 md:flex">
-                <div className="h-9 w-9 rounded-xl bg-white/[0.06] flex items-center justify-center text-xs text-zinc-500">
-                    ♪
-                </div>
-
-                <div className="min-w-0">
-                    <p className="text-xs font-medium text-zinc-400">Nothing playing</p>
-                    <p className="truncate text-[11px] text-zinc-600">
-                        Start Spotify to show your track
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    const hasTrack = Boolean(title);
 
     return (
-        <div className="relative hidden max-w-xs overflow-hidden rounded-2xl border border-white/10 px-3 py-2 shadow-lg md:flex">
-            {imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                    src={imageUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover opacity-50 blur-xl scale-125"
-                />
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/45 to-black/20" />
-
-            <div className="relative z-10 flex min-w-0 items-center gap-3">
-                <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-black/30 ring-1 ring-white/15">
-                    {imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={imageUrl}
-                            alt={`${title} cover`}
-                            className="h-full w-full object-cover"
-                        />
-                    ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                            ♪
-                        </div>
-                    )}
-                </div>
-
-                <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                        <span
-                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${isPlaying ? "bg-green-400" : "bg-zinc-500"
-                                }`}
-                        />
-                        <p className="truncate text-xs font-semibold text-white">
-                            {title}
-                        </p>
+        <motion.button
+            type="button"
+            whileHover={{ scale: hasTrack ? 1.015 : 1 }}
+            whileTap={{ scale: hasTrack ? 0.985 : 1 }}
+            onClick={hasTrack ? onClick : undefined}
+            disabled={!hasTrack}
+            className="flex min-w-0 max-w-md items-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70"
+        >
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/[0.08]">
+                {imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={imageUrl}
+                        alt={`${title ?? "Current track"} cover`}
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                        ♪
                     </div>
+                )}
 
-                    <p className="truncate text-[11px] text-zinc-300">
-                        {artists.join(", ") || "Unknown artist"}
-                    </p>
-                </div>
+                {isPlaying && (
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border border-[#0f1117] bg-green-400" />
+                )}
             </div>
-        </div>
+
+            <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-white">
+                    {title ?? "Nothing playing"}
+                </p>
+
+                <p className="truncate text-[11px] text-zinc-400">
+                    {artists?.join(", ") || "Spotify"}
+                </p>
+            </div>
+        </motion.button>
     );
 }

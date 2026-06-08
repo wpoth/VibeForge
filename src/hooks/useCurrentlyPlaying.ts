@@ -1,98 +1,90 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { getErrorMessage } from "@/lib/ui-helpers";
 
-type CurrentlyPlayingTrack = {
+export type CurrentlyPlayingTrack = {
   id?: string;
   uri?: string;
   title?: string;
+  artists?: string[];
   album?: string;
   imageUrl?: string | null;
-  artists?: string[];
+  progressMs?: number;
+  durationMs?: number;
+  spotifyUrl?: string;
 };
 
 type CurrentlyPlayingResponse = {
+  success?: boolean;
   error?: boolean | string;
   message?: string;
   isPlaying?: boolean;
-  track?: CurrentlyPlayingTrack | null;
+  currentlyPlaying?: CurrentlyPlayingTrack | null;
 };
 
-type UseCurrentlyPlayingResult = {
-  currentlyPlaying: CurrentlyPlayingTrack | null;
-  isPlaying: boolean;
-  currentlyPlayingError: string | null;
-};
-
-export function useCurrentlyPlaying(
-  accessToken: string | undefined
-): UseCurrentlyPlayingResult {
+export function useCurrentlyPlaying(accessToken: string | undefined) {
   const [currentlyPlaying, setCurrentlyPlaying] =
     useState<CurrentlyPlayingTrack | null>(null);
-
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentlyPlayingError, setCurrentlyPlayingError] =
-    useState<string | null>(null);
+  const [currentlyPlayingError, setCurrentlyPlayingError] = useState<
+    string | null
+  >(null);
 
-  useEffect(() => {
+  const refreshCurrentlyPlaying = useCallback(async () => {
     if (!accessToken) {
       setCurrentlyPlaying(null);
       setIsPlaying(false);
-      setCurrentlyPlayingError(null);
       return;
     }
 
-    let cancelled = false;
+    try {
+      const res = await fetch("/api/currently-playing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+        }),
+      });
 
-    async function loadCurrentlyPlaying() {
-      try {
-        const res = await fetch("/api/currently-playing", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ accessToken }),
-        });
+      const data = (await res.json()) as CurrentlyPlayingResponse;
 
-        const data = (await res.json()) as CurrentlyPlayingResponse;
-
-        if (!res.ok || data?.error) {
-          throw new Error(
-            data?.message ||
-              String(data?.error) ||
-              "Failed to load currently playing"
-          );
-        }
-
-        if (!cancelled) {
-          setCurrentlyPlaying(data.track ?? null);
-          setIsPlaying(Boolean(data.isPlaying));
-          setCurrentlyPlayingError(null);
-        }
-      } catch (error: unknown) {
-        console.error("Currently playing failed:", error);
-
-        if (!cancelled) {
-          setCurrentlyPlaying(null);
-          setIsPlaying(false);
-          setCurrentlyPlayingError(getErrorMessage(error));
-        }
+      if (!res.ok || data.error) {
+        throw new Error(
+          data.message ||
+          String(data.error) ||
+          "Failed to fetch currently playing track"
+        );
       }
+
+      setCurrentlyPlaying(data.currentlyPlaying ?? null);
+      setIsPlaying(Boolean(data.isPlaying));
+      setCurrentlyPlayingError(null);
+    } catch (error: unknown) {
+      console.error("Currently playing failed:", error);
+      setCurrentlyPlayingError(getErrorMessage(error));
     }
+  }, [accessToken]);
 
-    loadCurrentlyPlaying();
+  useEffect(() => {
+    void refreshCurrentlyPlaying();
 
-    const interval = window.setInterval(loadCurrentlyPlaying, 15000);
+    if (!accessToken) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshCurrentlyPlaying();
+    }, 5000);
 
     return () => {
-      cancelled = true;
-      window.clearInterval(interval);
+      window.clearInterval(intervalId);
     };
-  }, [accessToken]);
+  }, [accessToken, refreshCurrentlyPlaying]);
 
   return {
     currentlyPlaying,
     isPlaying,
     currentlyPlayingError,
+    refreshCurrentlyPlaying,
   };
 }
