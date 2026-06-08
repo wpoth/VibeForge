@@ -35,11 +35,6 @@ export function Header({
   const [seekLoading, setSeekLoading] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
-  const currentlyPlayingKey = currentlyPlaying?.title
-    ? `${currentlyPlaying.title}-${currentlyPlaying.artists?.join("-") ?? "unknown"
-    }`
-    : "currently-playing-empty";
-
   async function controlPlayback(action: PlayerControlAction) {
     if (!accessToken) {
       toast({
@@ -166,7 +161,7 @@ export function Header({
           {currentlyPlaying?.title ? (
             <motion.div
               ref={nowPlayingRef}
-              key={currentlyPlayingKey}
+              key="currently-playing-active"
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.98 }}
