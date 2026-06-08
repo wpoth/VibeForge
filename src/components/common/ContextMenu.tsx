@@ -1,7 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type ContextMenuItem = {
     label: string;
@@ -20,6 +21,8 @@ type ContextMenuProps = {
 
 const MENU_WIDTH = 220;
 const MENU_PADDING = 12;
+const ITEM_HEIGHT = 40;
+const MENU_EXTRA_HEIGHT = 12;
 
 export function ContextMenu({
     open,
@@ -28,6 +31,12 @@ export function ContextMenu({
     items,
     onClose,
 }: ContextMenuProps) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const position = useMemo(() => {
         if (typeof window === "undefined") {
             return {
@@ -36,7 +45,7 @@ export function ContextMenu({
             };
         }
 
-        const estimatedHeight = items.length * 40 + 16;
+        const estimatedHeight = items.length * ITEM_HEIGHT + MENU_EXTRA_HEIGHT;
 
         const safeLeft =
             x + MENU_WIDTH + MENU_PADDING > window.innerWidth
@@ -61,8 +70,11 @@ export function ContextMenu({
             onClose();
         }
 
-        function handleContextMenu(event: MouseEvent) {
-            event.preventDefault();
+        function handleScroll() {
+            onClose();
+        }
+
+        function handleResize() {
             onClose();
         }
 
@@ -73,17 +85,21 @@ export function ContextMenu({
         }
 
         window.addEventListener("click", handleClick);
-        window.addEventListener("contextmenu", handleContextMenu);
+        window.addEventListener("scroll", handleScroll, true);
+        window.addEventListener("resize", handleResize);
         window.addEventListener("keydown", handleKeyDown);
 
         return () => {
             window.removeEventListener("click", handleClick);
-            window.removeEventListener("contextmenu", handleContextMenu);
+            window.removeEventListener("scroll", handleScroll, true);
+            window.removeEventListener("resize", handleResize);
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [open, onClose]);
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {open && (
                 <motion.div
@@ -96,8 +112,12 @@ export function ContextMenu({
                         top: position.top,
                         width: MENU_WIDTH,
                     }}
-                    className="fixed z-[100] overflow-hidden rounded-xl border border-white/10 bg-[#151823]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl"
+                    className="fixed z-[9999] overflow-hidden rounded-xl border border-white/10 bg-[#151823]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl"
                     onClick={(event) => event.stopPropagation()}
+                    onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }}
                 >
                     {items.map((item) => (
                         <button
@@ -120,6 +140,7 @@ export function ContextMenu({
                     ))}
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

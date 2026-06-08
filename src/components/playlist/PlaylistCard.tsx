@@ -78,17 +78,18 @@ export function PlaylistCard({
         }}
         onContextMenu={(event) => {
           event.preventDefault();
+          event.stopPropagation();
+
           setMenu({
             open: true,
             x: event.clientX,
             y: event.clientY,
           });
         }}
-        className={`group min-w-56 max-w-56 cursor-pointer rounded-xl border p-3 text-left transition outline-none focus:border-green-400/60 lg:min-w-0 lg:max-w-none ${
-          isSelected
-            ? "border-green-400/40 bg-green-500/10"
-            : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
-        }`}
+        className={`group min-w-56 max-w-56 cursor-pointer rounded-xl border p-3 text-left transition outline-none focus:border-green-400/60 lg:min-w-0 lg:max-w-none ${isSelected
+          ? "border-green-400/40 bg-green-500/10"
+          : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+          }`}
       >
         <div className="flex items-center gap-3">
           <div className="group/cover relative shrink-0">
