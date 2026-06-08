@@ -10,6 +10,8 @@ import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
 import { NowPlayingPopover } from "@/components/header/NowPlayingPopover";
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { getErrorMessage } from "@/lib/ui-helpers";
+import { QueueDrawer } from "@/components/header/QueueDrawer";
+import { usePlayerQueue } from "@/hooks/usePlayerQueue";
 
 type HeaderProps = {
   accessToken: string | undefined;
@@ -30,6 +32,17 @@ export function Header({
 }: HeaderProps) {
   const nowPlayingRef = useRef<HTMLDivElement | null>(null);
 
+  const {
+    queueOpen,
+    queueLoading,
+    queueError,
+    currentlyPlayingQueueItem,
+    queueItems,
+    loadQueue,
+    closeQueue,
+  } = usePlayerQueue({
+    accessToken,
+  });
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
   const [seekLoading, setSeekLoading] = useState(false);
@@ -207,6 +220,7 @@ export function Header({
           onNext={() => controlPlayback("next")}
           onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
           onSeek={seekPlayback}
+          onOpenQueue={loadQueue}
           onClose={() => setPopoverOpen(false)}
         />
       </div>
@@ -241,6 +255,15 @@ export function Header({
           <span className="hidden sm:inline">Logout</span>
         </motion.button>
       </motion.div>
+      <QueueDrawer
+        open={queueOpen}
+        loading={queueLoading}
+        error={queueError}
+        currentlyPlaying={currentlyPlayingQueueItem}
+        queue={queueItems}
+        onClose={closeQueue}
+        onRefresh={loadQueue}
+      />
     </motion.header>
   );
 }

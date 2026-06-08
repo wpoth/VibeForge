@@ -2,6 +2,7 @@
 
 import {
     ExternalLink,
+    ListMusic,
     Music2,
     Pause,
     Play,
@@ -32,6 +33,7 @@ type NowPlayingPopoverProps = {
     onNext: () => void;
     onTogglePlay: () => void;
     onSeek: (positionMs: number) => void;
+    onOpenQueue: () => void;
     onClose: () => void;
 };
 
@@ -155,6 +157,7 @@ export function NowPlayingPopover({
     onNext,
     onTogglePlay,
     onSeek,
+    onOpenQueue,
     onClose,
 }: NowPlayingPopoverProps) {
     const [mounted, setMounted] = useState(false);
@@ -562,6 +565,17 @@ export function NowPlayingPopover({
                                     aria-label="Next track"
                                 >
                                     <SkipForward size={18} strokeWidth={2.4} />
+                                </motion.button>
+
+                                <motion.button
+                                    type="button"
+                                    whileHover={{ scale: 1.08 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={onOpenQueue}
+                                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.1] text-white transition hover:bg-white/[0.16]"
+                                    aria-label="Open queue"
+                                >
+                                    <ListMusic size={18} strokeWidth={2.4} />
                                 </motion.button>
                             </motion.div>
                         </div>
