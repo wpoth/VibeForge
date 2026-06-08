@@ -97,7 +97,7 @@ export function Header({
           ♪
         </motion.div>
 
-        <motion.h1 layout className="truncate font-bold tracking-tight">
+        <motion.h1 layout className="truncate font-display font-bold tracking-tight">
           VibeForge
         </motion.h1>
       </motion.div>

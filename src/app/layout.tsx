@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const geist = Geist({
   subsets: ["latin"],
+  variable: "--font-geist",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
+  variable: "--font-space-grotesk",
 });
 
 export const metadata: Metadata = {
   title: "VibeForge",
-  description: "Spotify playlist generator powered by AI",
+  description: "Analyze your Spotify playlists and generate music insights.",
 };
 
 export default function RootLayout({
@@ -25,8 +24,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
+      <body className={`${geist.variable} ${spaceGrotesk.variable} antialiased`}>
+        {children}
       </body>
     </html>
   );
