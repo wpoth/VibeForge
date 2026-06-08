@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Space_Grotesk } from "next/font/google";
+
+import { Providers } from "@/app/providers";
+
 import "./globals.css";
 
 const geist = Geist({
@@ -24,8 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geist.variable} ${spaceGrotesk.variable} antialiased`}>
-        {children}
+      <body
+        className={`${geist.variable} ${spaceGrotesk.variable} antialiased`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
