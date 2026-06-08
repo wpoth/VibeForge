@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { SongResearchDrawer } from "@/components/ai/SongResearchDrawer";
 import { useSongResearch } from "@/hooks/useSongResearch";
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
+import { SimilarTracksDrawer } from "@/components/ai/SimilarTracksDrawer";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { toast } from "@/components/common/ToastProvider";
@@ -25,6 +26,7 @@ import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
 import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
+import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
@@ -46,6 +48,18 @@ export default function Page() {
     researchSong,
     closeResearch,
   } = useSongResearch();
+
+  const {
+    similarOpen,
+    similarLoading,
+    similarError,
+    similarTracks,
+    similarSourceTrack,
+    findSimilarTracks,
+    closeSimilarTracks,
+  } = useSimilarTracks({
+    accessToken,
+  });
 
   const {
     currentlyPlaying,
@@ -227,6 +241,66 @@ export default function Page() {
   async function handleResearchTrack(playlistItem: SpotifyPlaylistItem) {
     setError(null);
     await researchSong(playlistItem);
+  }
+
+  async function handleFindSimilarTracks(playlistItem: SpotifyPlaylistItem) {
+    setError(null);
+    await findSimilarTracks(playlistItem);
+  }
+
+  async function handleAddSimilarTrackToQueue(track: SimilarTrack) {
+    setError(null);
+
+    if (!accessToken) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: "Missing access token.",
+      });
+      return;
+    }
+
+    if (!track.uri) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: "This track is missing a Spotify URI.",
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/add-to-queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          trackUri: track.uri,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to add song to queue"
+        );
+      }
+
+      toast({
+        type: "success",
+        title: "Added to queue",
+        description: track.name ?? "Track added to queue.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: getErrorMessage(error),
+      });
+    }
   }
 
   async function handlePlaylistClick(playlist: SpotifyPlaylist) {
@@ -524,9 +598,10 @@ export default function Page() {
             onRemoveTrack={handleRequestRemoveTrack}
             onPlayTrack={handlePlayTrack}
             onAddToQueue={handleAddToQueue}
+            onResearchTrack={handleResearchTrack}
+            onFindSimilarTracks={handleFindSimilarTracks}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
-            onResearchTrack={handleResearchTrack}
           />
         )}
       </main>
@@ -538,6 +613,16 @@ export default function Page() {
         track={researchTrack}
         research={research}
         onClose={closeResearch}
+      />
+
+      <SimilarTracksDrawer
+        open={similarOpen}
+        loading={similarLoading}
+        error={similarError}
+        sourceTrack={similarSourceTrack}
+        tracks={similarTracks}
+        onClose={closeSimilarTracks}
+        onAddToQueue={handleAddSimilarTrackToQueue}
       />
 
       <ConfirmDialog

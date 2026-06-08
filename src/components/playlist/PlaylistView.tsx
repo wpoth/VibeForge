@@ -23,6 +23,7 @@ type PlaylistViewProps = {
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
   onResearchTrack: (playlistItem: SpotifyPlaylistItem) => void;
+  onFindSimilarTracks: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleSelectionMode: () => void;
   onClearSelection: () => void;
   onSelectAllTracks: () => void;
@@ -51,7 +52,8 @@ export function PlaylistView({
   onRequestRemoveSelectedTracks,
   onPlayTrack,
   onAddToQueue,
-  onResearchTrack,  
+  onResearchTrack,
+  onFindSimilarTracks,
 }: PlaylistViewProps) {
   if (loadingTracks) {
     return (
@@ -232,6 +234,7 @@ export function PlaylistView({
                       onPlay={onPlayTrack}
                       onAddToQueue={onAddToQueue}
                       onResearch={onResearchTrack}
+                      onFindSimilar={onFindSimilarTracks}
                     />
                   </motion.div>
                 );

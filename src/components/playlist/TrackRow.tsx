@@ -6,6 +6,7 @@ import {
   ListPlus,
   Play,
   Search,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -30,6 +31,7 @@ type TrackRowProps = {
   onPlay: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
   onResearch: (playlistItem: SpotifyPlaylistItem) => void;
+  onFindSimilar: (playlistItem: SpotifyPlaylistItem) => void;
 };
 
 type MenuState = {
@@ -50,6 +52,7 @@ export function TrackRow({
   onPlay,
   onAddToQueue,
   onResearch,
+  onFindSimilar,
 }: TrackRowProps) {
   const [menu, setMenu] = useState<MenuState>({
     open: false,
@@ -84,6 +87,12 @@ export function TrackRow({
       icon: Search,
       disabled: !track?.name,
       onClick: () => onResearch(playlistItem),
+    },
+    {
+      label: "Find similar songs",
+      icon: Sparkles,
+      disabled: !track?.name,
+      onClick: () => onFindSimilar(playlistItem),
     },
     {
       label: "Open in Spotify",
@@ -184,6 +193,15 @@ export function TrackRow({
 
             <p className="truncate text-xs text-zinc-500">{artistNames}</p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onFindSimilar(playlistItem)}
+            disabled={!track?.name}
+            className="hidden rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-300 opacity-0 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 group-hover:opacity-100 lg:block"
+          >
+            Similar
+          </button>
 
           <button
             type="button"
