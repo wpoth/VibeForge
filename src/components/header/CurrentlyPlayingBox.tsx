@@ -27,7 +27,7 @@ export function CurrentlyPlayingBox({
             whileTap={{ scale: hasTrack ? 0.985 : 1 }}
             onClick={hasTrack ? onClick : undefined}
             disabled={!hasTrack}
-            className="group relative flex min-w-0 max-w-md items-center gap-3 overflow-hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70"
+            className="group relative flex min-w-0 max-w-[180px] items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70 sm:max-w-xs sm:gap-3 sm:px-3 lg:max-w-md"
         >
             {imageUrl && (
                 <>
@@ -73,7 +73,7 @@ export function CurrentlyPlayingBox({
                     {title ?? "Nothing playing"}
                 </p>
 
-                <p className="truncate text-[11px] text-zinc-300">
+                <p className="hidden truncate text-[11px] text-zinc-300 sm:block">
                     {artists?.join(", ") || "Spotify"}
                 </p>
             </div>
