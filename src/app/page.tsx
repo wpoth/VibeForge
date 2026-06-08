@@ -3,12 +3,17 @@
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
+import { SongResearchDrawer } from "@/components/ai/SongResearchDrawer";
+import { useSongResearch } from "@/hooks/useSongResearch";
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
+
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { toast } from "@/components/common/ToastProvider";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
+
 import { PlaylistView } from "@/components/playlist/PlaylistView";
 
 import { useAiAnalysis } from "@/hooks/useAiAnalysis";
@@ -31,6 +36,16 @@ export default function Page() {
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
   const lastAiSuccessMessageRef = useRef<string | null>(null);
+
+  const {
+    researchOpen,
+    researchLoading,
+    researchError,
+    research,
+    researchTrack,
+    researchSong,
+    closeResearch,
+  } = useSongResearch();
 
   const {
     currentlyPlaying,
@@ -207,6 +222,11 @@ export default function Page() {
 
   function handleAiModeClick() {
     setView("ai");
+  }
+
+  async function handleResearchTrack(playlistItem: SpotifyPlaylistItem) {
+    setError(null);
+    await researchSong(playlistItem);
   }
 
   async function handlePlaylistClick(playlist: SpotifyPlaylist) {
@@ -506,9 +526,19 @@ export default function Page() {
             onAddToQueue={handleAddToQueue}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
+            onResearchTrack={handleResearchTrack}
           />
         )}
       </main>
+
+      <SongResearchDrawer
+        open={researchOpen}
+        loading={researchLoading}
+        error={researchError}
+        track={researchTrack}
+        research={research}
+        onClose={closeResearch}
+      />
 
       <ConfirmDialog
         open={confirmingBulkRemove}

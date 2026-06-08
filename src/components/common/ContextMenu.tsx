@@ -1,11 +1,13 @@
 "use client";
 
+import { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 export type ContextMenuItem = {
     label: string;
+    icon?: LucideIcon;
     onClick: () => void;
     destructive?: boolean;
     disabled?: boolean;
@@ -148,11 +150,14 @@ export function ContextMenu({
                                 onClose();
                             }}
                             className={`flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${item.destructive
-                                    ? "text-red-300 hover:bg-red-500/10"
-                                    : "text-zinc-200 hover:bg-white/[0.08]"
+                                ? "text-red-300 hover:bg-red-500/10"
+                                : "text-zinc-200 hover:bg-white/[0.08]"
                                 }`}
                         >
-                            {item.label}
+                            {item.icon && (
+                                <item.icon size={15} strokeWidth={2.2} className="mr-2 shrink-0" />
+                            )}
+                            <span className="truncate">{item.label}</span>
                         </button>
                     ))}
                 </motion.div>

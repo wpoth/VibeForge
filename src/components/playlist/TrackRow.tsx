@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import {
+  ExternalLink,
+  ListPlus,
+  Play,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { motion } from "motion/react";
 
 import {
-  ContextMenu,
   closeAllContextMenus,
+  ContextMenu,
   type ContextMenuItem,
 } from "@/components/common/ContextMenu";
 import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
@@ -22,6 +29,7 @@ type TrackRowProps = {
   onRemove: (playlistItem: SpotifyPlaylistItem) => void;
   onPlay: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
+  onResearch: (playlistItem: SpotifyPlaylistItem) => void;
 };
 
 type MenuState = {
@@ -41,6 +49,7 @@ export function TrackRow({
   onRemove,
   onPlay,
   onAddToQueue,
+  onResearch,
 }: TrackRowProps) {
   const [menu, setMenu] = useState<MenuState>({
     open: false,
@@ -60,16 +69,25 @@ export function TrackRow({
   const menuItems: ContextMenuItem[] = [
     {
       label: "Play from here",
+      icon: Play,
       disabled: !trackUri,
       onClick: () => onPlay(playlistItem),
     },
     {
       label: "Add to queue",
+      icon: ListPlus,
       disabled: !trackUri,
       onClick: () => onAddToQueue(playlistItem),
     },
     {
+      label: "Research song",
+      icon: Search,
+      disabled: !track?.name,
+      onClick: () => onResearch(playlistItem),
+    },
+    {
       label: "Open in Spotify",
+      icon: ExternalLink,
       disabled: !spotifyUrl,
       onClick: () => {
         if (!spotifyUrl) return;
@@ -78,6 +96,7 @@ export function TrackRow({
     },
     {
       label: "Remove from playlist",
+      icon: Trash2,
       destructive: true,
       onClick: () => onRemove(playlistItem),
     },
@@ -100,10 +119,10 @@ export function TrackRow({
           });
         }}
         className={`group rounded-xl border p-3 transition ${selected
-          ? "border-green-400/40 bg-green-500/10"
-          : isPlaying
-            ? "border-green-400/30 bg-green-500/[0.07]"
-            : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
+            ? "border-green-400/40 bg-green-500/10"
+            : isPlaying
+              ? "border-green-400/30 bg-green-500/[0.07]"
+              : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
           }`}
       >
         <div className="flex items-center gap-3">
@@ -112,8 +131,8 @@ export function TrackRow({
               type="button"
               onClick={() => onToggleSelect(playlistItem)}
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
-                ? "border-green-400 bg-green-500 text-black"
-                : "border-white/20 text-transparent hover:border-white/40"
+                  ? "border-green-400 bg-green-500 text-black"
+                  : "border-white/20 text-transparent hover:border-white/40"
                 }`}
               aria-label={selected ? "Deselect song" : "Select song"}
             >
@@ -149,8 +168,8 @@ export function TrackRow({
               className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition group-hover/cover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={`Play ${track?.name ?? "song"}`}
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 pl-0.5 text-xs text-black shadow-lg shadow-green-500/30">
-                {isPlaying ? "✓" : "▶"}
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 text-black shadow-lg shadow-green-500/30">
+                <Play size={13} fill="currentColor" strokeWidth={2.4} />
               </span>
             </button>
           </div>
@@ -165,6 +184,15 @@ export function TrackRow({
 
             <p className="truncate text-xs text-zinc-500">{artistNames}</p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onResearch(playlistItem)}
+            disabled={!track?.name}
+            className="hidden rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-300 opacity-0 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 group-hover:opacity-100 md:block"
+          >
+            Research
+          </button>
 
           <button
             type="button"
