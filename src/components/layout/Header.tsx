@@ -1,5 +1,6 @@
-import { signOut } from "next-auth/react";
 import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
+import { signOut } from "next-auth/react";
+import { AnimatePresence, motion } from "motion/react";
 
 type HeaderProps = {
   onAiModeClick: () => void;
@@ -17,39 +18,93 @@ export function Header({
   isPlaying = false,
 }: HeaderProps) {
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 border-b border-white/10 bg-[#0f1117]/80 backdrop-blur-xl flex items-center justify-between gap-4 px-4 sm:px-5 z-50">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="h-7 w-7 rounded-lg bg-green-500/20 border border-green-400/30 flex items-center justify-center text-green-300 text-sm shrink-0">
+    <motion.header
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24 }}
+      className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between gap-4 border-b border-white/10 bg-[#0f1117]/80 px-4 backdrop-blur-xl sm:px-5"
+    >
+      <motion.div
+        initial={{ opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.22, delay: 0.05 }}
+        className="flex min-w-0 items-center gap-2"
+      >
+        <motion.div
+          whileHover={{ scale: 1.08, rotate: -4 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10"
+        >
           ♪
-        </div>
+        </motion.div>
 
-        <h1 className="font-bold tracking-tight truncate">VibeForge</h1>
-      </div>
+        <motion.h1
+          layout
+          className="truncate font-bold tracking-tight"
+        >
+          VibeForge
+        </motion.h1>
+      </motion.div>
 
       <div className="hidden flex-1 justify-center lg:flex">
-        <CurrentlyPlayingBox
-          title={currentlyPlaying?.title}
-          artists={currentlyPlaying?.artists}
-          imageUrl={currentlyPlaying?.imageUrl}
-          isPlaying={isPlaying}
-        />
+        <AnimatePresence mode="wait">
+          {currentlyPlaying?.title ? (
+            <motion.div
+              key={`${currentlyPlaying.title}-${currentlyPlaying.artists?.join(
+                "-"
+              )}`}
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CurrentlyPlayingBox
+                title={currentlyPlaying.title}
+                artists={currentlyPlaying.artists}
+                imageUrl={currentlyPlaying.imageUrl}
+                isPlaying={isPlaying}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="currently-playing-empty"
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CurrentlyPlayingBox isPlaying={false} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="flex gap-3 shrink-0">
-        <button
+      <motion.div
+        initial={{ opacity: 0, x: 8 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.22, delay: 0.08 }}
+        className="flex shrink-0 items-center gap-3"
+      >
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.04, y: -1 }}
+          whileTap={{ scale: 0.96 }}
           onClick={onAiModeClick}
-          className="text-sm text-zinc-400 hover:text-white transition"
+          className="rounded-full px-2 py-1 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
         >
           AI Mode
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.04, y: -1 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => signOut()}
-          className="text-sm text-zinc-400 hover:text-white transition"
+          className="rounded-full px-2 py-1 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
         >
           Logout
-        </button>
-      </div>
-    </div>
+        </motion.button>
+      </motion.div>
+    </motion.header>
   );
 }
