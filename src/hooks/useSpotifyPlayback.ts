@@ -32,24 +32,25 @@ export function useSpotifyPlayback({
 
   async function playTrack(playlistItem: SpotifyPlaylistItem) {
     if (!accessToken) {
-      setPlaybackError("Could not play this song because you are not logged in.");
-      return;
+      const message = "Could not play this song because you are not logged in.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     if (!selectedPlaylistId) {
-      setPlaybackError(
-        "Could not play this song because no playlist is selected."
-      );
-      return;
+      const message =
+        "Could not play this song because no playlist is selected.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     const track = getTrackFromPlaylistItem(playlistItem);
 
     if (!track?.uri) {
-      setPlaybackError(
-        "Could not play this song because it is missing a Spotify URI."
-      );
-      return;
+      const message =
+        "Could not play this song because it is missing a Spotify URI.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     setPlaybackLoading(true);
@@ -81,6 +82,7 @@ export function useSpotifyPlayback({
     } catch (error: unknown) {
       console.error("Play song failed:", error);
       setPlaybackError(getErrorMessage(error));
+      throw error;
     } finally {
       setPlaybackLoading(false);
     }
@@ -88,15 +90,16 @@ export function useSpotifyPlayback({
 
   async function playPlaylist(playlist: SpotifyPlaylist) {
     if (!accessToken) {
-      setPlaybackError(
-        "Could not play this playlist because you are not logged in."
-      );
-      return;
+      const message =
+        "Could not play this playlist because you are not logged in.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     if (!playlist.id) {
-      setPlaybackError("Could not play this playlist because it is missing an ID.");
-      return;
+      const message = "Could not play this playlist because it is missing an ID.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     setPlaybackLoading(true);
@@ -127,6 +130,7 @@ export function useSpotifyPlayback({
     } catch (error: unknown) {
       console.error("Play playlist failed:", error);
       setPlaybackError(getErrorMessage(error));
+      throw error;
     } finally {
       setPlaybackLoading(false);
     }
@@ -134,19 +138,19 @@ export function useSpotifyPlayback({
 
   async function addToQueue(playlistItem: SpotifyPlaylistItem) {
     if (!accessToken) {
-      setPlaybackError(
-        "Could not add this song to queue because you are not logged in."
-      );
-      return;
+      const message =
+        "Could not add this song to queue because you are not logged in.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     const track = getTrackFromPlaylistItem(playlistItem);
 
     if (!track?.uri) {
-      setPlaybackError(
-        "Could not add this song to queue because it is missing a Spotify URI."
-      );
-      return;
+      const message =
+        "Could not add this song to queue because it is missing a Spotify URI.";
+      setPlaybackError(message);
+      throw new Error(message);
     }
 
     setPlaybackLoading(true);
@@ -176,6 +180,7 @@ export function useSpotifyPlayback({
     } catch (error: unknown) {
       console.error("Add to queue failed:", error);
       setPlaybackError(getErrorMessage(error));
+      throw error;
     } finally {
       setPlaybackLoading(false);
     }

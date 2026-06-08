@@ -1,10 +1,11 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { toast } from "@/components/common/ToastProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -21,7 +22,7 @@ import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
-import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
+import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 export default function Page() {
   const { data: session, status } = useSession();
@@ -29,6 +30,7 @@ export default function Page() {
 
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
+  const lastAiSuccessMessageRef = useRef<string | null>(null);
 
   const { currentlyPlaying, isPlaying, currentlyPlayingError } =
     useCurrentlyPlaying(accessToken);
@@ -118,6 +120,7 @@ export default function Page() {
     removingPlaylist,
     requestRemovePlaylist,
     confirmRemovePlaylist,
+    cancelRemovePlaylist,
     playlistRemovalError,
   } = usePlaylistRemoval({
     accessToken,
@@ -183,6 +186,21 @@ export default function Page() {
     playbackError,
   ]);
 
+  useEffect(() => {
+    if (
+      aiPlaylistSuccessMessage &&
+      aiPlaylistSuccessMessage !== lastAiSuccessMessageRef.current
+    ) {
+      lastAiSuccessMessageRef.current = aiPlaylistSuccessMessage;
+
+      toast({
+        type: "success",
+        title: "Playlist updated",
+        description: aiPlaylistSuccessMessage,
+      });
+    }
+  }, [aiPlaylistSuccessMessage]);
+
   function handleAiModeClick() {
     setView("ai");
   }
@@ -191,16 +209,110 @@ export default function Page() {
     setError(null);
     setAiAnalysis(null);
     await openPlaylist(playlist);
+
+    toast({
+      type: "info",
+      title: "Playlist opened",
+      description: playlist.name,
+    });
   }
 
   async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
     setError(null);
-    await playPlaylist(playlist);
+
+    try {
+      await playPlaylist(playlist);
+
+      toast({
+        type: "success",
+        title: "Playing playlist",
+        description: playlist.name,
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not play playlist",
+        description: getErrorMessage(error),
+      });
+    }
+  }
+
+  async function handlePlayTrack(playlistItem: SpotifyPlaylistItem) {
+    setError(null);
+
+    const track = getTrackFromPlaylistItem(playlistItem);
+
+    try {
+      await playTrack(playlistItem);
+
+      toast({
+        type: "success",
+        title: "Playing from here",
+        description: track?.name ?? "Track started.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not play song",
+        description: getErrorMessage(error),
+      });
+    }
+  }
+
+  async function handleAddToQueue(playlistItem: SpotifyPlaylistItem) {
+    setError(null);
+
+    const track = getTrackFromPlaylistItem(playlistItem);
+
+    try {
+      await addToQueue(playlistItem);
+
+      toast({
+        type: "success",
+        title: "Added to queue",
+        description: track?.name ?? "Track added to queue.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: getErrorMessage(error),
+      });
+    }
   }
 
   async function handleGenerateAiAnalysis() {
     setError(null);
-    await generateAiAnalysis(tracks);
+
+    try {
+      await generateAiAnalysis(tracks);
+
+      toast({
+        type: "success",
+        title: "AI analysis generated",
+        description: "Playlist insights are ready.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not generate analysis",
+        description: getErrorMessage(error),
+      });
+    }
+  }
+
+  async function handleCreateAiPlaylist() {
+    setError(null);
+
+    try {
+      await createAiPlaylist();
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not update playlist",
+        description: getErrorMessage(error),
+      });
+    }
   }
 
   function handleRequestRemoveTrack(playlistItem: SpotifyPlaylistItem) {
@@ -211,6 +323,73 @@ export default function Page() {
   function handleRequestRemovePlaylist(playlist: SpotifyPlaylist) {
     setError(null);
     requestRemovePlaylist(playlist);
+  }
+
+  async function handleConfirmRemoveTrack() {
+    const trackName = trackToRemove
+      ? getTrackFromPlaylistItem(trackToRemove)?.name
+      : null;
+
+    try {
+      await confirmRemoveTrack();
+
+      toast({
+        type: "success",
+        title: "Song removed",
+        description: trackName
+          ? `${trackName} was removed from the playlist.`
+          : "The song was removed from the playlist.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not remove song",
+        description: getErrorMessage(error),
+      });
+    }
+  }
+
+  async function handleConfirmRemoveSelectedTracks() {
+    const count = selectedTrackUris.length;
+
+    try {
+      await confirmRemoveSelectedTracks();
+
+      toast({
+        type: "success",
+        title: "Songs removed",
+        description: `${count} song${count === 1 ? "" : "s"
+          } removed from the playlist.`,
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not remove selected songs",
+        description: getErrorMessage(error),
+      });
+    }
+  }
+
+  async function handleConfirmRemovePlaylist() {
+    const playlistName = playlistToRemove?.name;
+
+    try {
+      await confirmRemovePlaylist();
+
+      toast({
+        type: "success",
+        title: "Playlist removed",
+        description: playlistName
+          ? `${playlistName} was removed from your library.`
+          : "Playlist removed from your library.",
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not remove playlist",
+        description: getErrorMessage(error),
+      });
+    }
   }
 
   if (status === "loading") {
@@ -301,7 +480,7 @@ export default function Page() {
             onSelectAllPreviewTracks={selectAllPreviewTracks}
             onClearPreviewSelection={clearPreviewSelection}
             onClearPreview={clearPreview}
-            onCreatePlaylist={createAiPlaylist}
+            onCreatePlaylist={handleCreateAiPlaylist}
           />
         )}
 
@@ -321,8 +500,8 @@ export default function Page() {
             onSelectAllTracks={selectAllTracks}
             onGenerateAiAnalysis={handleGenerateAiAnalysis}
             onRemoveTrack={handleRequestRemoveTrack}
-            onPlayTrack={playTrack}
-            onAddToQueue={addToQueue}
+            onPlayTrack={handlePlayTrack}
+            onAddToQueue={handleAddToQueue}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
           />
@@ -338,7 +517,7 @@ export default function Page() {
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
         loading={removingSelectedTracks}
-        onConfirm={confirmRemoveSelectedTracks}
+        onConfirm={handleConfirmRemoveSelectedTracks}
         onCancel={cancelRemoveSelectedTracks}
       />
 
@@ -354,7 +533,7 @@ export default function Page() {
         confirmLabel="Remove song"
         cancelLabel="Keep song"
         loading={removingTrack}
-        onConfirm={confirmRemoveTrack}
+        onConfirm={handleConfirmRemoveTrack}
         onCancel={cancelRemoveTrack}
       />
 
@@ -369,8 +548,8 @@ export default function Page() {
         confirmLabel="Remove playlist"
         cancelLabel="Keep playlist"
         loading={removingPlaylist}
-        onConfirm={confirmRemovePlaylist}
-        onCancel={confirmRemovePlaylist}
+        onConfirm={handleConfirmRemovePlaylist}
+        onCancel={cancelRemovePlaylist}
       />
     </AppShell>
   );

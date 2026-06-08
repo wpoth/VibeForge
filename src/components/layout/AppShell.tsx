@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
+import { ToastProvider } from "@/components/common/ToastProvider";
 
 type AppShellProps = {
-  children: ReactNode;
+  children: React.ReactNode;
 };
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
-      <style jsx global>{`
+    <ToastProvider>
+      <div className="min-h-screen bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
+        <style jsx global>{`
         .custom-sidebar-scrollbar {
           scrollbar-width: thin;
           scrollbar-color: rgba(34, 197, 94, 0.55) rgba(255, 255, 255, 0.05);
@@ -41,12 +43,13 @@ export function AppShell({ children }: AppShellProps) {
         }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
-        <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
-      </div>
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
+          <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+        </div>
 
-      {children}
-    </div>
+        {children}
+      </div>
+    </ToastProvider>
   );
 }
