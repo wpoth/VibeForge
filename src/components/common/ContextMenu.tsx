@@ -23,6 +23,11 @@ const MENU_WIDTH = 220;
 const MENU_PADDING = 12;
 const ITEM_HEIGHT = 40;
 const MENU_EXTRA_HEIGHT = 12;
+const CLOSE_CONTEXT_MENUS_EVENT = "vibeforge-close-context-menus";
+
+export function closeAllContextMenus() {
+    window.dispatchEvent(new CustomEvent(CLOSE_CONTEXT_MENUS_EVENT));
+}
 
 export function ContextMenu({
     open,
@@ -62,6 +67,18 @@ export function ContextMenu({
             top: Math.max(MENU_PADDING, safeTop),
         };
     }, [x, y, items.length]);
+
+    useEffect(() => {
+        function handleCloseAll() {
+            onClose();
+        }
+
+        window.addEventListener(CLOSE_CONTEXT_MENUS_EVENT, handleCloseAll);
+
+        return () => {
+            window.removeEventListener(CLOSE_CONTEXT_MENUS_EVENT, handleCloseAll);
+        };
+    }, [onClose]);
 
     useEffect(() => {
         if (!open) return;

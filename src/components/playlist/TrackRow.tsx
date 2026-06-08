@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 
-import { ContextMenu, type ContextMenuItem } from "@/components/common/ContextMenu";
+import {
+  ContextMenu,
+  closeAllContextMenus,
+  type ContextMenuItem,
+} from "@/components/common/ContextMenu";
 import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
@@ -87,30 +91,30 @@ export function TrackRow({
           event.preventDefault();
           event.stopPropagation();
 
+          closeAllContextMenus();
+
           setMenu({
             open: true,
             x: event.clientX,
             y: event.clientY,
           });
         }}
-        className={`group rounded-xl border p-3 transition ${
-          selected
-            ? "border-green-400/40 bg-green-500/10"
-            : isPlaying
-              ? "border-green-400/30 bg-green-500/[0.07]"
-              : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
-        }`}
+        className={`group rounded-xl border p-3 transition ${selected
+          ? "border-green-400/40 bg-green-500/10"
+          : isPlaying
+            ? "border-green-400/30 bg-green-500/[0.07]"
+            : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
+          }`}
       >
         <div className="flex items-center gap-3">
           {selectionMode && (
             <button
               type="button"
               onClick={() => onToggleSelect(playlistItem)}
-              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${
-                selected
-                  ? "border-green-400 bg-green-500 text-black"
-                  : "border-white/20 text-transparent hover:border-white/40"
-              }`}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
+                ? "border-green-400 bg-green-500 text-black"
+                : "border-white/20 text-transparent hover:border-white/40"
+                }`}
               aria-label={selected ? "Deselect song" : "Select song"}
             >
               ✓
@@ -153,9 +157,8 @@ export function TrackRow({
 
           <div className="min-w-0 flex-1">
             <p
-              className={`truncate text-sm font-medium ${
-                isPlaying ? "text-green-300" : "text-white"
-              }`}
+              className={`truncate text-sm font-medium ${isPlaying ? "text-green-300" : "text-white"
+                }`}
             >
               {track?.name ?? "Unknown track"}
             </p>

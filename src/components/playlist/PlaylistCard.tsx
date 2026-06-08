@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 
-import { ContextMenu, type ContextMenuItem } from "@/components/common/ContextMenu";
+import {
+  ContextMenu,
+  closeAllContextMenus,
+  type ContextMenuItem,
+} from "@/components/common/ContextMenu";
 import { CoverImage } from "@/components/common/CoverImage";
 import type { SpotifyPlaylist } from "@/lib/spotify-types";
 import { getPlaylistTrackCount } from "@/lib/ui-helpers";
@@ -79,6 +83,8 @@ export function PlaylistCard({
         onContextMenu={(event) => {
           event.preventDefault();
           event.stopPropagation();
+
+          closeAllContextMenus();
 
           setMenu({
             open: true,
