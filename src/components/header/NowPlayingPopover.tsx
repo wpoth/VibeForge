@@ -1,5 +1,13 @@
 "use client";
 
+import {
+    ExternalLink,
+    Music2,
+    Pause,
+    Play,
+    SkipBack,
+    SkipForward,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -88,23 +96,42 @@ export function NowPlayingPopover({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.96 }}
                     transition={{ duration: 0.18 }}
-                    className="absolute left-1/2 top-[calc(100%+10px)] z-[80] w-[min(360px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl"
+                    className="absolute left-1/2 top-[calc(100%+10px)] z-[80] w-[min(380px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl"
                 >
-                    <div className="pointer-events-none absolute inset-0 opacity-70">
-                        {track.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={track.imageUrl}
-                                alt=""
-                                className="h-full w-full scale-125 object-cover blur-3xl"
-                            />
+                    <div className="pointer-events-none absolute inset-0">
+                        {track.imageUrl ? (
+                            <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={track.imageUrl}
+                                    alt=""
+                                    className="h-full w-full scale-125 object-cover blur-3xl"
+                                />
+
+                                <div className="absolute inset-0 bg-gradient-to-br from-black/45 via-[#151823]/70 to-black/85" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-green-500/10 via-transparent to-white/5" />
+                            </>
+                        ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#151823] via-[#1e2433] to-[#0f1117]" />
                         )}
-                        <div className="absolute inset-0 bg-[#151823]/80" />
+
+                        <div className="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+                        <div className="absolute -bottom-24 right-0 h-56 w-56 rounded-full bg-green-500/10 blur-3xl" />
                     </div>
 
                     <div className="relative z-10">
                         <div className="flex items-center gap-4">
-                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/[0.08] shadow-xl">
+                            <motion.div
+                                animate={{
+                                    rotate: isPlaying ? 360 : 0,
+                                }}
+                                transition={{
+                                    duration: 18,
+                                    ease: "linear",
+                                    repeat: isPlaying ? Infinity : 0,
+                                }}
+                                className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/[0.08] shadow-xl ring-1 ring-white/15"
+                            >
                                 {track.imageUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
@@ -114,10 +141,10 @@ export function NowPlayingPopover({
                                     />
                                 ) : (
                                     <div className="flex h-full w-full items-center justify-center text-zinc-500">
-                                        ♪
+                                        <Music2 size={22} strokeWidth={2.2} />
                                     </div>
                                 )}
-                            </div>
+                            </motion.div>
 
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-white">
@@ -129,7 +156,7 @@ export function NowPlayingPopover({
                                 </p>
 
                                 {track.album && (
-                                    <p className="mt-1 truncate text-[11px] text-zinc-500">
+                                    <p className="mt-1 truncate text-[11px] text-zinc-400">
                                         {track.album}
                                     </p>
                                 )}
@@ -140,23 +167,24 @@ export function NowPlayingPopover({
                                     href={track.spotifyUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="rounded-full bg-white/[0.08] px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.14]"
+                                    className="flex items-center gap-1.5 rounded-full bg-white/[0.1] px-3 py-1.5 text-xs font-medium text-zinc-100 transition hover:bg-white/[0.16]"
                                 >
-                                    Spotify
+                                    <ExternalLink size={13} strokeWidth={2.2} />
+                                    Open
                                 </a>
                             )}
                         </div>
 
                         <div className="mt-5">
-                            <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.1]">
+                            <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.14] shadow-inner">
                                 <motion.div
                                     animate={{ width: `${progressPercent}%` }}
                                     transition={{ duration: 0.25 }}
-                                    className="h-full rounded-full bg-green-400"
+                                    className="h-full rounded-full bg-gradient-to-r from-green-300 via-green-400 to-white"
                                 />
                             </div>
 
-                            <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
+                            <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-300">
                                 <span>{formatTime(localProgressMs)}</span>
                                 <span>{formatTime(track.durationMs ?? 0)}</span>
                             </div>
@@ -169,10 +197,10 @@ export function NowPlayingPopover({
                                 whileTap={{ scale: 0.94 }}
                                 onClick={onPrevious}
                                 disabled={controlLoading}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] text-sm text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.1] text-white transition hover:bg-white/[0.16] disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="Previous track"
                             >
-                                ⏮
+                                <SkipBack size={18} strokeWidth={2.4} />
                             </motion.button>
 
                             <motion.button
@@ -181,10 +209,19 @@ export function NowPlayingPopover({
                                 whileTap={{ scale: 0.94 }}
                                 onClick={onTogglePlay}
                                 disabled={controlLoading}
-                                className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 pl-0.5 text-base font-bold text-black shadow-lg shadow-green-500/25 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-black shadow-lg shadow-green-500/25 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label={isPlaying ? "Pause" : "Resume"}
                             >
-                                {isPlaying ? "Ⅱ" : "▶"}
+                                {isPlaying ? (
+                                    <Pause size={20} fill="currentColor" strokeWidth={2.4} />
+                                ) : (
+                                    <Play
+                                        size={20}
+                                        fill="currentColor"
+                                        strokeWidth={2.4}
+                                        className="ml-0.5"
+                                    />
+                                )}
                             </motion.button>
 
                             <motion.button
@@ -193,10 +230,10 @@ export function NowPlayingPopover({
                                 whileTap={{ scale: 0.94 }}
                                 onClick={onNext}
                                 disabled={controlLoading}
-                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.08] text-sm text-white transition hover:bg-white/[0.14] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.1] text-white transition hover:bg-white/[0.16] disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="Next track"
                             >
-                                ⏭
+                                <SkipForward size={18} strokeWidth={2.4} />
                             </motion.button>
                         </div>
                     </div>

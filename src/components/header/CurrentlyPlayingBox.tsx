@@ -1,5 +1,6 @@
 "use client";
 
+import { Music2 } from "lucide-react";
 import { motion } from "motion/react";
 
 type CurrentlyPlayingBoxProps = {
@@ -26,9 +27,29 @@ export function CurrentlyPlayingBox({
             whileTap={{ scale: hasTrack ? 0.985 : 1 }}
             onClick={hasTrack ? onClick : undefined}
             disabled={!hasTrack}
-            className="flex min-w-0 max-w-md items-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70"
+            className="group relative flex min-w-0 max-w-md items-center gap-3 overflow-hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70"
         >
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/[0.08]">
+            {imageUrl && (
+                <>
+                    <div className="absolute inset-0 opacity-45">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={imageUrl}
+                            alt=""
+                            className="h-full w-full scale-150 object-cover blur-2xl"
+                        />
+                    </div>
+
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-[#151823]/55 to-black/35" />
+                    <div className="absolute inset-0 bg-white/[0.03] opacity-0 transition group-hover:opacity-100" />
+                </>
+            )}
+
+            {!imageUrl && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-white/[0.02] to-green-500/[0.06]" />
+            )}
+
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/[0.08] ring-1 ring-white/10">
                 {imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -37,8 +58,8 @@ export function CurrentlyPlayingBox({
                         className="h-full w-full object-cover"
                     />
                 ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
-                        ♪
+                    <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                        <Music2 size={14} strokeWidth={2.2} />
                     </div>
                 )}
 
@@ -47,12 +68,12 @@ export function CurrentlyPlayingBox({
                 )}
             </div>
 
-            <div className="min-w-0">
+            <div className="relative min-w-0">
                 <p className="truncate text-xs font-medium text-white">
                     {title ?? "Nothing playing"}
                 </p>
 
-                <p className="truncate text-[11px] text-zinc-400">
+                <p className="truncate text-[11px] text-zinc-300">
                     {artists?.join(", ") || "Spotify"}
                 </p>
             </div>
