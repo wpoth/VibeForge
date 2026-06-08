@@ -209,14 +209,8 @@ export default function Page() {
     setError(null);
     setAiAnalysis(null);
     await openPlaylist(playlist);
-
-    toast({
-      type: "info",
-      title: "Playlist opened",
-      description: playlist.name,
-    });
   }
-
+  
   async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
     setError(null);
 
