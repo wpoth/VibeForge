@@ -2,6 +2,7 @@
 
 import { Music2 } from "lucide-react";
 import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 
 type CurrentlyPlayingBoxProps = {
     title?: string;
@@ -11,6 +12,69 @@ type CurrentlyPlayingBoxProps = {
     onClick?: () => void;
 };
 
+function TypewriterText({
+    text,
+    className,
+}: {
+    text: string;
+    className?: string;
+}) {
+    const [displayedText, setDisplayedText] = useState(text);
+    const [phase, setPhase] = useState<"idle" | "deleting" | "typing">("idle");
+    const previousTextRef = useRef(text);
+
+    useEffect(() => {
+        if (previousTextRef.current === text) return;
+
+        setPhase("deleting");
+    }, [text]);
+
+    useEffect(() => {
+        if (phase === "idle") return;
+
+        if (phase === "deleting") {
+            if (displayedText.length > 0) {
+                const timeoutId = window.setTimeout(() => {
+                    setDisplayedText((current) => current.slice(0, -1));
+                }, 10);
+
+                return () => window.clearTimeout(timeoutId);
+            }
+
+            previousTextRef.current = text;
+            setPhase("typing");
+            return;
+        }
+
+        if (phase === "typing") {
+            if (displayedText.length < text.length) {
+                const timeoutId = window.setTimeout(() => {
+                    setDisplayedText(text.slice(0, displayedText.length + 1));
+                }, 16);
+
+                return () => window.clearTimeout(timeoutId);
+            }
+
+            setPhase("idle");
+        }
+    }, [displayedText, phase, text]);
+
+    return (
+        <span className={className}>
+            {displayedText}
+            {phase !== "idle" && (
+                <motion.span
+                    animate={{ opacity: [0, 1, 0] }}
+                    transition={{ duration: 0.7, repeat: Infinity }}
+                    className="ml-0.5 inline-block text-green-300"
+                >
+                    |
+                </motion.span>
+            )}
+        </span>
+    );
+}
+
 export function CurrentlyPlayingBox({
     title,
     artists,
@@ -19,6 +83,7 @@ export function CurrentlyPlayingBox({
     onClick,
 }: CurrentlyPlayingBoxProps) {
     const hasTrack = Boolean(title);
+    const artistText = artists?.join(", ") || "Spotify";
 
     return (
         <motion.button
@@ -70,11 +135,11 @@ export function CurrentlyPlayingBox({
 
             <div className="relative min-w-0">
                 <p className="truncate text-xs font-medium text-white">
-                    {title ?? "Nothing playing"}
+                    <TypewriterText text={title ?? "Nothing playing"} />
                 </p>
 
                 <p className="hidden truncate text-[11px] text-zinc-300 sm:block">
-                    {artists?.join(", ") || "Spotify"}
+                    <TypewriterText text={artistText} />
                 </p>
             </div>
         </motion.button>
