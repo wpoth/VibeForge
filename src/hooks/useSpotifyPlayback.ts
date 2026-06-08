@@ -16,6 +16,7 @@ type UseSpotifyPlaybackResult = {
   playbackError: string | null;
   playTrack: (playlistItem: SpotifyPlaylistItem) => Promise<void>;
   playPlaylist: (playlist: SpotifyPlaylist) => Promise<void>;
+  addToQueue: (playlistItem: SpotifyPlaylistItem) => Promise<void>;
 };
 
 export function useSpotifyPlayback({
@@ -131,6 +132,55 @@ export function useSpotifyPlayback({
     }
   }
 
+  async function addToQueue(playlistItem: SpotifyPlaylistItem) {
+    if (!accessToken) {
+      setPlaybackError(
+        "Could not add this song to queue because you are not logged in."
+      );
+      return;
+    }
+
+    const track = getTrackFromPlaylistItem(playlistItem);
+
+    if (!track?.uri) {
+      setPlaybackError(
+        "Could not add this song to queue because it is missing a Spotify URI."
+      );
+      return;
+    }
+
+    setPlaybackLoading(true);
+    setPlaybackError(null);
+
+    try {
+      const res = await fetch("/api/add-to-queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          trackUri: track.uri,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message ||
+          String(data?.error) ||
+          "Failed to add song to queue"
+        );
+      }
+    } catch (error: unknown) {
+      console.error("Add to queue failed:", error);
+      setPlaybackError(getErrorMessage(error));
+    } finally {
+      setPlaybackLoading(false);
+    }
+  }
+
   return {
     playingTrackUri,
     playingPlaylistId,
@@ -138,5 +188,6 @@ export function useSpotifyPlayback({
     playbackError,
     playTrack,
     playPlaylist,
+    addToQueue,
   };
 }

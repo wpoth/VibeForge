@@ -63,6 +63,7 @@ export default function Page() {
     playbackError,
     playTrack,
     playPlaylist,
+    addToQueue,
   } = useSpotifyPlayback({
     accessToken,
     selectedPlaylistId: selectedPlaylist?.id,
@@ -321,6 +322,7 @@ export default function Page() {
             onGenerateAiAnalysis={handleGenerateAiAnalysis}
             onRemoveTrack={handleRequestRemoveTrack}
             onPlayTrack={playTrack}
+            onAddToQueue={addToQueue}
             onToggleTrackSelection={toggleTrackSelection}
             onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
           />

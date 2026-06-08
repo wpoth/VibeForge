@@ -21,6 +21,7 @@ type PlaylistViewProps = {
   selectedTrackUris: string[];
 
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
+  onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleSelectionMode: () => void;
   onClearSelection: () => void;
   onSelectAllTracks: () => void;
@@ -48,6 +49,7 @@ export function PlaylistView({
   onToggleTrackSelection,
   onRequestRemoveSelectedTracks,
   onPlayTrack,
+  onAddToQueue,
 }: PlaylistViewProps) {
   if (loadingTracks) {
     return (
@@ -226,6 +228,7 @@ export function PlaylistView({
                       onToggleSelect={onToggleTrackSelection}
                       onRemove={onRemoveTrack}
                       onPlay={onPlayTrack}
+                      onAddToQueue={onAddToQueue}
                     />
                   </motion.div>
                 );
@@ -264,8 +267,8 @@ export function PlaylistView({
                     whileTap={{ scale: 0.985 }}
                     onClick={onToggleSelectionMode}
                     className={`rounded-xl px-3 py-2 text-sm font-medium transition ${selectionMode
-                        ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
-                        : "bg-green-500 text-black hover:bg-green-400"
+                      ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
+                      : "bg-green-500 text-black hover:bg-green-400"
                       }`}
                   >
                     {selectionMode ? "Exit select" : "Select songs"}

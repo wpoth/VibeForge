@@ -1,147 +1,191 @@
-import { CoverImage } from "@/components/common/CoverImage";
+"use client";
+
+import { useState } from "react";
+import { motion } from "motion/react";
+
+import { ContextMenu, type ContextMenuItem } from "@/components/common/ContextMenu";
 import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
-import {
-  getRelativeAddedTime,
-  getTrackFromPlaylistItem,
-  wasRecentlyAdded,
-} from "@/lib/ui-helpers";
+import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 type TrackRowProps = {
   playlistItem: SpotifyPlaylistItem;
   index: number;
-  selectionMode?: boolean;
-  selected?: boolean;
-  playingTrackUri?: string | null;
-  playbackLoading?: boolean;
-  onToggleSelect?: (playlistItem: SpotifyPlaylistItem) => void;
-  onRemove?: (playlistItem: SpotifyPlaylistItem) => void;
-  onPlay?: (playlistItem: SpotifyPlaylistItem) => void;
+  selectionMode: boolean;
+  selected: boolean;
+  playingTrackUri: string | null;
+  playbackLoading: boolean;
+  onToggleSelect: (playlistItem: SpotifyPlaylistItem) => void;
+  onRemove: (playlistItem: SpotifyPlaylistItem) => void;
+  onPlay: (playlistItem: SpotifyPlaylistItem) => void;
+  onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
+};
+
+type MenuState = {
+  open: boolean;
+  x: number;
+  y: number;
 };
 
 export function TrackRow({
   playlistItem,
   index,
-  selectionMode = false,
-  selected = false,
-  playingTrackUri = null,
-  playbackLoading = false,
+  selectionMode,
+  selected,
+  playingTrackUri,
+  playbackLoading,
   onToggleSelect,
   onRemove,
   onPlay,
+  onAddToQueue,
 }: TrackRowProps) {
+  const [menu, setMenu] = useState<MenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+  });
+
   const track = getTrackFromPlaylistItem(playlistItem);
-  if (!track) return null;
+  const trackUri = track?.uri ?? "";
+  const isPlaying = Boolean(trackUri && playingTrackUri === trackUri);
+  const spotifyUrl = track?.external_urls?.spotify;
+  const imageUrl = track?.album?.images?.[0]?.url ?? null;
+  const artistNames =
+    track?.artists?.map((artist) => artist.name).filter(Boolean).join(", ") ||
+    "Unknown artist";
 
-  const isCurrentTrack = Boolean(track.uri && track.uri === playingTrackUri);
-  const addedLabel = getRelativeAddedTime(playlistItem.added_at);
-  const recentlyAdded = wasRecentlyAdded(playlistItem.added_at);
-
-  function handleRemoveClick(event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    onRemove?.(playlistItem);
-  }
-
-  function handlePlayClick(event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    onPlay?.(playlistItem);
-  }
-  function handleSelectClick(event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    onToggleSelect?.(playlistItem);
-  }
-
-  function handleRowClick() {
-    if (selectionMode) {
-      onToggleSelect?.(playlistItem);
-    }
-  }
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: "Play from here",
+      disabled: !trackUri,
+      onClick: () => onPlay(playlistItem),
+    },
+    {
+      label: "Add to queue",
+      disabled: !trackUri,
+      onClick: () => onAddToQueue(playlistItem),
+    },
+    {
+      label: "Open in Spotify",
+      disabled: !spotifyUrl,
+      onClick: () => {
+        if (!spotifyUrl) return;
+        window.open(spotifyUrl, "_blank", "noopener,noreferrer");
+      },
+    },
+    {
+      label: "Remove from playlist",
+      destructive: true,
+      onClick: () => onRemove(playlistItem),
+    },
+  ];
 
   return (
-    <div
-      key={track.id ?? index}
-      onClick={handleRowClick}
-      className={`group p-3 rounded-xl border transition flex items-center gap-3 ${
-        selected
-          ? "bg-green-500/10 border-green-400/40"
-          : "bg-white/[0.04] border-white/10 hover:bg-white/[0.07]"
-      } ${selectionMode ? "cursor-pointer" : ""}`}
-    >
-      {selectionMode && (
-        <button
-          type="button"
-          onClick={handleSelectClick}
-          className={`h-5 w-5 rounded-md border cursor-pointer flex items-center justify-center shrink-0 transition ${
-            selected
-              ? "bg-green-500 border-green-400 text-black"
-              : "bg-white/[0.04] border-white/20 text-transparent hover:border-green-400/50"
-          }`}
-          aria-label={
-            selected ? `Deselect ${track.name}` : `Select ${track.name}`
-          }
-        >
-          ✓
-        </button>
-      )}
+    <>
+      <motion.div
+        layout
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
 
-      <div className="relative shrink-0 group/cover">
-        <CoverImage
-          images={track.album?.images}
-          alt={`${track.name} cover`}
-          size="sm"
-        />
+          setMenu({
+            open: true,
+            x: event.clientX,
+            y: event.clientY,
+          });
+        }}
+        className={`group rounded-xl border p-3 transition ${
+          selected
+            ? "border-green-400/40 bg-green-500/10"
+            : isPlaying
+              ? "border-green-400/30 bg-green-500/[0.07]"
+              : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {selectionMode && (
+            <button
+              type="button"
+              onClick={() => onToggleSelect(playlistItem)}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${
+                selected
+                  ? "border-green-400 bg-green-500 text-black"
+                  : "border-white/20 text-transparent hover:border-white/40"
+              }`}
+              aria-label={selected ? "Deselect song" : "Select song"}
+            >
+              ✓
+            </button>
+          )}
 
-        {!selectionMode && onPlay && (
+          <p className="hidden w-8 shrink-0 text-right text-sm text-zinc-600 sm:block">
+            {index + 1}
+          </p>
+
+          <div className="group/cover relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt={`${track?.name ?? "Track"} cover`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">
+                ♪
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPlay(playlistItem);
+              }}
+              disabled={playbackLoading || !trackUri}
+              className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition group-hover/cover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={`Play ${track?.name ?? "song"}`}
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-500 pl-0.5 text-xs text-black shadow-lg shadow-green-500/30">
+                {isPlaying ? "✓" : "▶"}
+              </span>
+            </button>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p
+              className={`truncate text-sm font-medium ${
+                isPlaying ? "text-green-300" : "text-white"
+              }`}
+            >
+              {track?.name ?? "Unknown track"}
+            </p>
+
+            <p className="truncate text-xs text-zinc-500">{artistNames}</p>
+          </div>
+
           <button
             type="button"
-            onClick={handlePlayClick}
-            disabled={playbackLoading}
-            className={`absolute cursor-pointer inset-0 flex items-center justify-center rounded-lg border transition ${
-              isCurrentTrack
-                ? "bg-green-500/80 text-black border-green-300 opacity-100"
-                : "bg-black/55 text-white border-white/10 opacity-0 group-hover/cover:opacity-100 hover:bg-black/70"
-            } disabled:cursor-not-allowed disabled:opacity-50`}
-            title="Play song"
-            aria-label={`Play ${track.name}`}
+            onClick={() => onAddToQueue(playlistItem)}
+            disabled={playbackLoading || !trackUri}
+            className="hidden rounded-lg bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-300 opacity-0 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 group-hover:opacity-100 sm:block"
           >
-            <span className="translate-x-[1px] text-sm">▶</span>
+            Queue
           </button>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-medium truncate">{track.name}</p>
-
-          {recentlyAdded && (
-            <span className="shrink-0 rounded-full border border-green-400/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-300">
-              New
-            </span>
-          )}
         </div>
+      </motion.div>
 
-        <p className="text-sm text-zinc-400 truncate">
-          {track.artists
-            ?.map((artist) => artist.name)
-            .filter(Boolean)
-            .join(", ")}
-        </p>
-
-        {addedLabel && (
-          <p className="mt-1 text-xs text-zinc-500">{addedLabel}</p>
-        )}
-      </div>
-
-      {!selectionMode && onRemove && (
-        <button
-          type="button"
-          onClick={handleRemoveClick}
-          className="h-8 w-8 rounded-lg bg-red-500/10 cursor-pointer text-red-300 border border-red-400/20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 transition shrink-0"
-          title="Remove song"
-          aria-label={`Remove ${track.name}`}
-        >
-          ×
-        </button>
-      )}
-    </div>
+      <ContextMenu
+        open={menu.open}
+        x={menu.x}
+        y={menu.y}
+        items={menuItems}
+        onClose={() =>
+          setMenu((current) => ({
+            ...current,
+            open: false,
+          }))
+        }
+      />
+    </>
   );
 }
