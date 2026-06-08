@@ -126,7 +126,7 @@ ${spotifyUrl || "Unknown"}
 Return ONLY valid JSON with this exact shape:
 {
   "summary": "short overview of the song",
-  "meaning": "possible interpretation of the song's themes and meaning",
+  "meaning": "possible interpretation of the song's themes and meaning, deep dive into the lyrics but do not quote or reproduce them, use phrases like 'the song seems to be about...' or 'a likely theme is...'",
   "story": "what the song seems to be about narratively or emotionally",
   "context": "artist, album, anime/game/movie, release, or cultural context if known",
   "moodTags": ["tag 1", "tag 2", "tag 3"],
