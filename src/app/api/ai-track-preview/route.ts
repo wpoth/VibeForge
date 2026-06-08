@@ -16,6 +16,12 @@ type GroqResponse = {
   };
 };
 
+type SpotifyArtist = {
+  id?: string;
+  name?: string;
+  uri?: string;
+};
+
 type SpotifyTrack = {
   id?: string;
   uri?: string;
@@ -37,6 +43,22 @@ type SpotifySearchResponse = {
   tracks?: {
     items?: SpotifyTrack[];
   };
+  error?: {
+    message?: string;
+  };
+};
+
+type SpotifyArtistSearchResponse = {
+  artists?: {
+    items?: SpotifyArtist[];
+  };
+  error?: {
+    message?: string;
+  };
+};
+
+type SpotifyArtistTopTracksResponse = {
+  tracks?: SpotifyTrack[];
   error?: {
     message?: string;
   };
@@ -167,14 +189,14 @@ function buildSpotifySearchQueries(suggestion: AiTrackSuggestion) {
   );
 }
 
-async function searchSpotifyTrack({
+async function searchSpotifyTracks({
   accessToken,
   query,
 }: {
   accessToken: string;
   query: string;
 }): Promise<{
-  track: SpotifyTrack | null;
+  tracks: SpotifyTrack[];
   status: number;
   error: unknown;
 }> {
@@ -196,37 +218,36 @@ async function searchSpotifyTrack({
     ? searchData.rawText
     : searchData.error?.message ?? null;
 
+  const tracks = isRawText(searchData)
+    ? []
+    : searchData.tracks?.items ?? [];
+
   logStep("Spotify search result", {
     query,
     status: searchRes.status,
     ok: searchRes.ok,
-    foundCount: isRawText(searchData)
-      ? 0
-      : searchData.tracks?.items?.length ?? 0,
-    firstTrack:
-      !isRawText(searchData) && searchData.tracks?.items?.[0]
-        ? {
-          id: searchData.tracks.items[0].id,
-          name: searchData.tracks.items[0].name,
-          uri: searchData.tracks.items[0].uri,
-          artists: searchData.tracks.items[0].artists?.map(
-            (artist) => artist.name
-          ),
-        }
-        : null,
+    foundCount: tracks.length,
+    firstTrack: tracks[0]
+      ? {
+        id: tracks[0].id,
+        name: tracks[0].name,
+        uri: tracks[0].uri,
+        artists: tracks[0].artists?.map((artist) => artist.name),
+      }
+      : null,
     error: searchError,
   });
 
   if (!searchRes.ok || isRawText(searchData)) {
     return {
-      track: null,
+      tracks: [],
       status: searchRes.status,
       error: searchError,
     };
   }
 
   return {
-    track: searchData.tracks?.items?.[0] ?? null,
+    tracks,
     status: searchRes.status,
     error: null,
   };
@@ -247,7 +268,7 @@ async function resolveSuggestionToSpotifyTrack({
   const queries = buildSpotifySearchQueries(suggestion);
 
   for (const query of queries) {
-    const result = await searchSpotifyTrack({
+    const result = await searchSpotifyTracks({
       accessToken,
       query,
     });
@@ -261,30 +282,34 @@ async function resolveSuggestionToSpotifyTrack({
       };
     }
 
-    if (!result.track?.uri) {
+    if (!result.tracks.length) {
       continue;
     }
 
-    if (!spotifyTrackMatchesSuggestion(result.track, suggestion)) {
-      logStep("Spotify result rejected for preview", {
+    const matchingTrack = result.tracks.find((track) =>
+      spotifyTrackMatchesSuggestion(track, suggestion)
+    );
+
+    if (!matchingTrack?.uri) {
+      logStep("Spotify results rejected for preview", {
         query,
         expected: {
           name: suggestion.name,
           artists: suggestion.artists,
           source: suggestion.source,
         },
-        actual: {
-          name: result.track.name,
-          artists: result.track.artists?.map((artist) => artist.name),
-          uri: result.track.uri,
-        },
+        actualCandidates: result.tracks.map((track) => ({
+          name: track.name,
+          artists: track.artists?.map((artist) => artist.name),
+          uri: track.uri,
+        })),
       });
 
       continue;
     }
 
     return {
-      track: result.track,
+      track: matchingTrack,
       queryUsed: query,
       status: result.status,
       error: null,
@@ -317,6 +342,283 @@ function uniqueSuggestions(values: AiTrackSuggestion[]) {
     seen.add(key);
     return true;
   });
+}
+
+function cleanArtistPrompt(prompt: string) {
+  return prompt
+    .replace(/\bmusic like\b/gi, "")
+    .replace(/\bsongs like\b/gi, "")
+    .replace(/\bsimilar to\b/gi, "")
+    .replace(/\bartists like\b/gi, "")
+    .replace(/\btracks like\b/gi, "")
+    .replace(/\bmore songs like\b/gi, "")
+    .replace(/\bmore tracks like\b/gi, "")
+    .replace(/\badd\b/gi, "")
+    .replace(/\bto playlist\b/gi, "")
+    .replace(/\bplaylist\b/gi, "")
+    .replace(/\bsongs? by\b/gi, "")
+    .replace(/\btracks? by\b/gi, "")
+    .replace(/\bmore songs? from\b/gi, "")
+    .replace(/\bmore tracks? from\b/gi, "")
+    .replace(/\bsongs? from\b/gi, "")
+    .replace(/\btracks? from\b/gi, "")
+    .replace(/\bsongs? of\b/gi, "")
+    .replace(/\btracks? of\b/gi, "")
+    .replace(/['’]s songs?/gi, "")
+    .replace(/['’]s tracks?/gi, "")
+    .replace(/\bsongs?\b/gi, "")
+    .replace(/\btracks?\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function looksLikeExactArtistRequest(prompt: string) {
+  const normalized = prompt.toLowerCase().trim();
+
+  const isSimilarRequest =
+    /\bmusic like\b/.test(normalized) ||
+    /\bsongs like\b/.test(normalized) ||
+    /\btracks like\b/.test(normalized) ||
+    /\bsimilar to\b/.test(normalized) ||
+    /\bartists like\b/.test(normalized) ||
+    /\bsame vibe as\b/.test(normalized);
+
+  if (isSimilarRequest) {
+    return false;
+  }
+
+  return (
+    /\b.+['’]s songs?\b/.test(normalized) ||
+    /\b.+['’]s tracks?\b/.test(normalized) ||
+    /\bsongs? by\b/.test(normalized) ||
+    /\btracks? by\b/.test(normalized) ||
+    /\bmore songs? from\b/.test(normalized) ||
+    /\bmore tracks? from\b/.test(normalized) ||
+    /\bsongs? from\b/.test(normalized) ||
+    /\btracks? from\b/.test(normalized) ||
+    /\bsongs? of\b/.test(normalized) ||
+    /\btracks? of\b/.test(normalized)
+  );
+}
+
+async function searchSpotifyArtist({
+  accessToken,
+  artistName,
+}: {
+  accessToken: string;
+  artistName: string;
+}) {
+  const searchUrl = new URL("https://api.spotify.com/v1/search");
+  searchUrl.searchParams.set("q", artistName);
+  searchUrl.searchParams.set("type", "artist");
+  searchUrl.searchParams.set("limit", "1");
+  searchUrl.searchParams.set("market", "NL");
+
+  const res: globalThis.Response = await fetch(searchUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = await readJsonOrText<SpotifyArtistSearchResponse>(res);
+
+  const error = isRawText(data) ? data.rawText : data.error?.message ?? null;
+
+  logStep("Spotify artist search result", {
+    artistName,
+    status: res.status,
+    ok: res.ok,
+    foundCount: isRawText(data) ? 0 : data.artists?.items?.length ?? 0,
+    firstArtist:
+      !isRawText(data) && data.artists?.items?.[0]
+        ? {
+          id: data.artists.items[0].id,
+          name: data.artists.items[0].name,
+          uri: data.artists.items[0].uri,
+        }
+        : null,
+    error,
+  });
+
+  if (!res.ok || isRawText(data)) {
+    return {
+      artist: null,
+      status: res.status,
+      error,
+    };
+  }
+
+  return {
+    artist: data.artists?.items?.[0] ?? null,
+    status: res.status,
+    error: null,
+  };
+}
+
+async function getSpotifyArtistTopTracks({
+  accessToken,
+  artistId,
+}: {
+  accessToken: string;
+  artistId: string;
+}) {
+  const res: globalThis.Response = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=NL`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  const data = await readJsonOrText<SpotifyArtistTopTracksResponse>(res);
+
+  const error = isRawText(data) ? data.rawText : data.error?.message ?? null;
+
+  logStep("Spotify artist top tracks result", {
+    artistId,
+    status: res.status,
+    ok: res.ok,
+    trackCount: isRawText(data) ? 0 : data.tracks?.length ?? 0,
+    error,
+  });
+
+  if (!res.ok || isRawText(data)) {
+    return {
+      tracks: [],
+      status: res.status,
+      error,
+    };
+  }
+
+  return {
+    tracks: data.tracks ?? [],
+    status: res.status,
+    error: null,
+  };
+}
+
+function mapSpotifyTrackToPreviewTrack({
+  track,
+  query,
+  source,
+}: {
+  track: SpotifyTrack;
+  query: string;
+  source: string;
+}) {
+  return {
+    id: track.id,
+    uri: track.uri,
+    query,
+    name: track.name,
+    artists:
+      track.artists
+        ?.map((artist) => artist.name)
+        .filter((name): name is string => Boolean(name)) ?? [],
+    album: track.album?.name,
+    imageUrl: track.album?.images?.[0]?.url ?? null,
+    source,
+  };
+}
+
+async function generateArtistTopTracksPreview({
+  accessToken,
+  prompt,
+  mode,
+  startedAt,
+}: {
+  accessToken: string;
+  prompt: string;
+  mode?: string;
+  startedAt: number;
+}) {
+  const artistName = cleanArtistPrompt(prompt);
+
+  if (!artistName) {
+    return Response.json(
+      {
+        error: true,
+        message: "Could not detect artist name from prompt.",
+        step: "detect_artist_name",
+      },
+      { status: 400 }
+    );
+  }
+
+  const artistResult = await searchSpotifyArtist({
+    accessToken,
+    artistName,
+  });
+
+  if (!artistResult.artist?.id) {
+    return Response.json(
+      {
+        error: true,
+        message: `Could not find artist "${artistName}" on Spotify.`,
+        step: "spotify_artist_search",
+        details: artistResult.error,
+      },
+      { status: artistResult.status || 404 }
+    );
+  }
+
+  const topTracksResult = await getSpotifyArtistTopTracks({
+    accessToken,
+    artistId: artistResult.artist.id,
+  });
+
+  if (!topTracksResult.tracks.length) {
+    return Response.json(
+      {
+        error: true,
+        message: `Could not load top tracks for "${artistResult.artist.name}".`,
+        step: "spotify_artist_top_tracks",
+        details: topTracksResult.error,
+      },
+      { status: topTracksResult.status || 404 }
+    );
+  }
+
+  const seenUris = new Set<string>();
+
+  const tracks = topTracksResult.tracks
+    .filter((track) => {
+      if (!track.uri || seenUris.has(track.uri)) return false;
+
+      seenUris.add(track.uri);
+      return true;
+    })
+    .slice(0, 15)
+    .map((track) =>
+      mapSpotifyTrackToPreviewTrack({
+        track,
+        query: `${artistResult.artist?.name ?? artistName} ${track.name ?? ""
+          }`.trim(),
+        source: "requested artist",
+      })
+    );
+
+  const responsePayload = {
+    success: true,
+    tracks,
+    debug: {
+      prompt,
+      mode: mode ?? "artist",
+      shortcut: "spotify_artist_top_tracks",
+      artist: {
+        id: artistResult.artist.id,
+        name: artistResult.artist.name,
+        uri: artistResult.artist.uri,
+      },
+      foundTrackCount: tracks.length,
+      durationMs: Date.now() - startedAt,
+    },
+  };
+
+  logStep("SUCCESS_ARTIST_TOP_TRACKS", responsePayload);
+
+  return Response.json(responsePayload);
 }
 
 export async function POST(req: Request) {
@@ -363,6 +665,20 @@ export async function POST(req: Request) {
       );
     }
 
+    if (mode === "artist" && looksLikeExactArtistRequest(prompt)) {
+      logStep("Using Spotify artist top tracks shortcut", {
+        prompt,
+        cleanedArtist: cleanArtistPrompt(prompt),
+      });
+
+      return generateArtistTopTracksPreview({
+        accessToken,
+        prompt,
+        mode,
+        startedAt,
+      });
+    }
+
     const groqApiKey = process.env.GROQ_API_KEY;
 
     if (!groqApiKey) {
@@ -377,10 +693,10 @@ export async function POST(req: Request) {
     }
 
     const aiPrompt = `
-You are VibeForge, an expert Spotify playlist curator.
+You are VibeForge, an expert Spotify playlist curator and music metadata assistant.
 
-Your job is to generate accurate Spotify-resolvable track suggestions.
-These suggestions will be searched on Spotify immediately, so every suggestion must be a real track with the correct artist.
+Your job is to generate accurate Spotify-resolvable track candidates.
+These candidates will be searched on Spotify immediately, so every candidate must be a real track with the correct artist.
 
 User request:
 "${prompt}"
@@ -402,7 +718,7 @@ Return ONLY valid JSON with this exact shape:
 
 The "tracks" array must contain exactly 15 objects.
 
-CRITICAL OUTPUT RULES:
+ABSOLUTE RULES:
 - Return valid JSON only.
 - Do not include markdown.
 - Do not include explanations outside the JSON.
@@ -412,61 +728,81 @@ CRITICAL OUTPUT RULES:
 - "query" must usually be formatted as: "Artist Name Song Title".
 - "name" must be the track title only.
 - "artists" must be an array of real artist/composer names.
-- "source" must be short, for example "requested artist", "similar artist", "Persona 4 battle theme", "Bleach opening 1", or "official OST".
-- Do not invent fake songs.
-- Do not invent fake artists.
+- "source" must be short and useful, for example:
+  - "requested artist"
+  - "similar artist"
+  - "Persona 4 battle theme"
+  - "Bleach opening 1"
+  - "official OST"
+- Do not invent songs.
+- Do not invent artists.
 - Do not invent anime/game/song associations.
-- Avoid duplicate tracks.
+- Do not invent deep cuts.
+- Do not use vague queries like "Persona 4 soundtrack", "anime opening", "sad song", or "rock music".
+- Do not return albums. Every item must point to a specific track.
+- Avoid fan covers, remixes, slowed versions, sped-up versions, nightcore, karaoke, piano covers, orchestral covers, live versions, or tribute versions unless the user explicitly asks for them.
 - Prefer tracks likely to exist on Spotify.
 - Prefer official artist names and official song titles.
-- Avoid vague queries like "Persona 4 soundtrack", "anime opening", "sad song", or "rock music".
-- Avoid album-only queries. Every suggestion must point to a specific track.
-- Avoid fan covers, remixes, slowed versions, sped-up versions, nightcore, karaoke, piano covers, orchestral covers, live versions, or tribute versions unless the user explicitly asks for them.
+- Avoid duplicates.
 
 REQUEST TYPE DETECTION:
-Before generating tracks, silently classify the user request as one of these:
+Before generating tracks, silently classify the request as one of these:
+
 1. EXACT_ARTIST_TRACKS
 2. SIMILAR_TO_ARTIST
 3. MEDIA_FRANCHISE
 4. VIBE_OR_GENRE
 
-Use the rules below.
-
 EXACT_ARTIST_TRACKS:
-Use this when the user asks for:
+Use this only if the user asks for:
 - songs by an artist
 - an artist's songs
-- more songs from an artist
 - tracks from an artist
+- more songs from an artist
 - "Aimer's songs"
 - "songs by Ado"
 - "more Radiohead songs"
 
 Rules:
-- Only return tracks by that exact artist.
-- Do not return songs merely similar to the artist.
-- Do not invent deep cuts.
+- Only return tracks by the exact requested artist.
+- Do not return similar artists.
+- Do not invent obscure tracks.
 - Do not invent anime/source associations.
-- If unsure about a title, choose a famous, widely available track by that artist.
-- The "source" should be "requested artist".
-- The artist name in "artists" must be the requested artist.
+- If unsure, choose famous, widely available songs by the requested artist.
+- "source" must be "requested artist".
+- The requested artist must appear in "artists".
 
 SIMILAR_TO_ARTIST:
-Use this when the user asks for:
+Use this if the user asks for:
 - music like an artist
-- similar to an artist
+- songs similar to an artist
+- same vibe as an artist
 - artists like an artist
-- songs with the same vibe as an artist
 
 Rules:
 - Include some tracks by the requested artist if useful.
-- Include tracks by similar artists with matching genre, energy, vocals, language, production style, era, and scene.
+- Include tracks by similar artists with matching language, scene, genre, vocals, production, era, and energy.
 - Do not randomly switch to unrelated mainstream artists.
-- If the requested artist is Japanese, Korean, Spanish, Dutch, etc., prefer the same or closely related music scene unless the user asks otherwise.
-- The "source" should explain the relation briefly, for example "similar Japanese vocal rock style".
+- If the requested artist is Japanese, prefer Japanese or closely related artists unless the user asks otherwise.
+- "source" should explain the relation briefly.
 
 MEDIA_FRANCHISE:
-Use this when the user asks for an anime, game, movie, show, series, soundtrack, opening, ending, OST, OP, ED, theme song, battle theme, boss theme, or character-related playlist.
+Use this if the user asks for:
+- anime
+- game
+- movie
+- show
+- series
+- soundtrack
+- OST
+- opening
+- ending
+- OP
+- ED
+- theme song
+- battle theme
+- boss theme
+- character playlist
 
 Rules:
 - Treat the title as a media franchise, not as a normal word.
@@ -475,11 +811,11 @@ Rules:
 - Prefer exact artist/composer + song title queries.
 - Do not include unrelated mainstream artists unless they are actually connected to the franchise.
 - Do not interpret titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
-- For Japanese anime/games, prefer Japanese artists, official soundtrack composers, and songs actually used in that anime/game.
-- The "source" should say where it belongs, for example "Persona 4 battle theme", "Bleach opening 2", or "official OST".
+- For Japanese anime/games, prefer Japanese artists, official composers, and songs actually used in that anime/game.
+- "source" should say where it belongs, for example "Persona 4 battle theme", "Bleach opening 2", or "official OST".
 
 VIBE_OR_GENRE:
-Use this when the user asks for:
+Use this if the user asks for:
 - a mood
 - a setting
 - an activity
@@ -488,8 +824,9 @@ Use this when the user asks for:
 - a broad playlist idea
 
 Rules:
-- Translate the vibe into real songs that match the emotional tone, tempo, genre, and atmosphere.
-- Prefer variety across artists while keeping the playlist coherent.
+- Translate the vibe into real songs matching emotional tone, tempo, genre, and atmosphere.
+- Keep the playlist coherent.
+- Use variety across artists.
 - If the prompt mentions a genre, stay close to that genre.
 - If the prompt mentions an activity, choose tracks that fit that activity.
 
@@ -511,7 +848,7 @@ If the user asks for Aimer tracks, prefer real well-known Aimer songs such as:
 - Aimer Black Bird
 - Aimer Torches
 
-If the user asks for Ado tracks, prefer real well-known Ado songs such as:
+If the user asks for Ado tracks, prefer:
 - Ado Usseewa
 - Ado Odo
 - Ado New Genesis
@@ -525,7 +862,7 @@ If the user asks for Ado tracks, prefer real well-known Ado songs such as:
 - Ado KokoroToIuNaNoFukakai
 - Ado Kura Kura
 
-If the user asks for Radiohead tracks, prefer real well-known Radiohead songs such as:
+If the user asks for Radiohead tracks, prefer:
 - Radiohead Let Down
 - Radiohead No Surprises
 - Radiohead Weird Fishes Arpeggi
@@ -538,19 +875,40 @@ If the user asks for Radiohead tracks, prefer real well-known Radiohead songs su
 - Radiohead Street Spirit Fade Out
 
 KNOWN MEDIA EXAMPLES:
-Persona examples:
-- For Persona 3, prefer "Yumi Kawamura Burn My Dread", "Lotus Juice Mass Destruction", "Yumi Kawamura Memories of You", "Shoji Meguro When the Moon's Reaching Out Stars", "Lotus Juice It's Going Down Now".
-- For Persona 4, prefer "Shihoko Hirata Pursuing My True Self", "Shihoko Hirata Reach Out To The Truth", "Shihoko Hirata I'll Face Myself", "Shoji Meguro Heartbeat Heartbreak", "Shoji Meguro Your Affection", "Shihoko Hirata Never More", "Shihoko Hirata Shadow World", "Shoji Meguro Signs Of Love".
-- For Persona 5, prefer "Lyn Last Surprise", "Lyn Wake Up Get Up Get Out There", "Lyn Life Will Change", "Lyn Rivers In the Desert", "Lyn Beneath the Mask", "Lyn Whims of Fate", "Lyn Take Over", "Lyn Colors Flying High".
+Persona:
+- Persona 3: "Yumi Kawamura Burn My Dread", "Lotus Juice Mass Destruction", "Yumi Kawamura Memories of You", "Shoji Meguro When the Moon's Reaching Out Stars", "Lotus Juice It's Going Down Now".
+- Persona 4: "Shihoko Hirata Pursuing My True Self", "Shihoko Hirata Reach Out To The Truth", "Shihoko Hirata I'll Face Myself", "Shoji Meguro Heartbeat Heartbreak", "Shoji Meguro Your Affection", "Shihoko Hirata Never More", "Shihoko Hirata Shadow World", "Shoji Meguro Signs Of Love".
+- Persona 5: "Lyn Last Surprise", "Lyn Wake Up Get Up Get Out There", "Lyn Life Will Change", "Lyn Rivers In the Desert", "Lyn Beneath the Mask", "Lyn Whims of Fate", "Lyn Take Over", "Lyn Colors Flying High".
 
-Bleach examples:
-- For Bleach openings/endings/OST, prefer "ORANGE RANGE Asterisk", "UVERworld D-tecnoLife", "High and Mighty Color Ichirin no Hana", "YUI Rolling star", "Aqua Timez ALONES", "KELUN CHU-BURA", "SCANDAL Shoujo S", "SID Ranbu no Melody", "miwa chAngE", "Shiro Sagisu Number One", "Shiro Sagisu Treachery", "Shiro Sagisu Invasion".
+Bleach:
+- "ORANGE RANGE Asterisk"
+- "UVERworld D-tecnoLife"
+- "High and Mighty Color Ichirin no Hana"
+- "YUI Rolling star"
+- "Aqua Timez ALONES"
+- "KELUN CHU-BURA"
+- "SCANDAL Shoujo S"
+- "SID Ranbu no Melody"
+- "miwa chAngE"
+- "Shiro Sagisu Number One"
+- "Shiro Sagisu Treachery"
+- "Shiro Sagisu Invasion"
 
-Demon Slayer examples:
-- For Demon Slayer, prefer "LiSA Gurenge", "LiSA Homura", "Aimer Zankyosanka", "Aimer Asa ga Kuru", "MAN WITH A MISSION Kizuna no Kiseki", "milet Koi Kogare".
+Demon Slayer:
+- "LiSA Gurenge"
+- "LiSA Homura"
+- "Aimer Zankyosanka"
+- "Aimer Asa ga Kuru"
+- "MAN WITH A MISSION Kizuna no Kiseki"
+- "milet Koi Kogare"
 
-Jujutsu Kaisen examples:
-- For Jujutsu Kaisen, prefer "Eve Kaikai Kitan", "ALI LOST IN PARADISE", "Who-ya Extended VIVID VICE", "King Gnu SPECIALZ", "Tatsuya Kitani Ao no Sumika", "Soushi Sakiyama Akari".
+Jujutsu Kaisen:
+- "Eve Kaikai Kitan"
+- "ALI LOST IN PARADISE"
+- "Who-ya Extended VIVID VICE"
+- "King Gnu SPECIALZ"
+- "Tatsuya Kitani Ao no Sumika"
+- "Soushi Sakiyama Akari"
 
 GOOD OUTPUT EXAMPLES:
 
@@ -664,16 +1022,17 @@ Good output:
   ]
 }
 
-Before returning the final JSON, silently verify:
+Before returning final JSON, silently verify:
 - Every song title is real.
 - Every artist is real.
 - Every query is likely to resolve on Spotify.
-- The result matches the user's request type.
+- The result matches the detected request type.
 - There are no duplicate songs.
 - There are exactly 15 tracks.
 
 Now generate exactly 15 track suggestions for the user's request.
 `;
+
     logStep("Sending request to Groq", {
       model: "llama-3.1-8b-instant",
       promptLength: aiPrompt.length,
@@ -877,21 +1236,14 @@ Now generate exactly 15 track suggestions for the user's request.
 
       seenUris.add(result.track.uri);
 
-      resolvedTracks.push({
-        id: result.track.id,
-        uri: result.track.uri,
-        query: suggestion.query,
-        name: result.track.name,
-        artists:
-          result.track.artists
-            ?.map((artist) => artist.name)
-            .filter((name): name is string => Boolean(name)) ??
-          suggestion.artists ??
-          [],
-        album: result.track.album?.name,
-        imageUrl: result.track.album?.images?.[0]?.url ?? null,
-        source: suggestion.source,
-      });
+      resolvedTracks.push(
+        mapSpotifyTrackToPreviewTrack({
+          track: result.track,
+          query: suggestion.query,
+          source: suggestion.source ?? "AI suggestion",
+        })
+      );
+
       await sleep(250);
     }
 
