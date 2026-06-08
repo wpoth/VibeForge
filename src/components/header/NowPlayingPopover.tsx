@@ -85,7 +85,10 @@ export function NowPlayingPopover({
     const progressPercent = useMemo(() => {
         if (!track?.durationMs) return 0;
 
-        return Math.min(100, Math.max(0, (localProgressMs / track.durationMs) * 100));
+        return Math.min(
+            100,
+            Math.max(0, (localProgressMs / track.durationMs) * 100)
+        );
     }, [localProgressMs, track?.durationMs]);
 
     return (
@@ -96,7 +99,7 @@ export function NowPlayingPopover({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -8, scale: 0.96 }}
                     transition={{ duration: 0.18 }}
-                    className="absolute left-1/2 top-[calc(100%+10px)] z-[80] w-[min(380px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl"
+                    className="fixed bottom-4 left-1/2 z-[80] w-[calc(100vw-2rem)] max-w-[380px] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:absolute sm:bottom-auto sm:top-[calc(100%+10px)] sm:w-[min(380px,calc(100vw-2rem))]"
                 >
                     <div className="pointer-events-none absolute inset-0">
                         {track.imageUrl ? (
