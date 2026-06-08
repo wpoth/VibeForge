@@ -15,6 +15,10 @@ export type SpotifyAlbum = {
   images?: SpotifyImage[];
 };
 
+export type SpotifyExternalUrls = {
+  spotify?: string;
+};
+
 export type SpotifyTrack = {
   id?: string;
   uri?: string;
@@ -22,6 +26,7 @@ export type SpotifyTrack = {
   type?: string;
   artists?: SpotifyArtist[];
   album?: SpotifyAlbum;
+  external_urls?: SpotifyExternalUrls;
 };
 
 export type SpotifyPlaylistItem = {
@@ -39,12 +44,17 @@ export type SpotifyPlaylist = {
   name: string;
   snapshot_id?: string;
   images?: SpotifyImage[];
+  external_urls?: SpotifyExternalUrls;
   items?: {
     total?: number;
   };
   tracks?: {
     total?: number;
   };
+};
+
+export type SpotifyProfile = {
+  display_name?: string;
 };
 
 export type AiPreviewTrack = {
@@ -56,22 +66,6 @@ export type AiPreviewTrack = {
   album?: string;
   imageUrl?: string | null;
   source?: string;
-};
-
-export type AiTrackPreviewResponse = ApiErrorResponse & {
-  success?: boolean;
-  tracks?: AiPreviewTrack[];
-  debug?: {
-    prompt?: string;
-    mode?: string;
-    generatedQueries?: string[];
-    foundTrackCount?: number;
-    durationMs?: number;
-  };
-};
-
-export type SpotifyProfile = {
-  display_name?: string;
 };
 
 export type ApiErrorResponse = {
@@ -89,9 +83,26 @@ export type PlaylistTracksResponse = ApiErrorResponse & {
   items?: SpotifyPlaylistItem[];
 };
 
+export type AiTrackPreviewResponse = ApiErrorResponse & {
+  success?: boolean;
+  tracks?: AiPreviewTrack[];
+  debug?: {
+    prompt?: string;
+    mode?: string;
+    shortcut?: string;
+    generatedQueries?: string[];
+    foundTrackCount?: number;
+    resolveFailureCount?: number;
+    resolveFailures?: unknown[];
+    durationMs?: number;
+  };
+};
+
 export type AiPlaylistResponse = ApiErrorResponse & {
   success?: boolean;
   action?: "create" | "append";
+  skippedDuplicates?: number;
+  message?: string;
   playlist?: {
     id?: string;
     name?: string;
@@ -109,6 +120,9 @@ export type AiPlaylistResponse = ApiErrorResponse & {
     uri?: string;
     name?: string;
     artists?: string[];
+    album?: string;
+    imageUrl?: string | null;
+    source?: string;
   }[];
 };
 
@@ -132,6 +146,43 @@ export type SpotifyArtistSearchResponse = {
 
 export type SpotifyArtistTopTracksResponse = {
   tracks?: SpotifyTrack[];
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyUserResponse = {
+  id?: string;
+  display_name?: string;
+  email?: string;
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyCreatePlaylistResponse = {
+  id?: string;
+  name?: string;
+  external_urls?: SpotifyExternalUrls;
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyAddItemsResponse = {
+  snapshot_id?: string;
+  error?: {
+    message?: string;
+  };
+};
+
+export type SpotifyPlaylistTracksResponse = {
+  items?: {
+    track?: {
+      uri?: string;
+    } | null;
+  }[];
+  next?: string | null;
   error?: {
     message?: string;
   };
