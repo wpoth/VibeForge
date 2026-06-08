@@ -36,7 +36,7 @@ function TypewriterText({
             if (displayedText.length > 0) {
                 const timeoutId = window.setTimeout(() => {
                     setDisplayedText((current) => current.slice(0, -1));
-                }, 10);
+                }, 22);
 
                 return () => window.clearTimeout(timeoutId);
             }
@@ -50,7 +50,7 @@ function TypewriterText({
             if (displayedText.length < text.length) {
                 const timeoutId = window.setTimeout(() => {
                     setDisplayedText(text.slice(0, displayedText.length + 1));
-                }, 16);
+                }, 36);
 
                 return () => window.clearTimeout(timeoutId);
             }
