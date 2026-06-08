@@ -9,6 +9,8 @@ import {
     X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import type { PlayerQueueItem } from "@/hooks/usePlayerQueue";
 
@@ -128,7 +130,31 @@ export function QueueDrawer({
     onClose,
     onRefresh,
 }: QueueDrawerProps) {
-    return (
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!open) return;
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                onClose();
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open, onClose]);
+
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {open && (
                 <>
@@ -139,7 +165,7 @@ export function QueueDrawer({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm"
+                        className="fixed inset-0 z-[9000] bg-black/40 backdrop-blur-sm"
                     />
 
                     <motion.aside
@@ -147,7 +173,7 @@ export function QueueDrawer({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 32 }}
                         transition={{ duration: 0.22 }}
-                        className="fixed bottom-0 right-0 top-0 z-[91] flex w-full max-w-xl flex-col overflow-hidden border-l border-white/10 bg-[#11141d]/95 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:w-[520px]"
+                        className="fixed bottom-0 right-0 top-0 z-[9001] flex w-full max-w-xl flex-col overflow-hidden border-l border-white/10 bg-[#11141d]/95 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:w-[520px]"
                     >
                         <div className="border-b border-white/10 p-5">
                             <div className="flex items-start gap-4">
@@ -284,6 +310,7 @@ export function QueueDrawer({
                     </motion.aside>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
