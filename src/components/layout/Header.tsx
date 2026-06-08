@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { signOut } from "next-auth/react";
 
@@ -28,6 +28,9 @@ export function Header({
   isPlaying = false,
   onRefreshPlayback,
 }: HeaderProps) {
+
+  const nowPlayingRef = useRef<HTMLDivElement | null>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
 
@@ -124,12 +127,20 @@ export function Header({
                 artists={currentlyPlaying.artists}
                 imageUrl={currentlyPlaying.imageUrl}
                 isPlaying={isPlaying}
-                onClick={() => setPopoverOpen((current) => !current)}
+                onClick={() => {
+                  if (nowPlayingRef.current) {
+                    setAnchorRect(nowPlayingRef.current.getBoundingClientRect());
+                  }
+
+                  setPopoverOpen((current) => !current);
+                }}
               />
             </motion.div>
           ) : (
             <motion.div
-              key="currently-playing-empty"
+              ref={nowPlayingRef}
+              key={`${currentlyPlaying?.title ?? "unknown"}-${currentlyPlaying?.artists?.join("-") ?? "unknown"
+                }`}
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -146,6 +157,7 @@ export function Header({
           track={currentlyPlaying ?? null}
           isPlaying={isPlaying}
           controlLoading={controlLoading}
+          anchorRect={anchorRect}
           onPrevious={() => controlPlayback("previous")}
           onNext={() => controlPlayback("next")}
           onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}

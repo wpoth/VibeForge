@@ -19,6 +19,7 @@ type NowPlayingPopoverProps = {
     track: CurrentlyPlayingTrack | null;
     isPlaying: boolean;
     controlLoading: boolean;
+    anchorRect: DOMRect | null;
     onPrevious: () => void;
     onNext: () => void;
     onTogglePlay: () => void;
@@ -80,6 +81,7 @@ export function NowPlayingPopover({
     onNext,
     onTogglePlay,
     onClose,
+    anchorRect
 }: NowPlayingPopoverProps) {
     const [mounted, setMounted] = useState(false);
     const [localProgressMs, setLocalProgressMs] = useState(0);
@@ -137,25 +139,36 @@ export function NowPlayingPopover({
         <AnimatePresence>
             {open && track && (
                 <>
-                    <motion.button
-                        type="button"
-                        aria-label="Close now playing"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="fixed inset-0 z-[79] bg-black/20 backdrop-blur-[1px] sm:hidden"
-                    />
-
                     <motion.div
-                        initial={{ opacity: 0, y: 32, scale: 0.94 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 28, scale: 0.96 }}
+                        initial={{
+                            opacity: 0,
+                            scaleX: anchorRect ? Math.max(anchorRect.width / 380, 0.35) : 0.4,
+                            scaleY: 0.35,
+                            y: -8,
+                            borderRadius: 999,
+                        }}
+                        animate={{
+                            opacity: 1,
+                            scaleX: 1,
+                            scaleY: 1,
+                            y: 0,
+                            borderRadius: 24,
+                        }}
+                        exit={{
+                            opacity: 0,
+                            scaleX: anchorRect ? Math.max(anchorRect.width / 380, 0.35) : 0.4,
+                            scaleY: 0.35,
+                            y: -8,
+                            borderRadius: 999,
+                        }}
                         transition={{
                             type: "spring",
-                            stiffness: 420,
-                            damping: 32,
-                            mass: 0.8,
+                            stiffness: 520,
+                            damping: 36,
+                            mass: 0.75,
+                        }}
+                        style={{
+                            transformOrigin: "top center",
                         }}
                         className="fixed bottom-4 left-1/2 z-[80] w-[calc(100vw-2rem)] max-w-[380px] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:top-16 sm:bottom-auto"
                     >
