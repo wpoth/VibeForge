@@ -12,8 +12,10 @@ import { PlaylistView } from "@/components/playlist/PlaylistView";
 
 import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 import { useAiPlaylistCreator } from "@/hooks/useAiPlaylistCreator";
+import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
 import { usePlaylistRemoval } from "@/hooks/usePlaylistRemoval";
 import { usePlaylistTracks } from "@/hooks/usePlaylistTracks";
+import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
 import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
@@ -21,29 +23,15 @@ import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
-import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
-import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
-
 export default function Page() {
   const { data: session, status } = useSession();
   const accessToken = session?.accessToken;
 
-  const {
-    currentlyPlaying,
-    isPlaying,
-    currentlyPlayingError,
-  } = useCurrentlyPlaying(accessToken);
-
-  const {
-    playingTrackUri,
-    playbackLoading,
-    playbackError,
-    playTrack,
-  } = useSpotifyPlayback({
-    accessToken,
-  });
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
+
+  const { currentlyPlaying, isPlaying, currentlyPlayingError } =
+    useCurrentlyPlaying(accessToken);
 
   const { profile, profileError } = useSpotifyProfile(accessToken);
 
@@ -69,6 +57,16 @@ export default function Page() {
   } = usePlaylistTracks({
     accessToken,
     onViewChange: setView,
+  });
+
+  const {
+    playingTrackUri,
+    playbackLoading,
+    playbackError,
+    playTrack,
+  } = useSpotifyPlayback({
+    accessToken,
+    selectedPlaylistId: selectedPlaylist?.id,
   });
 
   const {
@@ -168,7 +166,8 @@ export default function Page() {
       aiPlaylistCreatorError ||
       playlistRemovalError ||
       trackRemovalError ||
-      currentlyPlayingError;
+      currentlyPlayingError ||
+      playbackError;
 
     if (nextError) {
       setError(nextError);
@@ -181,6 +180,7 @@ export default function Page() {
     aiPlaylistCreatorError,
     playlistRemovalError,
     trackRemovalError,
+    currentlyPlayingError,
     playbackError,
   ]);
 
@@ -211,7 +211,7 @@ export default function Page() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
         Loading VibeForge...
       </div>
     );
@@ -219,14 +219,14 @@ export default function Page() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white relative overflow-hidden">
+      <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] text-white">
         <div className="pointer-events-none fixed inset-0 overflow-hidden">
           <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
-          <div className="absolute top-40 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+          <div className="absolute right-0 top-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
         </div>
 
         <div className="relative z-10 flex flex-col items-center px-4">
-          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight">
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
             VibeForge
           </h1>
 
@@ -236,8 +236,9 @@ export default function Page() {
           </p>
 
           <button
+            type="button"
             onClick={() => signIn("spotify", { callbackUrl: "/" })}
-            className="mt-8 px-7 py-3 bg-green-500 cursor-pointer text-black rounded-full font-semibold hover:bg-green-400 transition shadow-lg shadow-green-500/20"
+            className="mt-8 cursor-pointer rounded-full bg-green-500 px-7 py-3 font-semibold text-black shadow-lg shadow-green-500/20 transition hover:bg-green-400"
           >
             Login with Spotify
           </button>
@@ -265,7 +266,7 @@ export default function Page() {
 
       <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-950/60 border border-red-900/80 text-sm text-red-200">
+          <div className="mb-6 rounded-xl border border-red-900/80 bg-red-950/60 p-4 text-sm text-red-200">
             {error}
           </div>
         )}
@@ -326,8 +327,8 @@ export default function Page() {
         open={confirmingBulkRemove}
         title="Remove selected songs?"
         description={`This will remove ${selectedTrackUris.length
-          } selected song${selectedTrackUris.length === 1 ? "" : "s"} from "${selectedPlaylist?.name ?? "this playlist"
-          }".`}
+          } selected song${selectedTrackUris.length === 1 ? "" : "s"
+          } from "${selectedPlaylist?.name ?? "this playlist"}".`}
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
         loading={removingSelectedTracks}

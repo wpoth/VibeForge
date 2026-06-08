@@ -9,6 +9,7 @@ import {
 
 type UseSpotifyPlaybackArgs = {
   accessToken: string | undefined;
+  selectedPlaylistId: string | undefined;
 };
 
 type UseSpotifyPlaybackResult = {
@@ -20,13 +21,24 @@ type UseSpotifyPlaybackResult = {
 
 export function useSpotifyPlayback({
   accessToken,
+  selectedPlaylistId,
 }: UseSpotifyPlaybackArgs): UseSpotifyPlaybackResult {
   const [playingTrackUri, setPlayingTrackUri] = useState<string | null>(null);
   const [playbackLoading, setPlaybackLoading] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   async function playTrack(playlistItem: SpotifyPlaylistItem) {
-    if (!accessToken) return;
+    if (!accessToken) {
+      setPlaybackError("Could not play this song because you are not logged in.");
+      return;
+    }
+
+    if (!selectedPlaylistId) {
+      setPlaybackError(
+        "Could not play this song because no playlist is selected."
+      );
+      return;
+    }
 
     const track = getTrackFromPlaylistItem(playlistItem);
 
@@ -49,6 +61,7 @@ export function useSpotifyPlayback({
         body: JSON.stringify({
           accessToken,
           trackUri: track.uri,
+          playlistId: selectedPlaylistId,
         }),
       });
 
