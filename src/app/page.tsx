@@ -41,7 +41,6 @@ export default function Page() {
     hiddenPlaylists,
     playlistsError,
     setPlaylists,
-    setHiddenPlaylists,
     loadPlaylists,
   } = useSpotifyPlaylists(accessToken);
 
@@ -52,7 +51,6 @@ export default function Page() {
     setTracks,
     loadingTracks,
     openPlaylist,
-    resetPlaylistView,
     playlistTracksError,
   } = usePlaylistTracks({
     accessToken,
@@ -64,6 +62,7 @@ export default function Page() {
     playbackLoading,
     playbackError,
     playTrack,
+    playPlaylist,
   } = useSpotifyPlayback({
     accessToken,
     selectedPlaylistId: selectedPlaylist?.id,
@@ -118,7 +117,6 @@ export default function Page() {
     removingPlaylist,
     requestRemovePlaylist,
     confirmRemovePlaylist,
-    cancelRemovePlaylist,
     playlistRemovalError,
   } = usePlaylistRemoval({
     accessToken,
@@ -194,6 +192,11 @@ export default function Page() {
     await openPlaylist(playlist);
   }
 
+  async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
+    setError(null);
+    await playPlaylist(playlist);
+  }
+
   async function handleGenerateAiAnalysis() {
     setError(null);
     await generateAiAnalysis(tracks);
@@ -262,6 +265,7 @@ export default function Page() {
         selectedPlaylist={selectedPlaylist}
         onPlaylistClick={handlePlaylistClick}
         onPlaylistRemove={handleRequestRemovePlaylist}
+        onPlaylistPlay={handlePlaylistPlay}
       />
 
       <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
@@ -364,7 +368,7 @@ export default function Page() {
         cancelLabel="Keep playlist"
         loading={removingPlaylist}
         onConfirm={confirmRemovePlaylist}
-        onCancel={cancelRemovePlaylist}
+        onCancel={confirmRemovePlaylist}
       />
     </AppShell>
   );

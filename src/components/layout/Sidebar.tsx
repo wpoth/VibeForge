@@ -10,6 +10,7 @@ type SidebarProps = {
   selectedPlaylist: SpotifyPlaylist | null;
   onPlaylistClick: (playlist: SpotifyPlaylist) => void;
   onPlaylistRemove: (playlist: SpotifyPlaylist) => void;
+  onPlaylistPlay: (playlist: SpotifyPlaylist) => void;
 };
 
 export function Sidebar({
@@ -19,6 +20,7 @@ export function Sidebar({
   selectedPlaylist,
   onPlaylistClick,
   onPlaylistRemove,
+  onPlaylistPlay,
 }: SidebarProps) {
   return (
     <motion.aside
@@ -121,6 +123,7 @@ export function Sidebar({
                     isSelected={selectedPlaylist?.id === playlist.id}
                     onClick={() => onPlaylistClick(playlist)}
                     onRemove={() => onPlaylistRemove(playlist)}
+                    onPlay={() => onPlaylistPlay(playlist)}
                   />
                 </motion.div>
               ))}

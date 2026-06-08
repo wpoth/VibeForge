@@ -1,12 +1,14 @@
 import { CoverImage } from "@/components/common/CoverImage";
 import type { SpotifyPlaylist } from "@/lib/spotify-types";
 import { getPlaylistTrackCount } from "@/lib/ui-helpers";
+import { motion } from "motion/react";
 
 type PlaylistCardProps = {
   playlist: SpotifyPlaylist;
   isSelected: boolean;
   onClick: () => void;
   onRemove: () => void;
+  onPlay: () => void;
 };
 
 export function PlaylistCard({
@@ -14,40 +16,69 @@ export function PlaylistCard({
   isSelected,
   onClick,
   onRemove,
+  onPlay,
 }: PlaylistCardProps) {
-  function handleRemoveClick(event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    onRemove();
-  }
-
   return (
-    <div
+    <motion.button
+      type="button"
+      layout
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
       onClick={onClick}
-      className={`group relative min-w-56 max-w-56 p-3 rounded-xl cursor-pointer transition flex gap-3 border lg:min-w-0 lg:max-w-none lg:mb-2 ${
-        isSelected
-          ? "bg-green-500/10 border-green-400/40 shadow-lg shadow-green-500/10"
-          : "bg-white/[0.04] border-white/5 hover:bg-white/[0.08] hover:border-white/10"
-      }`}
+      className={`group min-w-56 max-w-56 rounded-xl border p-3 text-left transition lg:min-w-0 lg:max-w-none ${isSelected
+          ? "border-green-400/40 bg-green-500/10"
+          : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+        }`}
     >
-      <CoverImage images={playlist.images} alt={`${playlist.name} cover`} />
+      <div className="flex items-center gap-3">
+        <div className="group/cover relative shrink-0">
+          <CoverImage
+            images={playlist.images}
+            alt={`${playlist.name} cover`}
+            size="sm"
+          />
 
-      <div className="min-w-0 flex-1 flex flex-col justify-center pr-8">
-        <p className="text-sm font-medium truncate">{playlist.name}</p>
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onPlay();
+            }}
+            className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/55 opacity-0 transition group-hover/cover:opacity-100"
+            aria-label={`Play ${playlist.name}`}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 pl-0.5 text-xs text-black shadow-lg shadow-green-500/30">
+              ▶
+            </span>
+          </motion.button>
+        </div>
 
-        <p className="text-xs text-zinc-500">
-          {getPlaylistTrackCount(playlist)} tracks
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-white">
+            {playlist.name}
+          </p>
+
+          <p className="mt-1 text-xs text-zinc-500">
+            {getPlaylistTrackCount(playlist)} tracks
+          </p>
+        </div>
+
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+          className="shrink-0 rounded-lg px-2 py-1 text-xs text-zinc-500 opacity-0 transition hover:bg-red-500/10 hover:text-red-300 group-hover:opacity-100"
+          aria-label={`Remove ${playlist.name}`}
+        >
+          Remove
+        </motion.button>
       </div>
-
-      <button
-        type="button"
-        onClick={handleRemoveClick}
-        className="absolute right-2 cursor-pointer top-2 h-7 w-7 rounded-lg bg-red-500/10 text-red-300 border border-red-400/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 hover:bg-red-500/20 transition"
-        title="Remove playlist"
-        aria-label={`Remove ${playlist.name}`}
-      >
-        ×
-      </button>
-    </div>
+    </motion.button>
   );
 }

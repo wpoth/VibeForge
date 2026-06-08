@@ -26,23 +26,19 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!trackUri || typeof trackUri !== "string") {
-            return Response.json(
-                { error: true, message: "Missing track URI" },
-                { status: 400 }
-            );
-        }
-
-        if (!trackUri.startsWith("spotify:track:")) {
-            return Response.json(
-                { error: true, message: "Invalid track URI" },
-                { status: 400 }
-            );
-        }
-
         if (!playlistId || typeof playlistId !== "string") {
             return Response.json(
                 { error: true, message: "Missing playlist ID" },
+                { status: 400 }
+            );
+        }
+
+        if (
+            trackUri &&
+            (typeof trackUri !== "string" || !trackUri.startsWith("spotify:track:"))
+        ) {
+            return Response.json(
+                { error: true, message: "Invalid track URI" },
                 { status: 400 }
             );
         }
@@ -53,19 +49,26 @@ export async function POST(req: Request) {
             url.searchParams.set("device_id", deviceId);
         }
 
+        const body = trackUri
+            ? {
+                context_uri: `spotify:playlist:${playlistId}`,
+                offset: {
+                    uri: trackUri,
+                },
+                position_ms: 0,
+            }
+            : {
+                context_uri: `spotify:playlist:${playlistId}`,
+                position_ms: 0,
+            };
+
         const res: globalThis.Response = await fetch(url, {
             method: "PUT",
             headers: {
                 Authorization: `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                context_uri: `spotify:playlist:${playlistId}`,
-                offset: {
-                    uri: trackUri,
-                },
-                position_ms: 0,
-            }),
+            body: JSON.stringify(body),
         });
 
         if (res.status === 204) {
@@ -90,13 +93,13 @@ export async function POST(req: Request) {
                 message:
                     "error" in data && data.error?.message
                         ? data.error.message
-                        : `Failed to start playlist playback. Spotify returned ${res.status}.`,
+                        : `Failed to start playback. Spotify returned ${res.status}.`,
                 details: data,
             },
             { status: res.status }
         );
     } catch (error) {
-        console.error("Play track route error:", error);
+        console.error("Play route error:", error);
 
         return Response.json(
             {
