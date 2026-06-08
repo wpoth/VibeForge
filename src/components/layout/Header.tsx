@@ -28,11 +28,17 @@ export function Header({
   isPlaying = false,
   onRefreshPlayback,
 }: HeaderProps) {
-
   const nowPlayingRef = useRef<HTMLDivElement | null>(null);
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
+  const [seekLoading, setSeekLoading] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+
+  const currentlyPlayingKey = currentlyPlaying?.title
+    ? `${currentlyPlaying.title}-${currentlyPlaying.artists?.join("-") ?? "unknown"
+    }`
+    : "currently-playing-empty";
 
   async function controlPlayback(action: PlayerControlAction) {
     if (!accessToken) {
@@ -80,6 +86,52 @@ export function Header({
     }
   }
 
+  async function seekPlayback(positionMs: number) {
+    if (!accessToken) {
+      toast({
+        type: "error",
+        title: "Could not seek playback",
+        description: "Missing access token.",
+      });
+      return;
+    }
+
+    setSeekLoading(true);
+
+    try {
+      const res = await fetch("/api/player-seek", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          positionMs,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message ||
+          String(data?.error) ||
+          "Failed to seek Spotify playback"
+        );
+      }
+
+      await onRefreshPlayback?.();
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Seek failed",
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setSeekLoading(false);
+    }
+  }
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -12 }}
@@ -113,9 +165,8 @@ export function Header({
         <AnimatePresence mode="wait">
           {currentlyPlaying?.title ? (
             <motion.div
-              key={`${currentlyPlaying.title}-${currentlyPlaying.artists?.join(
-                "-"
-              )}`}
+              ref={nowPlayingRef}
+              key={currentlyPlayingKey}
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -138,9 +189,7 @@ export function Header({
             </motion.div>
           ) : (
             <motion.div
-              ref={nowPlayingRef}
-              key={`${currentlyPlaying?.title ?? "unknown"}-${currentlyPlaying?.artists?.join("-") ?? "unknown"
-                }`}
+              key="currently-playing-empty"
               initial={{ opacity: 0, y: -6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.98 }}
@@ -157,10 +206,12 @@ export function Header({
           track={currentlyPlaying ?? null}
           isPlaying={isPlaying}
           controlLoading={controlLoading}
+          seekLoading={seekLoading}
           anchorRect={anchorRect}
           onPrevious={() => controlPlayback("previous")}
           onNext={() => controlPlayback("next")}
           onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
+          onSeek={seekPlayback}
           onClose={() => setPopoverOpen(false)}
         />
       </div>

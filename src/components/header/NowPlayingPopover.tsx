@@ -9,7 +9,14 @@ import {
     SkipForward,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type MouseEvent,
+    type TouchEvent,
+} from "react";
 import { createPortal } from "react-dom";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
@@ -19,10 +26,12 @@ type NowPlayingPopoverProps = {
     track: CurrentlyPlayingTrack | null;
     isPlaying: boolean;
     controlLoading: boolean;
+    seekLoading: boolean;
     anchorRect: DOMRect | null;
     onPrevious: () => void;
     onNext: () => void;
     onTogglePlay: () => void;
+    onSeek: (positionMs: number) => void;
     onClose: () => void;
 };
 
@@ -72,19 +81,85 @@ function EqualizerBars({ isPlaying }: { isPlaying: boolean }) {
     );
 }
 
+function TypewriterText({
+    text,
+    className,
+}: {
+    text: string;
+    className?: string;
+}) {
+    const [displayedText, setDisplayedText] = useState(text);
+    const [phase, setPhase] = useState<"idle" | "deleting" | "typing">("idle");
+    const previousTextRef = useRef(text);
+
+    useEffect(() => {
+        if (previousTextRef.current === text) return;
+
+        setPhase("deleting");
+    }, [text]);
+
+    useEffect(() => {
+        if (phase === "idle") return;
+
+        if (phase === "deleting") {
+            if (displayedText.length > 0) {
+                const timeoutId = window.setTimeout(() => {
+                    setDisplayedText((current) => current.slice(0, -1));
+                }, 12);
+
+                return () => window.clearTimeout(timeoutId);
+            }
+
+            previousTextRef.current = text;
+            setPhase("typing");
+            return;
+        }
+
+        if (phase === "typing") {
+            if (displayedText.length < text.length) {
+                const timeoutId = window.setTimeout(() => {
+                    setDisplayedText(text.slice(0, displayedText.length + 1));
+                }, 18);
+
+                return () => window.clearTimeout(timeoutId);
+            }
+
+            setPhase("idle");
+        }
+    }, [displayedText, phase, text]);
+
+    return (
+        <span className={className}>
+            {displayedText}
+            {phase !== "idle" && (
+                <motion.span
+                    animate={{ opacity: [0, 1, 0] }}
+                    transition={{ duration: 0.7, repeat: Infinity }}
+                    className="ml-0.5 inline-block text-green-300"
+                >
+                    |
+                </motion.span>
+            )}
+        </span>
+    );
+}
+
 export function NowPlayingPopover({
     open,
     track,
     isPlaying,
     controlLoading,
+    seekLoading,
+    anchorRect,
     onPrevious,
     onNext,
     onTogglePlay,
+    onSeek,
     onClose,
-    anchorRect
 }: NowPlayingPopoverProps) {
     const [mounted, setMounted] = useState(false);
     const [localProgressMs, setLocalProgressMs] = useState(0);
+    const progressBarRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -133,32 +208,69 @@ export function NowPlayingPopover({
         );
     }, [localProgressMs, track?.durationMs]);
 
+    const morphStartScaleX = anchorRect
+        ? Math.min(1, Math.max(anchorRect.width / 380, 0.35))
+        : 0.4;
+
+    function seekFromClientX(clientX: number) {
+        if (!track?.durationMs || !progressBarRef.current) return;
+
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const nextPositionMs = Math.floor(track.durationMs * ratio);
+
+        setLocalProgressMs(nextPositionMs);
+        onSeek(nextPositionMs);
+    }
+
+    function handleProgressClick(event: MouseEvent<HTMLButtonElement>) {
+        seekFromClientX(event.clientX);
+    }
+
+    function handleProgressTouch(event: TouchEvent<HTMLButtonElement>) {
+        const touch = event.changedTouches[0];
+
+        if (!touch) return;
+
+        seekFromClientX(touch.clientX);
+    }
+
     if (!mounted) return null;
 
     return createPortal(
         <AnimatePresence>
             {open && track && (
                 <>
+                    <motion.button
+                        type="button"
+                        aria-label="Close now playing"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="fixed inset-0 z-[79] bg-black/20 backdrop-blur-[1px] sm:hidden"
+                    />
+
                     <motion.div
                         initial={{
                             opacity: 0,
-                            scaleX: anchorRect ? Math.max(anchorRect.width / 380, 0.35) : 0.4,
-                            scaleY: 0.35,
-                            y: -8,
+                            y: 32,
+                            scaleX: morphStartScaleX,
+                            scaleY: 0.34,
                             borderRadius: 999,
                         }}
                         animate={{
                             opacity: 1,
+                            y: 0,
                             scaleX: 1,
                             scaleY: 1,
-                            y: 0,
                             borderRadius: 24,
                         }}
                         exit={{
                             opacity: 0,
-                            scaleX: anchorRect ? Math.max(anchorRect.width / 380, 0.35) : 0.4,
-                            scaleY: 0.35,
-                            y: -8,
+                            y: 28,
+                            scaleX: morphStartScaleX,
+                            scaleY: 0.34,
                             borderRadius: 999,
                         }}
                         transition={{
@@ -172,6 +284,10 @@ export function NowPlayingPopover({
                         }}
                         className="fixed bottom-4 left-1/2 z-[80] w-[calc(100vw-2rem)] max-w-[380px] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:top-16 sm:bottom-auto"
                     >
+                        <div className="relative z-10 mb-3 flex justify-center sm:hidden">
+                            <div className="h-1.5 w-12 rounded-full bg-white/25" />
+                        </div>
+
                         <div className="pointer-events-none absolute inset-0">
                             {track.imageUrl ? (
                                 <>
@@ -287,19 +403,21 @@ export function NowPlayingPopover({
                                 <div className="min-w-0 flex-1">
                                     <div className="flex min-w-0 items-center gap-2">
                                         <p className="truncate text-sm font-semibold text-white">
-                                            {track.title ?? "Unknown track"}
+                                            <TypewriterText text={track.title ?? "Unknown track"} />
                                         </p>
 
                                         <EqualizerBars isPlaying={isPlaying} />
                                     </div>
 
                                     <p className="mt-1 truncate text-xs text-zinc-300">
-                                        {track.artists?.join(", ") || "Unknown artist"}
+                                        <TypewriterText
+                                            text={track.artists?.join(", ") || "Unknown artist"}
+                                        />
                                     </p>
 
                                     {track.album && (
                                         <p className="mt-1 truncate text-[11px] text-zinc-400">
-                                            {track.album}
+                                            <TypewriterText text={track.album} />
                                         </p>
                                     )}
                                 </div>
@@ -328,29 +446,47 @@ export function NowPlayingPopover({
                                 }}
                                 className="mt-5"
                             >
-                                <div className="relative h-1.5 overflow-hidden rounded-full bg-white/[0.14] shadow-inner">
-                                    <motion.div
-                                        animate={{ width: `${progressPercent}%` }}
-                                        transition={{ duration: 0.25 }}
-                                        className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-green-300 via-green-400 to-white"
-                                    >
-                                        {isPlaying && (
-                                            <motion.div
-                                                animate={{
-                                                    x: ["-120%", "220%"],
-                                                }}
-                                                transition={{
-                                                    duration: 1.6,
-                                                    repeat: Infinity,
-                                                    ease: "easeInOut",
-                                                }}
-                                                className="absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-white/70 to-transparent"
-                                            />
-                                        )}
-                                    </motion.div>
-                                </div>
+                                <button
+                                    ref={progressBarRef}
+                                    type="button"
+                                    onClick={handleProgressClick}
+                                    onTouchEnd={handleProgressTouch}
+                                    disabled={!track.durationMs || seekLoading}
+                                    className="group relative h-4 w-full cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-70"
+                                    aria-label="Seek playback position"
+                                >
+                                    <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/[0.14] shadow-inner">
+                                        <motion.div
+                                            animate={{ width: `${progressPercent}%` }}
+                                            transition={{ duration: 0.25 }}
+                                            className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-green-300 via-green-400 to-white"
+                                        >
+                                            {isPlaying && (
+                                                <motion.div
+                                                    animate={{
+                                                        x: ["-120%", "220%"],
+                                                    }}
+                                                    transition={{
+                                                        duration: 1.6,
+                                                        repeat: Infinity,
+                                                        ease: "easeInOut",
+                                                    }}
+                                                    className="absolute inset-y-0 w-16 bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                                                />
+                                            )}
+                                        </motion.div>
+                                    </div>
 
-                                <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-300">
+                                    <motion.span
+                                        animate={{
+                                            left: `${progressPercent}%`,
+                                        }}
+                                        transition={{ duration: 0.25 }}
+                                        className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-green-300 opacity-0 shadow-lg shadow-green-400/30 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                                    />
+                                </button>
+
+                                <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-300">
                                     <span>{formatTime(localProgressMs)}</span>
                                     <span>{formatTime(track.durationMs ?? 0)}</span>
                                 </div>
