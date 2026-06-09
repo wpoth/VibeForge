@@ -8,6 +8,7 @@ import { useSongResearch } from "@/hooks/useSongResearch";
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
 import { SimilarTracksDrawer } from "@/components/ai/SimilarTracksDrawer";
 
+import { BetaAccessNotice } from "@/components/common/BetaAccessNotice";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { toast } from "@/components/common/ToastProvider";
 
@@ -512,6 +513,8 @@ export default function Page() {
             generate insights only when you need them.
           </p>
 
+          <BetaAccessNotice />
+          
           <button
             type="button"
             onClick={() => signIn("spotify", { callbackUrl: "/" })}

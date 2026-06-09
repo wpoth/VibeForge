@@ -12,7 +12,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-
+import { BetaAccessNotice } from "@/components/common/BetaAccessNotice";
 const WELCOME_STORAGE_KEY = "vibeforge-welcome-seen";
 export const SHOW_WELCOME_EVENT = "vibeforge:show-welcome";
 
@@ -195,6 +195,8 @@ export function WelcomeModal() {
                                         </div>
                                     </div>
                                 </div>
+
+                                <BetaAccessNotice />
 
                                 <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                                     <button
