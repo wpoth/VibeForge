@@ -138,10 +138,10 @@ export function TrackRow({
           });
         }}
         className={`group rounded-xl border p-3 transition ${selected
-            ? "border-green-400/40 bg-green-500/10"
-            : isPlaying
-              ? "border-green-400/30 bg-green-500/[0.07]"
-              : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
+          ? "border-green-400/40 bg-green-500/10"
+          : isPlaying
+            ? "border-green-400/30 bg-green-500/[0.07]"
+            : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
           }`}
       >
         <div className="flex items-center gap-3">
@@ -150,8 +150,8 @@ export function TrackRow({
               type="button"
               onClick={() => onToggleSelect(playlistItem)}
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
-                  ? "border-green-400 bg-green-500 text-black"
-                  : "border-white/20 text-transparent hover:border-white/40"
+                ? "border-green-400 bg-green-500 text-black"
+                : "border-white/20 text-transparent hover:border-white/40"
                 }`}
               aria-label={selected ? "Deselect song" : "Select song"}
             >
@@ -170,7 +170,8 @@ export function TrackRow({
               onPlay(playlistItem);
             }}
             disabled={playbackLoading || !trackUri}
-            className="group/cover relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+            className={`group/cover relative h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white/[0.06] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60
+            ${isPlaying ? "ring-1 ring-green-400/60" : ""}`}
             aria-label={`Play ${track?.name ?? "song"}`}
           >
             {imageUrl ? (
