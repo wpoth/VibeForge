@@ -153,7 +153,7 @@ export function TrackRow({
             });
           }}
           className={`group relative rounded-xl border transition ${settings.compactTrackRows ? "p-2" : "p-3"
-            }${selected
+            } ${selected
               ? "border-green-400/40 bg-green-500/10"
               : isPlaying
                 ? "border-green-400/30 bg-green-500/[0.07]"
