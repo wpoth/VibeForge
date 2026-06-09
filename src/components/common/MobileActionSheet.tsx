@@ -2,7 +2,11 @@
 
 import type { LucideIcon } from "lucide-react";
 import { X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+    AnimatePresence,
+    motion,
+    useDragControls,
+} from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -30,6 +34,7 @@ export function MobileActionSheet({
     onClose,
 }: MobileActionSheetProps) {
     const [mounted, setMounted] = useState(false);
+    const dragControls = useDragControls();
 
     useEffect(() => {
         setMounted(true);
@@ -77,11 +82,35 @@ export function MobileActionSheet({
                             damping: 34,
                             mass: 0.8,
                         }}
+                        drag="y"
+                        dragControls={dragControls}
+                        dragListener={false}
+                        dragConstraints={{
+                            top: 0,
+                            bottom: 180,
+                        }}
+                        dragElastic={0.18}
+                        dragMomentum={false}
+                        onDragEnd={(_, info) => {
+                            const shouldClose = info.offset.y > 90 || info.velocity.y > 650;
+
+                            if (shouldClose) {
+                                onClose();
+                            }
+                        }}
                         className="fixed bottom-3 left-3 right-3 z-[8999] overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-2xl lg:hidden"
                     >
-                        <div className="mb-3 flex justify-center">
-                            <div className="h-1.5 w-12 rounded-full bg-white/20" />
-                        </div>
+                        <motion.button
+                            type="button"
+                            aria-label="Drag down to close"
+                            onPointerDown={(event) => {
+                                dragControls.start(event);
+                            }}
+                            whileTap={{ scaleX: 1.15, scaleY: 0.9 }}
+                            className="mb-3 flex w-full touch-none cursor-grab justify-center active:cursor-grabbing"
+                        >
+                            <span className="h-1.5 w-12 rounded-full bg-white/20" />
+                        </motion.button>
 
                         <div className="mb-3 flex items-start gap-3 px-2">
                             <div className="min-w-0 flex-1">

@@ -8,7 +8,11 @@ import {
     RefreshCw,
     X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+    AnimatePresence,
+    motion,
+    useDragControls,
+} from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -131,6 +135,7 @@ export function QueueDrawer({
     onRefresh,
 }: QueueDrawerProps) {
     const [mounted, setMounted] = useState(false);
+    const dragControls = useDragControls();
 
     useEffect(() => {
         setMounted(true);
@@ -173,9 +178,38 @@ export function QueueDrawer({
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 32 }}
                         transition={{ duration: 0.22 }}
+                        drag="x"
+                        dragControls={dragControls}
+                        dragListener={false}
+                        dragConstraints={{
+                            left: 0,
+                            right: 180,
+                        }}
+                        dragElastic={0.18}
+                        dragMomentum={false}
+                        onDragEnd={(_, info) => {
+                            const shouldClose = info.offset.x > 90 || info.velocity.x > 650;
+
+                            if (shouldClose) {
+                                onClose();
+                            }
+                        }}
                         className="fixed bottom-0 right-0 top-0 z-[9001] flex w-full max-w-xl flex-col overflow-hidden border-l border-white/10 bg-[#11141d]/95 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:w-[520px]"
                     >
                         <div className="border-b border-white/10 p-5">
+                            <motion.button
+                                type="button"
+                                aria-label="Swipe right to close"
+                                onPointerDown={(event) => {
+                                    dragControls.start(event);
+                                }}
+                                whileTap={{ scaleX: 1.1, scaleY: 0.92 }}
+                                className="mb-4 flex touch-none cursor-grab items-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-400 active:cursor-grabbing sm:hidden"
+                            >
+                                <span className="h-1.5 w-8 rounded-full bg-white/25" />
+                                Swipe right to close
+                            </motion.button>
+
                             <div className="flex items-start gap-4">
                                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-green-300 ring-1 ring-green-400/20">
                                     <ListMusic size={22} strokeWidth={2.3} />
