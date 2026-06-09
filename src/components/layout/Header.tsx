@@ -1,10 +1,11 @@
 "use client";
 
-import { LogOut, Sparkles } from "lucide-react";
+import { LogOut, Sparkles, Settings } from "lucide-react";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { signOut } from "next-auth/react";
 
+import { SettingsDrawer } from "@/components/settings/SettingsDrawer";
 import { toast } from "@/components/common/ToastProvider";
 import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
 import { NowPlayingPopover } from "@/components/header/NowPlayingPopover";
@@ -31,6 +32,8 @@ export function Header({
   onRefreshPlayback,
 }: HeaderProps) {
   const nowPlayingRef = useRef<HTMLDivElement | null>(null);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const {
     queueOpen,
@@ -247,6 +250,18 @@ export function Header({
           type="button"
           whileHover={{ scale: 1.04, y: -1 }}
           whileTap={{ scale: 0.96 }}
+          onClick={() => setSettingsOpen(true)}
+          className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white sm:px-3"
+          aria-label="Settings"
+        >
+          <Settings size={16} strokeWidth={2.2} />
+          <span className="hidden sm:inline">Settings</span>
+        </motion.button>
+
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.04, y: -1 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => signOut()}
           className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white sm:px-3"
           aria-label="Logout"
@@ -254,6 +269,10 @@ export function Header({
           <LogOut size={16} strokeWidth={2.2} />
           <span className="hidden sm:inline">Logout</span>
         </motion.button>
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
       </motion.div>
       <QueueDrawer
         open={queueOpen}

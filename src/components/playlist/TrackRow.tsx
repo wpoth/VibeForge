@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import {
   ExternalLink,
   ListPlus,
@@ -79,10 +80,11 @@ export function TrackRow({
   const artistNames =
     track?.artists?.map((artist) => artist.name).filter(Boolean).join(", ") ||
     "Unknown artist";
-
+  const { settings } = useAppSettings();
   const canQueue = Boolean(trackUri) && !playbackLoading;
   const canUseTrackActions = Boolean(track?.name);
-  const canSwipeToQueue = !selectionMode && canQueue;
+  const canSwipeToQueue =
+    !settings.disableSwipeGestures && !selectionMode && canQueue;
 
   const sharedActionItems: Array<ContextMenuItem & MobileActionSheetItem> = [
     {
@@ -150,7 +152,8 @@ export function TrackRow({
               y: event.clientY,
             });
           }}
-          className={`group relative rounded-xl border p-3 transition ${selected
+          className={`group relative rounded-xl border transition ${settings.compactTrackRows ? "p-2" : "p-3"
+            }${selected
               ? "border-green-400/40 bg-green-500/10"
               : isPlaying
                 ? "border-green-400/30 bg-green-500/[0.07]"
@@ -163,8 +166,8 @@ export function TrackRow({
                 type="button"
                 onClick={() => onToggleSelect(playlistItem)}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
-                    ? "border-green-400 bg-green-500 text-black"
-                    : "border-white/20 text-transparent hover:border-white/40"
+                  ? "border-green-400 bg-green-500 text-black"
+                  : "border-white/20 text-transparent hover:border-white/40"
                   }`}
                 aria-label={selected ? "Deselect song" : "Select song"}
               >
@@ -181,6 +184,7 @@ export function TrackRow({
               imageUrl={imageUrl}
               isPlaying={isPlaying}
               disabled={playbackLoading || !trackUri}
+              compact={settings.compactTrackRows}
               onPlay={() => onPlay(playlistItem)}
             />
 
