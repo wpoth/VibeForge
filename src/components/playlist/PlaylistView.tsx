@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { CoverImage } from "@/components/common/CoverImage";
 import {
   ManagePanelSkeleton,
@@ -55,6 +57,17 @@ export function PlaylistView({
   onResearchTrack,
   onFindSimilarTracks,
 }: PlaylistViewProps) {
+  const [analysisHidden, setAnalysisHidden] = useState(false);
+
+  useEffect(() => {
+    setAnalysisHidden(false);
+  }, [selectedPlaylist.id]);
+
+  function handleGenerateAiAnalysis() {
+    setAnalysisHidden(false);
+    onGenerateAiAnalysis();
+  }
+
   if (loadingTracks) {
     return (
       <motion.div
@@ -125,7 +138,7 @@ export function PlaylistView({
                 whileHover={{ scale: 1.015 }}
                 whileTap={{ scale: 0.985 }}
                 transition={{ duration: 0.18 }}
-                onClick={onGenerateAiAnalysis}
+                onClick={handleGenerateAiAnalysis}
                 disabled={loadingAI}
                 className="mb-4 w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-black shadow-lg shadow-green-500/20 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
@@ -150,7 +163,38 @@ export function PlaylistView({
               </motion.div>
             )}
 
-            {!loadingAI && aiAnalysis && (
+            {!loadingAI && aiAnalysis && analysisHidden && (
+              <motion.div
+                key="ai-analysis-hidden"
+                initial={{ opacity: 0, y: 8, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">
+                    AI analysis hidden
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    The playlist analysis is still available.
+                  </p>
+                </div>
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setAnalysisHidden(false)}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.1] sm:w-auto"
+                >
+                  <Eye size={14} strokeWidth={2.2} />
+                  Show again
+                </motion.button>
+              </motion.div>
+            )}
+
+            {!loadingAI && aiAnalysis && !analysisHidden && (
               <motion.div
                 key="ai-analysis-result"
                 initial={{ opacity: 0, y: 10, scale: 0.99 }}
@@ -159,19 +203,37 @@ export function PlaylistView({
                 transition={{ duration: 0.22 }}
                 className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl"
               >
-                <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="font-semibold">AI Analysis</h3>
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="font-semibold">AI Analysis</h3>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Generated from the current playlist.
+                    </p>
+                  </div>
 
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={onGenerateAiAnalysis}
-                    disabled={loadingAI}
-                    className="w-full rounded-full bg-white/[0.06] px-3 py-2 text-xs text-zinc-300 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1"
-                  >
-                    Regenerate
-                  </motion.button>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleGenerateAiAnalysis}
+                      disabled={loadingAI}
+                      className="w-full rounded-full bg-white/[0.06] px-3 py-2 text-xs text-zinc-300 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1"
+                    >
+                      Regenerate
+                    </motion.button>
+
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => setAnalysisHidden(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-xs text-zinc-300 transition hover:bg-white/[0.1] sm:w-auto sm:py-1"
+                    >
+                      <EyeOff size={14} strokeWidth={2.2} />
+                      Hide
+                    </motion.button>
+                  </div>
                 </div>
 
                 <pre className="overflow-x-auto whitespace-pre-wrap text-sm text-zinc-300">
