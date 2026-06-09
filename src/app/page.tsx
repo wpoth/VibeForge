@@ -514,7 +514,7 @@ export default function Page() {
           </p>
 
           <BetaAccessNotice />
-          
+
           <button
             type="button"
             onClick={() => signIn("spotify", { callbackUrl: "/" })}
@@ -592,7 +592,7 @@ export default function Page() {
             aiAnalysis={aiAnalysis}
             selectionMode={selectionMode}
             selectedTrackUris={selectedTrackUris}
-            playingTrackUri={playingTrackUri}
+            playingTrackUri={currentlyPlaying?.uri ?? playingTrackUri}
             playbackLoading={playbackLoading}
             onToggleSelectionMode={toggleSelectionMode}
             onClearSelection={clearTrackSelection}
