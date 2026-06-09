@@ -9,7 +9,11 @@ import {
     SkipBack,
     SkipForward,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import {
+    AnimatePresence,
+    motion,
+    useDragControls,
+} from "motion/react";
 import {
     useEffect,
     useMemo,
@@ -163,6 +167,7 @@ export function NowPlayingPopover({
     const [mounted, setMounted] = useState(false);
     const [localProgressMs, setLocalProgressMs] = useState(0);
     const progressBarRef = useRef<HTMLButtonElement | null>(null);
+    const dragControls = useDragControls();
 
     useEffect(() => {
         setMounted(true);
@@ -282,14 +287,39 @@ export function NowPlayingPopover({
                             damping: 36,
                             mass: 0.75,
                         }}
+                        drag="y"
+                        dragControls={dragControls}
+                        dragListener={false}
+                        dragConstraints={{
+                            top: 0,
+                            bottom: 160,
+                        }}
+                        dragElastic={0.18}
+                        dragMomentum={false}
+                        onDragEnd={(_, info) => {
+                            const shouldClose =
+                                info.offset.y > 85 || info.velocity.y > 650;
+
+                            if (shouldClose) {
+                                onClose();
+                            }
+                        }}
                         style={{
                             transformOrigin: "top center",
                         }}
                         className="fixed bottom-4 left-1/2 z-[80] w-[calc(100vw-2rem)] max-w-[380px] -translate-x-1/2 overflow-hidden rounded-3xl border border-white/10 bg-[#151823]/95 p-4 shadow-2xl shadow-black/50 backdrop-blur-2xl sm:top-16 sm:bottom-auto"
                     >
-                        <div className="relative z-10 mb-3 flex justify-center sm:hidden">
-                            <div className="h-1.5 w-12 rounded-full bg-white/25" />
-                        </div>
+                        <motion.button
+                            type="button"
+                            aria-label="Drag down to close"
+                            onPointerDown={(event) => {
+                                dragControls.start(event);
+                            }}
+                            whileTap={{ scaleX: 1.15, scaleY: 0.9 }}
+                            className="relative z-20 mb-3 flex w-full touch-none cursor-grab justify-center active:cursor-grabbing sm:hidden"
+                        >
+                            <span className="h-1.5 w-12 rounded-full bg-white/25 transition group-hover:bg-white/35" />
+                        </motion.button>
 
                         <div className="pointer-events-none absolute inset-0">
                             {track.imageUrl ? (

@@ -50,8 +50,8 @@ type MenuState = {
   y: number;
 };
 
-const QUEUE_SWIPE_THRESHOLD = 72;
-const MAX_SWIPE_DISTANCE = 104;
+const QUEUE_SWIPE_THRESHOLD = 84;
+const MAX_SWIPE_DISTANCE = 116;
 
 export function TrackRow({
   playlistItem,
@@ -160,9 +160,9 @@ export function TrackRow({
 
     void animate(swipeX, 0, {
       type: "spring",
-      stiffness: 520,
-      damping: 36,
-      mass: 0.75,
+      stiffness: 260,
+      damping: 28,
+      mass: 0.95,
     });
   }
 
@@ -184,8 +184,8 @@ export function TrackRow({
             opacity: queueBackgroundOpacity,
           }}
           className={`pointer-events-none absolute inset-0 flex items-center rounded-xl px-4 lg:hidden ${swipeReady
-              ? "bg-green-500/25 text-green-200"
-              : "bg-green-500/15 text-green-300"
+            ? "bg-green-500/25 text-green-200"
+            : "bg-green-500/15 text-green-300"
             }`}
         >
           <motion.div
@@ -212,7 +212,7 @@ export function TrackRow({
             left: 0,
             right: MAX_SWIPE_DISTANCE,
           }}
-          dragElastic={0.12}
+          dragElastic={0.22}
           dragMomentum={false}
           style={{
             x: swipeX,
@@ -258,10 +258,10 @@ export function TrackRow({
             });
           }}
           className={`relative rounded-xl border p-3 transition ${selected
-              ? "border-green-400/40 bg-green-500/10"
-              : isPlaying
-                ? "border-green-400/30 bg-green-500/[0.07]"
-                : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
+            ? "border-green-400/40 bg-green-500/10"
+            : isPlaying
+              ? "border-green-400/30 bg-green-500/[0.07]"
+              : "border-white/5 bg-white/[0.04] hover:bg-white/[0.07]"
             }`}
         >
           <div className="flex items-center gap-3">
@@ -270,8 +270,8 @@ export function TrackRow({
                 type="button"
                 onClick={() => onToggleSelect(playlistItem)}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
-                    ? "border-green-400 bg-green-500 text-black"
-                    : "border-white/20 text-transparent hover:border-white/40"
+                  ? "border-green-400 bg-green-500 text-black"
+                  : "border-white/20 text-transparent hover:border-white/40"
                   }`}
                 aria-label={selected ? "Deselect song" : "Select song"}
               >
