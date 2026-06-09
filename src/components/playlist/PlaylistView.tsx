@@ -1,12 +1,16 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Radar } from "lucide-react";
 import { CoverImage } from "@/components/common/CoverImage";
 import {
   ManagePanelSkeleton,
   PlaylistHeaderSkeleton,
   TrackRowSkeleton,
 } from "@/components/common/Skeletons";
+import { PlaylistVibeMap } from "@/components/playlist/PlaylistVibeMap";
 import { TrackRow } from "@/components/playlist/TrackRow";
+import { usePlaylistVibeMap } from "@/hooks/usePlaylistVibeMap";
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getPlaylistTrackCount } from "@/lib/ui-helpers";
 import { AnimatePresence, motion } from "motion/react";
@@ -58,6 +62,19 @@ export function PlaylistView({
   onFindSimilarTracks,
 }: PlaylistViewProps) {
   const [analysisHidden, setAnalysisHidden] = useState(false);
+
+  const {
+    vibeMap,
+    vibeMapLoading,
+    vibeMapError,
+    vibeMapHidden,
+    generateVibeMap,
+    hideVibeMap,
+    showVibeMap,
+  } = usePlaylistVibeMap({
+    selectedPlaylist,
+    tracks,
+  });
 
   useEffect(() => {
     setAnalysisHidden(false);
@@ -128,22 +145,129 @@ export function PlaylistView({
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0">
           <AnimatePresence>
-            {tracks.length > 0 && !aiAnalysis && !selectionMode && (
-              <motion.button
-                key="generate-ai-analysis"
-                type="button"
+            {tracks.length > 0 && !selectionMode && (
+              <motion.div
+                key="playlist-ai-actions"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                whileHover={{ scale: 1.015 }}
-                whileTap={{ scale: 0.985 }}
                 transition={{ duration: 0.18 }}
-                onClick={handleGenerateAiAnalysis}
-                disabled={loadingAI}
-                className="mb-4 w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-black shadow-lg shadow-green-500/20 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap"
               >
-                Generate AI analysis
-              </motion.button>
+                {!vibeMap && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.015 }}
+                    whileTap={{ scale: 0.985 }}
+                    onClick={generateVibeMap}
+                    disabled={vibeMapLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/[0.08] px-4 py-2 font-semibold text-zinc-100 shadow-lg shadow-black/10 transition hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    <Radar size={16} strokeWidth={2.3} />
+                    {vibeMapLoading ? "Mapping vibes..." : "Generate vibe map"}
+                  </motion.button>
+                )}
+
+                {!aiAnalysis && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.015 }}
+                    whileTap={{ scale: 0.985 }}
+                    onClick={handleGenerateAiAnalysis}
+                    disabled={loadingAI}
+                    className="w-full rounded-lg bg-green-500 px-4 py-2 font-semibold text-black shadow-lg shadow-green-500/20 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    Generate AI analysis
+                  </motion.button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {vibeMapLoading && (
+              <motion.div
+                key="vibe-map-loading"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="mb-4 rounded-3xl border border-white/10 bg-white/[0.04] p-5"
+              >
+                <div className="mb-4 flex items-center gap-2 text-green-300">
+                  <Radar size={16} strokeWidth={2.3} />
+                  <p className="text-sm font-semibold">Mapping playlist vibe...</p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                    >
+                      <div className="mb-3 h-3 w-24 animate-pulse rounded bg-white/[0.08]" />
+                      <div className="h-1.5 animate-pulse rounded-full bg-white/[0.08]" />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {vibeMapError && !vibeMapLoading && (
+              <motion.div
+                key="vibe-map-error"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="mb-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4"
+              >
+                <p className="text-sm font-semibold text-red-200">
+                  Could not generate vibe map
+                </p>
+                <p className="mt-2 text-sm text-red-100/80">{vibeMapError}</p>
+              </motion.div>
+            )}
+
+            {!vibeMapLoading && vibeMap && vibeMapHidden && (
+              <motion.div
+                key="vibe-map-hidden"
+                initial={{ opacity: 0, y: 8, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.99 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white">
+                    Vibe map hidden
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    The playlist vibe map is still available.
+                  </p>
+                </div>
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={showVibeMap}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.1] sm:w-auto"
+                >
+                  <Eye size={14} strokeWidth={2.2} />
+                  Show again
+                </motion.button>
+              </motion.div>
+            )}
+
+            {!vibeMapLoading && vibeMap && !vibeMapHidden && (
+              <PlaylistVibeMap
+                key="vibe-map-result"
+                vibeMap={vibeMap}
+                loading={vibeMapLoading}
+                onRegenerate={generateVibeMap}
+                onHide={hideVibeMap}
+              />
             )}
           </AnimatePresence>
 
@@ -335,8 +459,8 @@ export function PlaylistView({
                     whileTap={{ scale: 0.985 }}
                     onClick={onToggleSelectionMode}
                     className={`rounded-xl px-3 py-2 text-sm font-medium transition ${selectionMode
-                      ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
-                      : "bg-green-500 text-black hover:bg-green-400"
+                        ? "bg-white/[0.08] text-zinc-300 hover:bg-white/[0.12]"
+                        : "bg-green-500 text-black hover:bg-green-400"
                       }`}
                   >
                     {selectionMode ? "Exit select" : "Select songs"}
