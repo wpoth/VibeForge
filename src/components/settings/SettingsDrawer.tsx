@@ -1,8 +1,9 @@
 "use client";
 
-import { RotateCcw, Settings, Waves, Zap, X } from "lucide-react";
+import { Info, RotateCcw, Settings, Waves, Zap, X } from "lucide-react";
 
 import { DrawerShell } from "@/components/common/DrawerShell";
+import { showWelcomeMessage } from "@/components/onboarding/WelcomeModal";
 import { useAppSettings } from "@/hooks/useAppSettings";
 
 type SettingsDrawerProps = {
@@ -125,6 +126,31 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
                                 checked={settings.compactTrackRows}
                                 onChange={(checked) => setSetting("compactTrackRows", checked)}
                             />
+                        </div>
+
+                        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                            <div className="flex items-start gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-green-500/15 text-green-300 ring-1 ring-green-400/20">
+                                    <Info size={18} strokeWidth={2.3} />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-white">
+                                        Welcome message
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-zinc-500">
+                                        View the intro again to see what VibeForge can do.
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        onClick={showWelcomeMessage}
+                                        className="mt-4 rounded-full bg-white/[0.08] px-3 py-2 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.12]"
+                                    >
+                                        Show welcome message
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
