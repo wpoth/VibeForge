@@ -196,7 +196,9 @@ export function WelcomeModal() {
                                     </div>
                                 </div>
 
-                                <BetaAccessNotice />
+                                <div className="mt-5">
+                                    <BetaAccessNotice />
+                                </div>
 
                                 <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                                     <button
