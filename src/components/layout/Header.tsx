@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Sparkles, Settings } from "lucide-react";
+import { LogOut, Maximize2, Sparkles, Settings } from "lucide-react";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { signOut } from "next-auth/react";
@@ -9,6 +9,7 @@ import { SettingsDrawer } from "@/components/settings/SettingsDrawer";
 import { toast } from "@/components/common/ToastProvider";
 import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
 import { NowPlayingPopover } from "@/components/header/NowPlayingPopover";
+import { FullscreenNowPlaying } from "@/components/header/FullscreenNowPlaying";
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { getErrorMessage } from "@/lib/ui-helpers";
 import { QueueDrawer } from "@/components/header/QueueDrawer";
@@ -34,6 +35,9 @@ export function Header({
   const nowPlayingRef = useRef<HTMLDivElement | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [fullscreenNowPlayingOpen, setFullscreenNowPlayingOpen] = useState(
+    false,
+  );
 
   const {
     queueOpen,
@@ -80,13 +84,13 @@ export function Header({
       if (!res.ok || data?.error) {
         throw new Error(
           data?.message ||
-          String(data?.error) ||
-          "Failed to control Spotify playback"
+            String(data?.error) ||
+            "Failed to control Spotify playback",
         );
       }
 
       await onRefreshPlayback?.();
-    } catch (error: unknown) {
+    } catch (error) {
       toast({
         type: "error",
         title: "Spotify control failed",
@@ -126,13 +130,13 @@ export function Header({
       if (!res.ok || data?.error) {
         throw new Error(
           data?.message ||
-          String(data?.error) ||
-          "Failed to seek Spotify playback"
+            String(data?.error) ||
+            "Failed to seek Spotify playback",
         );
       }
 
       await onRefreshPlayback?.();
-    } catch (error: unknown) {
+    } catch (error) {
       toast({
         type: "error",
         title: "Seek failed",
@@ -184,19 +188,38 @@ export function Header({
               transition={{ duration: 0.2 }}
               className="pointer-events-auto min-w-0"
             >
-              <CurrentlyPlayingBox
-                title={currentlyPlaying.title}
-                artists={currentlyPlaying.artists}
-                imageUrl={currentlyPlaying.imageUrl}
-                isPlaying={isPlaying}
-                onClick={() => {
-                  if (nowPlayingRef.current) {
-                    setAnchorRect(nowPlayingRef.current.getBoundingClientRect());
-                  }
+              <div className="flex items-center gap-2">
+                <CurrentlyPlayingBox
+                  title={currentlyPlaying.title}
+                  artists={currentlyPlaying.artists}
+                  imageUrl={currentlyPlaying.imageUrl}
+                  isPlaying={isPlaying}
+                  onClick={() => {
+                    if (nowPlayingRef.current) {
+                      setAnchorRect(
+                        nowPlayingRef.current.getBoundingClientRect(),
+                      );
+                    }
 
-                  setPopoverOpen((current) => !current);
-                }}
-              />
+                    setPopoverOpen((current) => !current);
+                  }}
+                />
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.06, y: -1 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => {
+                    setPopoverOpen(false);
+                    setFullscreenNowPlayingOpen(true);
+                  }}
+                  className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white sm:flex"
+                  aria-label="Open fullscreen now playing"
+                  title="Open fullscreen now playing"
+                >
+                  <Maximize2 size={15} strokeWidth={2.2} />
+                </motion.button>
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -282,6 +305,17 @@ export function Header({
         queue={queueItems}
         onClose={closeQueue}
         onRefresh={loadQueue}
+      />
+
+      <FullscreenNowPlaying
+        open={fullscreenNowPlayingOpen}
+        track={currentlyPlaying ?? null}
+        isPlaying={isPlaying}
+        controlLoading={controlLoading}
+        onPrevious={() => controlPlayback("previous")}
+        onNext={() => controlPlayback("next")}
+        onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
+        onClose={() => setFullscreenNowPlayingOpen(false)}
       />
     </motion.header>
   );
