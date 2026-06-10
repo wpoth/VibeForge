@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 
@@ -45,7 +46,9 @@ export function FullscreenNowPlaying({
   onTogglePlay,
   onClose,
 }: FullscreenNowPlayingProps) {
+  const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
+
   const progressPercent = useMemo(() => {
     if (!track?.durationMs || !track?.progressMs) return 0;
 
@@ -56,29 +59,12 @@ export function FullscreenNowPlaying({
   }, [track?.durationMs, track?.progressMs]);
 
   useEffect(() => {
-    if (!open) return;
-
-    async function enterFullscreen() {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch {
-        // Some browsers block fullscreen if it was not triggered directly enough by a user gesture.
-      }
-    }
-
-    void enterFullscreen();
-  }, [open]);
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     function syncFullscreenState() {
-      const isFullscreen = Boolean(document.fullscreenElement);
-      setFullscreenActive(isFullscreen);
-
-      if (open && !isFullscreen) {
-        onClose();
-      }
+      setFullscreenActive(Boolean(document.fullscreenElement));
     }
 
     document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -87,7 +73,17 @@ export function FullscreenNowPlaying({
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
     };
-  }, [onClose, open]);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +99,7 @@ export function FullscreenNowPlaying({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [open, onClose]);
 
   async function leaveFullscreen() {
     try {
@@ -111,7 +107,7 @@ export function FullscreenNowPlaying({
         await document.exitFullscreen();
       }
     } catch {
-      // Ignore browser fullscreen errors.
+      // Ignore fullscreen errors.
     }
 
     onClose();
@@ -126,14 +122,16 @@ export function FullscreenNowPlaying({
 
       await document.documentElement.requestFullscreen();
     } catch {
-      // Ignore browser fullscreen errors.
+      // Ignore fullscreen errors.
     }
   }
+
+  if (!mounted) return null;
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -141,12 +139,12 @@ export function FullscreenNowPlaying({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-[100] cursor-none overflow-hidden bg-black text-white"
+          className="fixed inset-0 z-[999999] cursor-none overflow-hidden bg-black text-white"
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen now playing"
         >
-          {track?.imageUrl && (
+          {track?.imageUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -156,9 +154,7 @@ export function FullscreenNowPlaying({
               />
               <div className="absolute inset-0 bg-gradient-to-br from-black via-black/80 to-black/95" />
             </>
-          )}
-
-          {!track?.imageUrl && (
+          ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
           )}
 
@@ -182,7 +178,7 @@ export function FullscreenNowPlaying({
             transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
           />
 
-          <div className="relative flex h-full w-full items-center justify-center p-6 sm:p-10">
+          <div className="relative flex h-screen w-screen items-center justify-center p-6 sm:p-10">
             <motion.div
               animate={{
                 x: [0, 34, -26, 18, 0],
@@ -225,7 +221,7 @@ export function FullscreenNowPlaying({
                   {albumText}
                 </p>
 
-                <div className="mt-10 w-full max-w-2xl mx-auto lg:mx-0">
+                <div className="mx-auto mt-10 w-full max-w-2xl lg:mx-0">
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                     <motion.div
                       className="h-full rounded-full bg-green-300"
@@ -245,7 +241,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onPrevious}
                     disabled={controlLoading || !track}
-                    className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous track"
                   >
                     <SkipBack size={20} />
@@ -255,7 +251,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onTogglePlay}
                     disabled={controlLoading || !track}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? (
@@ -269,7 +265,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onNext}
                     disabled={controlLoading || !track}
-                    className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next track"
                   >
                     <SkipForward size={20} />
@@ -283,7 +279,7 @@ export function FullscreenNowPlaying({
             <button
               type="button"
               onClick={toggleBrowserFullscreen}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label={
                 fullscreenActive
                   ? "Exit browser fullscreen"
@@ -300,7 +296,7 @@ export function FullscreenNowPlaying({
             <button
               type="button"
               onClick={leaveFullscreen}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label="Close fullscreen now playing"
             >
               <X size={18} />
@@ -312,6 +308,7 @@ export function FullscreenNowPlaying({
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
