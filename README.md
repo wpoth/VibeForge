@@ -110,7 +110,7 @@ cd vibeforge
 ### 2. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 3. Create environment variables
@@ -155,7 +155,7 @@ http://localhost:3000/api/auth/callback/spotify
 Start the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Open:
@@ -169,13 +169,13 @@ http://localhost:3000
 ## Build for Production
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 Start production server:
 
 ```bash
-npm start
+pnpm start
 ```
 
 ---
