@@ -1,6 +1,14 @@
 "use client";
 
-import { Maximize2, Minimize2, Pause, Play, SkipBack, SkipForward, X } from "lucide-react";
+import {
+  Maximize2,
+  Minimize2,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -41,7 +49,10 @@ export function FullscreenNowPlaying({
   const progressPercent = useMemo(() => {
     if (!track?.durationMs || !track?.progressMs) return 0;
 
-    return Math.min(100, Math.max(0, (track.progressMs / track.durationMs) * 100));
+    return Math.min(
+      100,
+      Math.max(0, (track.progressMs / track.durationMs) * 100),
+    );
   }, [track?.durationMs, track?.progressMs]);
 
   useEffect(() => {
@@ -62,7 +73,12 @@ export function FullscreenNowPlaying({
 
   useEffect(() => {
     function syncFullscreenState() {
-      setFullscreenActive(Boolean(document.fullscreenElement));
+      const isFullscreen = Boolean(document.fullscreenElement);
+      setFullscreenActive(isFullscreen);
+
+      if (open && !isFullscreen) {
+        onClose();
+      }
     }
 
     document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -71,7 +87,7 @@ export function FullscreenNowPlaying({
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
     };
-  }, []);
+  }, [onClose, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -205,7 +221,9 @@ export function FullscreenNowPlaying({
                   {artistText}
                 </p>
 
-                <p className="mt-2 text-sm text-zinc-500 sm:text-base">{albumText}</p>
+                <p className="mt-2 text-sm text-zinc-500 sm:text-base">
+                  {albumText}
+                </p>
 
                 <div className="mt-10 w-full max-w-2xl mx-auto lg:mx-0">
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -240,7 +258,11 @@ export function FullscreenNowPlaying({
                     className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
-                    {isPlaying ? <Pause size={26} fill="currentColor" /> : <Play size={26} fill="currentColor" />}
+                    {isPlaying ? (
+                      <Pause size={26} fill="currentColor" />
+                    ) : (
+                      <Play size={26} fill="currentColor" />
+                    )}
                   </button>
 
                   <button
@@ -262,9 +284,17 @@ export function FullscreenNowPlaying({
               type="button"
               onClick={toggleBrowserFullscreen}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
-              aria-label={fullscreenActive ? "Exit browser fullscreen" : "Enter browser fullscreen"}
+              aria-label={
+                fullscreenActive
+                  ? "Exit browser fullscreen"
+                  : "Enter browser fullscreen"
+              }
             >
-              {fullscreenActive ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+              {fullscreenActive ? (
+                <Minimize2 size={17} />
+              ) : (
+                <Maximize2 size={17} />
+              )}
             </button>
 
             <button

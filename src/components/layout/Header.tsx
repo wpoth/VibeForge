@@ -55,6 +55,19 @@ export function Header({
   const [seekLoading, setSeekLoading] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
+  async function openFullscreenNowPlaying() {
+    setPopoverOpen(false);
+    setFullscreenNowPlayingOpen(true);
+
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.warn("Fullscreen request failed:", error);
+    }
+  }
+
   async function controlPlayback(action: PlayerControlAction) {
     if (!accessToken) {
       toast({
@@ -209,10 +222,7 @@ export function Header({
                   type="button"
                   whileHover={{ scale: 1.06, y: -1 }}
                   whileTap={{ scale: 0.94 }}
-                  onClick={() => {
-                    setPopoverOpen(false);
-                    setFullscreenNowPlayingOpen(true);
-                  }}
+                  onClick={openFullscreenNowPlaying}
                   className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white sm:flex"
                   aria-label="Open fullscreen now playing"
                   title="Open fullscreen now playing"
