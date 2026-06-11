@@ -17,6 +17,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 
+import { LandingPage } from "@/components/dashboard/LandingPage";
+
 import { PlaylistView } from "@/components/playlist/PlaylistView";
 
 import { useAiAnalysis } from "@/hooks/useAiAnalysis";
@@ -699,46 +701,52 @@ export default function Page() {
         )}
 
         {view === "ai" && (
-          <>
-            <RecentlyPlayedDashboard
-              tracks={recentlyPlayed}
-              stats={recentlyPlayedStats}
-              loading={recentlyPlayedLoading}
-              loaded={recentlyPlayedLoaded}
-              hasRecentlyPlayedScope={hasRecentlyPlayedScope}
-              actionLoadingUri={recentTrackActionLoadingUri}
-              onRefresh={loadRecentlyPlayed}
-              onPlayTrack={handlePlayRecentlyPlayedTrack}
-              onAddToQueue={handleAddRecentlyPlayedTrackToQueue}
-            />
-
-            <AiPlaylistCreator
-              profile={profile}
-              playlists={playlists}
-              aiPrompt={aiPrompt}
-              aiPlaylistName={aiPlaylistName}
-              aiPlaylistMode={aiPlaylistMode}
-              aiPlaylistTarget={aiPlaylistTarget}
-              selectedTargetPlaylistId={selectedTargetPlaylistId}
-              creatingPlaylist={creatingPlaylist}
-              createdPlaylistUrl={createdPlaylistUrl}
-              successMessage={aiPlaylistSuccessMessage}
-              previewTracks={previewTracks}
-              selectedPreviewTrackUris={selectedPreviewTrackUris}
-              generatingPreview={generatingPreview}
-              onPromptChange={setAiPrompt}
-              onPlaylistNameChange={setAiPlaylistName}
-              onModeChange={setAiPlaylistMode}
-              onTargetChange={setAiPlaylistTarget}
-              onTargetPlaylistChange={setSelectedTargetPlaylistId}
-              onGeneratePreview={generateTrackPreview}
-              onTogglePreviewTrack={togglePreviewTrack}
-              onSelectAllPreviewTracks={selectAllPreviewTracks}
-              onClearPreviewSelection={clearPreviewSelection}
-              onClearPreview={clearPreview}
-              onCreatePlaylist={handleCreateAiPlaylist}
-            />
-          </>
+          <LandingPage
+            currentlyPlaying={currentlyPlaying}
+            isPlaying={isPlaying}
+            recentlyPlayedCount={recentlyPlayedStats.total}
+            recentlyPlayedPanel={
+              <RecentlyPlayedDashboard
+                tracks={recentlyPlayed}
+                stats={recentlyPlayedStats}
+                loading={recentlyPlayedLoading}
+                loaded={recentlyPlayedLoaded}
+                hasRecentlyPlayedScope={hasRecentlyPlayedScope}
+                actionLoadingUri={recentTrackActionLoadingUri}
+                onRefresh={loadRecentlyPlayed}
+                onPlayTrack={handlePlayRecentlyPlayedTrack}
+                onAddToQueue={handleAddRecentlyPlayedTrackToQueue}
+              />
+            }
+            aiPlaylistPanel={
+              <AiPlaylistCreator
+                profile={profile}
+                playlists={playlists}
+                aiPrompt={aiPrompt}
+                aiPlaylistName={aiPlaylistName}
+                aiPlaylistMode={aiPlaylistMode}
+                aiPlaylistTarget={aiPlaylistTarget}
+                selectedTargetPlaylistId={selectedTargetPlaylistId}
+                creatingPlaylist={creatingPlaylist}
+                createdPlaylistUrl={createdPlaylistUrl}
+                successMessage={aiPlaylistSuccessMessage}
+                previewTracks={previewTracks}
+                selectedPreviewTrackUris={selectedPreviewTrackUris}
+                generatingPreview={generatingPreview}
+                onPromptChange={setAiPrompt}
+                onPlaylistNameChange={setAiPlaylistName}
+                onModeChange={setAiPlaylistMode}
+                onTargetChange={setAiPlaylistTarget}
+                onTargetPlaylistChange={setSelectedTargetPlaylistId}
+                onGeneratePreview={generateTrackPreview}
+                onTogglePreviewTrack={togglePreviewTrack}
+                onSelectAllPreviewTracks={selectAllPreviewTracks}
+                onClearPreviewSelection={clearPreviewSelection}
+                onClearPreview={clearPreview}
+                onCreatePlaylist={handleCreateAiPlaylist}
+              />
+            }
+          />
         )}
 
         {view === "playlist" && selectedPlaylist && (
