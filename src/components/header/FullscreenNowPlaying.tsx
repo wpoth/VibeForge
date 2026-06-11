@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
@@ -48,8 +48,12 @@ export function FullscreenNowPlaying({
 }: FullscreenNowPlayingProps) {
   const snakeBorderPathId = useId();
 
+  const touchStartYRef = useRef<number | null>(null);
+  const touchCurrentYRef = useRef<number | null>(null);
+
   const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
@@ -91,9 +95,14 @@ export function FullscreenNowPlaying({
     if (!open) return;
 
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+      setDragOffset(0);
+      touchStartYRef.current = null;
+      touchCurrentYRef.current = null;
     };
   }, [open]);
 
@@ -138,6 +147,48 @@ export function FullscreenNowPlaying({
     }
   }
 
+  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    touchCurrentYRef.current = event.touches[0]?.clientY ?? null;
+  }
+
+  function handleTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    const startY = touchStartYRef.current;
+    const currentY = event.touches[0]?.clientY ?? null;
+
+    if (startY === null || currentY === null) return;
+
+    touchCurrentYRef.current = currentY;
+
+    const distance = currentY - startY;
+
+    if (distance > 0) {
+      setDragOffset(Math.min(distance, 180));
+    }
+  }
+
+  function handleTouchEnd() {
+    const startY = touchStartYRef.current;
+    const currentY = touchCurrentYRef.current;
+
+    touchStartYRef.current = null;
+    touchCurrentYRef.current = null;
+
+    if (startY === null || currentY === null) {
+      setDragOffset(0);
+      return;
+    }
+
+    const distance = currentY - startY;
+
+    if (distance > 90) {
+      void leaveFullscreen();
+      return;
+    }
+
+    setDragOffset(0);
+  }
+
   if (!mounted) return null;
 
   return createPortal(
@@ -145,13 +196,16 @@ export function FullscreenNowPlaying({
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: dragOffset > 0 ? Math.max(0.55, 1 - dragOffset / 260) : 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-[999999] cursor-none overflow-hidden bg-black text-white"
+          transition={{ duration: 0.22 }}
+          className="fixed inset-0 z-[999999] cursor-auto overflow-hidden bg-black text-white sm:cursor-none"
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen now playing"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <style>
             {`
@@ -227,6 +281,24 @@ export function FullscreenNowPlaying({
                 }
               }
 
+              @keyframes vf-mobile-album-drift {
+                0% {
+                  transform: translate3d(0, 0, 0);
+                }
+                25% {
+                  transform: translate3d(6px, -4px, 0);
+                }
+                50% {
+                  transform: translate3d(-5px, 5px, 0);
+                }
+                75% {
+                  transform: translate3d(4px, 3px, 0);
+                }
+                100% {
+                  transform: translate3d(0, 0, 0);
+                }
+              }
+
               @keyframes vf-progress-shimmer {
                 0% {
                   opacity: 0.18;
@@ -265,6 +337,23 @@ export function FullscreenNowPlaying({
               .vf-progress-shimmer {
                 animation: vf-progress-shimmer 2.6s ease-in-out infinite;
               }
+
+              @media (max-width: 639px) {
+                .vf-background-float-a,
+                .vf-background-float-b {
+                  animation-duration: 90s;
+                  opacity: 0.55;
+                }
+
+                .vf-stage-drift {
+                  animation: none;
+                  transform: translate3d(0, 0, 0);
+                }
+
+                .vf-album-drift {
+                  animation: vf-mobile-album-drift 42s linear infinite;
+                }
+              }
             `}
           </style>
 
@@ -274,9 +363,9 @@ export function FullscreenNowPlaying({
               <img
                 src={track.imageUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-3xl"
+                className="absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-3xl sm:opacity-20"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-black via-black/80 to-black/95" />
+              <div className="absolute inset-0 bg-gradient-to-br from-black via-black/85 to-black/95" />
             </>
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
@@ -284,19 +373,30 @@ export function FullscreenNowPlaying({
 
           <div
             aria-hidden="true"
-            className="vf-background-float-a vf-gpu-smooth absolute h-80 w-80 rounded-full bg-green-400/10 blur-3xl"
+            className="vf-background-float-a vf-gpu-smooth absolute h-52 w-52 rounded-full bg-green-400/10 blur-3xl sm:h-80 sm:w-80"
           />
 
           <div
             aria-hidden="true"
-            className="vf-background-float-b vf-gpu-smooth absolute h-72 w-72 rounded-full bg-purple-400/10 blur-3xl"
+            className="vf-background-float-b vf-gpu-smooth absolute h-48 w-48 rounded-full bg-purple-400/10 blur-3xl sm:h-72 sm:w-72"
           />
 
-          <div className="relative flex h-screen w-screen items-center justify-center px-5 py-8 sm:px-10">
-            <div className="vf-stage-drift vf-gpu-smooth flex w-full max-w-6xl flex-col items-center">
-              <div className="relative flex min-h-[min(68vh,640px)] w-full items-center justify-center">
-                <div className="vf-album-drift vf-gpu-smooth relative z-10 w-[min(58vw,430px)] min-w-[260px]">
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[calc(100%+5.5rem)] w-[calc(100%+5.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-visible">
+          <motion.div
+            animate={{ y: dragOffset }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+            className="relative flex h-[100dvh] w-screen items-center justify-center overflow-hidden px-4 pb-6 pt-12 sm:h-screen sm:px-10 sm:py-8"
+          >
+            <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 flex-col items-center gap-2 sm:hidden">
+              <div className="h-1.5 w-12 rounded-full bg-white/25" />
+              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
+                Swipe down to close
+              </p>
+            </div>
+
+            <div className="vf-stage-drift vf-gpu-smooth flex h-full w-full max-w-6xl flex-col items-center justify-center">
+              <div className="relative flex w-full flex-1 items-center justify-center sm:min-h-[min(68vh,640px)]">
+                <div className="vf-album-drift vf-gpu-smooth relative z-10 w-[min(64vw,280px)] min-w-[210px] sm:w-[min(58vw,430px)] sm:min-w-[260px]">
+                  <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[calc(100%+3.25rem)] w-[calc(100%+3.25rem)] -translate-x-1/2 -translate-y-1/2 overflow-visible sm:h-[calc(100%+5.5rem)] sm:w-[calc(100%+5.5rem)]">
                     <svg
                       viewBox="0 0 500 500"
                       className="h-full w-full overflow-visible"
@@ -319,7 +419,7 @@ export function FullscreenNowPlaying({
                       </defs>
 
                       <text
-                        className="fill-white/90 text-[18px] font-black uppercase tracking-[0.28em]"
+                        className="fill-white/90 text-[18px] font-black uppercase tracking-[0.28em] sm:text-[18px]"
                         dominantBaseline="middle"
                       >
                         <textPath
@@ -338,7 +438,7 @@ export function FullscreenNowPlaying({
                       </text>
 
                       <text
-                        className="fill-white/25 text-[18px] font-black uppercase tracking-[0.28em]"
+                        className="fill-white/25 text-[18px] font-black uppercase tracking-[0.28em] sm:text-[18px]"
                         dominantBaseline="middle"
                       >
                         <textPath
@@ -363,11 +463,11 @@ export function FullscreenNowPlaying({
                     <img
                       src={track.imageUrl}
                       alt=""
-                      className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-125 rounded-[2.4rem] object-cover opacity-35 blur-3xl"
+                      className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 rounded-[2.4rem] object-cover opacity-25 blur-2xl sm:scale-125 sm:opacity-35 sm:blur-3xl"
                     />
                   )}
 
-                  <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60">
+                  <div className="relative aspect-square overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60 sm:rounded-[2rem]">
                     {track?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -386,25 +486,25 @@ export function FullscreenNowPlaying({
                 </div>
               </div>
 
-              <div className="relative z-20 -mt-2 w-full max-w-4xl text-center">
-                <p className="mb-3 text-xs uppercase tracking-[0.45em] text-green-300/70 sm:text-sm">
+              <div className="relative z-20 w-full max-w-4xl shrink-0 text-center sm:-mt-2">
+                <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-green-300/70 sm:mb-3 sm:text-sm sm:tracking-[0.45em]">
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
 
-                <h2 className="text-balance text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+                <h2 className="mx-auto line-clamp-2 max-w-[92vw] text-balance text-2xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
                   {track?.title || "Nothing playing"}
                 </h2>
 
-                <p className="mt-4 text-lg text-zinc-300 sm:text-2xl">
+                <p className="mx-auto mt-3 line-clamp-1 max-w-[88vw] text-base text-zinc-300 sm:mt-4 sm:text-2xl">
                   {artistText}
                 </p>
 
-                <p className="mt-2 text-sm text-zinc-500 sm:text-base">
+                <p className="mx-auto mt-1 line-clamp-1 max-w-[84vw] text-xs text-zinc-500 sm:mt-2 sm:text-base">
                   {albumText}
                 </p>
 
-                <div className="mx-auto mt-8 w-full max-w-2xl">
-                  <div className="relative h-3 overflow-hidden rounded-full border border-white/10 bg-white/10 shadow-[0_0_35px_rgba(255,255,255,0.08)]">
+                <div className="mx-auto mt-6 w-full max-w-[88vw] sm:mt-8 sm:max-w-2xl">
+                  <div className="relative h-2.5 overflow-hidden rounded-full border border-white/10 bg-white/10 shadow-[0_0_35px_rgba(255,255,255,0.08)] sm:h-3">
                     {track?.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -436,34 +536,34 @@ export function FullscreenNowPlaying({
                     </motion.div>
                   </div>
 
-                  <div className="mt-3 flex justify-between text-xs text-zinc-500">
+                  <div className="mt-2 flex justify-between text-[10px] text-zinc-500 sm:mt-3 sm:text-xs">
                     <span>{formatTime(track?.progressMs)}</span>
                     <span>{formatTime(track?.durationMs)}</span>
                   </div>
                 </div>
 
-                <div className="mt-8 flex cursor-auto items-center justify-center gap-4">
+                <div className="mt-6 flex cursor-auto items-center justify-center gap-4 sm:mt-8">
                   <button
                     type="button"
                     onClick={onPrevious}
                     disabled={controlLoading || !track}
-                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12"
                     aria-label="Previous track"
                   >
-                    <SkipBack size={20} />
+                    <SkipBack size={19} />
                   </button>
 
                   <button
                     type="button"
                     onClick={onTogglePlay}
                     disabled={controlLoading || !track}
-                    className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16"
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? (
-                      <Pause size={26} fill="currentColor" />
+                      <Pause size={25} fill="currentColor" />
                     ) : (
-                      <Play size={26} fill="currentColor" />
+                      <Play size={25} fill="currentColor" />
                     )}
                   </button>
 
@@ -471,17 +571,17 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onNext}
                     disabled={controlLoading || !track}
-                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12"
                     aria-label="Next track"
                   >
-                    <SkipForward size={20} />
+                    <SkipForward size={19} />
                   </button>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="absolute right-4 top-4 flex cursor-auto items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100">
+          <div className="absolute right-4 top-4 hidden cursor-auto items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex">
             <button
               type="button"
               onClick={toggleBrowserFullscreen}
@@ -509,7 +609,16 @@ export function FullscreenNowPlaying({
             </button>
           </div>
 
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-auto rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 opacity-0 backdrop-blur-xl transition hover:opacity-100 focus-within:opacity-100">
+          <button
+            type="button"
+            onClick={leaveFullscreen}
+            className="absolute right-4 top-4 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/35 text-zinc-200 backdrop-blur-xl transition active:scale-95 sm:hidden"
+            aria-label="Close fullscreen now playing"
+          >
+            <X size={18} />
+          </button>
+
+          <div className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 cursor-auto rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 opacity-0 backdrop-blur-xl transition hover:opacity-100 focus-within:opacity-100 sm:block">
             Press Esc to close. Controls appear when you move to the top-right.
           </div>
         </motion.div>
