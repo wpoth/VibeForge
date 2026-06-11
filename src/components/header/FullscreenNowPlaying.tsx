@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
@@ -46,8 +46,20 @@ export function FullscreenNowPlaying({
   onTogglePlay,
   onClose,
 }: FullscreenNowPlayingProps) {
+  const circleTextId = useId();
+
   const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
+
+  const artistText = track?.artists?.join(", ") || "Spotify";
+  const albumText = track?.album || "Now playing";
+
+  const orbitText = useMemo(() => {
+    const title = track?.title || "Nothing playing";
+    const artists = artistText || "Unknown artist";
+
+    return `${title} • ${artists} • ${albumText} • `.repeat(8);
+  }, [track?.title, artistText, albumText]);
 
   const progressPercent = useMemo(() => {
     if (!track?.durationMs || !track?.progressMs) return 0;
@@ -128,9 +140,6 @@ export function FullscreenNowPlaying({
 
   if (!mounted) return null;
 
-  const artistText = track?.artists?.join(", ") || "Spotify";
-  const albumText = track?.album || "Now playing";
-
   return createPortal(
     <AnimatePresence>
       {open && (
@@ -178,42 +187,127 @@ export function FullscreenNowPlaying({
             transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
           />
 
-          <div className="relative flex h-screen w-screen items-center justify-center p-6 sm:p-10">
+          <div className="relative flex h-screen w-screen items-center justify-center px-5 py-8 sm:px-10">
             <motion.div
               animate={{
-                x: [0, 34, -26, 18, 0],
-                y: [0, -20, 24, 16, 0],
+                x: [0, 26, -22, 14, 0],
+                y: [0, -18, 20, 12, 0],
               }}
-              transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-              className="grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(280px,420px),1fr]"
+              transition={{ duration: 95, repeat: Infinity, ease: "linear" }}
+              className="flex w-full max-w-6xl flex-col items-center"
             >
-              <div className="mx-auto w-full max-w-[420px]">
-                <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60">
-                  {track?.imageUrl ? (
+              <div className="relative flex min-h-[min(72vh,680px)] w-full items-center justify-center">
+                <motion.div
+                  aria-hidden="true"
+                  animate={{ rotate: 360 }}
+                  transition={{
+                    duration: 95,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="absolute left-1/2 top-1/2 h-[min(86vw,680px)] w-[min(86vw,680px)] -translate-x-1/2 -translate-y-1/2"
+                >
+                  <svg
+                    viewBox="0 0 500 500"
+                    className="h-full w-full overflow-visible"
+                  >
+                    <defs>
+                      <path
+                        id={circleTextId}
+                        d="M 250,250 m -205,0 a 205,205 0 1,1 410,0 a 205,205 0 1,1 -410,0"
+                      />
+                    </defs>
+
+                    <text className="fill-white/12 text-[20px] font-black uppercase tracking-[0.35em]">
+                      <textPath href={`#${circleTextId}`} startOffset="0%">
+                        {orbitText}
+                      </textPath>
+                    </text>
+                  </svg>
+                </motion.div>
+
+                <motion.div
+                  aria-hidden="true"
+                  animate={{ rotate: -360 }}
+                  transition={{
+                    duration: 130,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="absolute left-1/2 top-1/2 h-[min(98vw,780px)] w-[min(98vw,780px)] -translate-x-1/2 -translate-y-1/2"
+                >
+                  <svg
+                    viewBox="0 0 500 500"
+                    className="h-full w-full overflow-visible"
+                  >
+                    <defs>
+                      <path
+                        id={`${circleTextId}-outer`}
+                        d="M 250,250 m -235,0 a 235,235 0 1,1 470,0 a 235,235 0 1,1 -470,0"
+                      />
+                    </defs>
+
+                    <text className="fill-white/[0.055] text-[14px] font-black uppercase tracking-[0.5em]">
+                      <textPath
+                        href={`#${circleTextId}-outer`}
+                        startOffset="15%"
+                      >
+                        {orbitText}
+                      </textPath>
+                    </text>
+                  </svg>
+                </motion.div>
+
+                <motion.div
+                  animate={{
+                    x: [0, 18, -14, 10, 0],
+                    y: [0, -12, 16, 8, 0],
+                  }}
+                  transition={{
+                    duration: 68,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="relative z-10 w-[min(58vw,430px)] min-w-[260px]"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60">
+                    {track?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={track.imageUrl}
+                        alt={`${track.title ?? "Current track"} cover`}
+                        className="h-full w-full object-cover opacity-95"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-7xl text-white/20">
+                        ♪
+                      </div>
+                    )}
+
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5" />
+                  </div>
+
+                  {track?.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={track.imageUrl}
-                      alt={`${track.title ?? "Current track"} cover`}
-                      className="h-full w-full object-cover opacity-90"
+                      alt=""
+                      className="pointer-events-none absolute inset-0 -z-10 h-full w-full scale-110 rounded-[2.4rem] object-cover opacity-30 blur-2xl"
                     />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-7xl text-white/20">
-                      ♪
-                    </div>
                   )}
-                </div>
+                </motion.div>
               </div>
 
-              <div className="min-w-0 text-center lg:text-left">
-                <p className="mb-4 text-sm uppercase tracking-[0.45em] text-green-300/70">
+              <div className="relative z-20 -mt-4 w-full max-w-4xl text-center">
+                <p className="mb-3 text-xs uppercase tracking-[0.45em] text-green-300/70 sm:text-sm">
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
 
-                <h2 className="text-balance text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
+                <h2 className="text-balance text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
                   {track?.title || "Nothing playing"}
                 </h2>
 
-                <p className="mt-5 text-xl text-zinc-300 sm:text-2xl">
+                <p className="mt-4 text-lg text-zinc-300 sm:text-2xl">
                   {artistText}
                 </p>
 
@@ -221,13 +315,45 @@ export function FullscreenNowPlaying({
                   {albumText}
                 </p>
 
-                <div className="mx-auto mt-10 w-full max-w-2xl lg:mx-0">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="mx-auto mt-8 w-full max-w-2xl">
+                  <div className="relative h-3 overflow-hidden rounded-full border border-white/10 bg-white/10 shadow-[0_0_35px_rgba(255,255,255,0.08)]">
+                    {track?.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={track.imageUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full scale-150 object-cover opacity-80 blur-md"
+                      />
+                    )}
+
+                    <div className="absolute inset-0 bg-black/35" />
+
                     <motion.div
-                      className="h-full rounded-full bg-green-300"
+                      className="relative h-full overflow-hidden rounded-full shadow-[0_0_22px_rgba(255,255,255,0.35)]"
                       animate={{ width: `${progressPercent}%` }}
                       transition={{ duration: 0.35 }}
-                    />
+                    >
+                      {track?.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={track.imageUrl}
+                          alt=""
+                          className="h-full w-full scale-[3] object-cover blur-sm"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-green-300" />
+                      )}
+
+                      <motion.div
+                        className="absolute inset-0 bg-white/25"
+                        animate={{ opacity: [0.18, 0.38, 0.18] }}
+                        transition={{
+                          duration: 2.6,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    </motion.div>
                   </div>
 
                   <div className="mt-3 flex justify-between text-xs text-zinc-500">
@@ -236,7 +362,7 @@ export function FullscreenNowPlaying({
                   </div>
                 </div>
 
-                <div className="mt-10 flex items-center justify-center gap-4 lg:justify-start">
+                <div className="mt-8 flex cursor-auto items-center justify-center gap-4">
                   <button
                     type="button"
                     onClick={onPrevious}
