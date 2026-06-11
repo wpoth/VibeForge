@@ -92,7 +92,7 @@ export function CurrentlyPlayingBox({
             whileTap={{ scale: hasTrack ? 0.985 : 1 }}
             onClick={hasTrack ? onClick : undefined}
             disabled={!hasTrack}
-            className="group relative flex min-w-0 max-w-[180px] items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70 sm:max-w-xs sm:gap-3 sm:px-3 lg:max-w-md"
+            className="group relative flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-left shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.08] disabled:cursor-default disabled:opacity-70 sm:w-auto sm:max-w-xs sm:gap-3 sm:px-3 lg:max-w-md"
         >
             {imageUrl && (
                 <>
@@ -133,12 +133,12 @@ export function CurrentlyPlayingBox({
                 )}
             </div>
 
-            <div className="relative min-w-0">
+            <div className="relative min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-white">
                     <TypewriterText text={title ?? "Nothing playing"} />
                 </p>
 
-                <p className="hidden truncate text-[11px] text-zinc-300 sm:block">
+                <p className="truncate text-[11px] text-zinc-300">
                     <TypewriterText text={artistText} />
                 </p>
             </div>

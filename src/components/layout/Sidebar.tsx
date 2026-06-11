@@ -27,7 +27,7 @@ export function Sidebar({
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.24 }}
-      className="custom-sidebar-scrollbar relative z-20 mt-14 w-full overflow-x-hidden border-b border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl lg:fixed lg:left-0 lg:top-14 lg:mt-0 lg:h-[calc(100vh-56px)] lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r"
+      className="custom-sidebar-scrollbar relative z-20 mt-[104px] w-full overflow-x-hidden border-b border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl sm:mt-14 lg:fixed lg:left-0 lg:top-14 lg:mt-0 lg:h-[calc(100vh-56px)] lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r"
     >
       <motion.div
         initial={{ opacity: 0, y: 8 }}
