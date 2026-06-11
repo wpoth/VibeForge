@@ -7,6 +7,7 @@ import { SongResearchDrawer } from "@/components/ai/SongResearchDrawer";
 import { useSongResearch } from "@/hooks/useSongResearch";
 import { AiPlaylistCreator } from "@/components/ai/AiPlaylistCreator";
 import { SimilarTracksDrawer } from "@/components/ai/SimilarTracksDrawer";
+import { RecentlyPlayedDashboard } from "@/components/dashboard/RecentlyPlayedDashboard";
 
 import { BetaAccessNotice } from "@/components/common/BetaAccessNotice";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -23,6 +24,10 @@ import { useAiPlaylistCreator } from "@/hooks/useAiPlaylistCreator";
 import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
 import { usePlaylistRemoval } from "@/hooks/usePlaylistRemoval";
 import { usePlaylistTracks } from "@/hooks/usePlaylistTracks";
+import {
+  useRecentlyPlayed,
+  type RecentlyPlayedTrack,
+} from "@/hooks/useRecentlyPlayed";
 import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
 import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
@@ -38,6 +43,8 @@ export default function Page() {
 
   const [view, setView] = useState<"ai" | "playlist">("ai");
   const [error, setError] = useState<string | null>(null);
+  const [recentTrackActionLoadingUri, setRecentTrackActionLoadingUri] =
+    useState<string | null>(null);
   const lastAiSuccessMessageRef = useRef<string | null>(null);
 
   const {
@@ -68,6 +75,19 @@ export default function Page() {
     currentlyPlayingError,
     refreshCurrentlyPlaying,
   } = useCurrentlyPlaying(accessToken);
+
+  const {
+    recentlyPlayed,
+    recentlyPlayedStats,
+    recentlyPlayedLoaded,
+    recentlyPlayedLoading,
+    recentlyPlayedError,
+    loadRecentlyPlayed,
+  } = useRecentlyPlayed(accessToken);
+
+  const hasRecentlyPlayedScope = Boolean(
+    session?.scope?.split(" ").includes("user-read-recently-played"),
+  );
 
   const { profile, profileError } = useSpotifyProfile(accessToken);
 
@@ -203,7 +223,8 @@ export default function Page() {
       playlistRemovalError ||
       trackRemovalError ||
       currentlyPlayingError ||
-      playbackError;
+      playbackError ||
+      recentlyPlayedError;
 
     if (nextError) {
       setError(nextError);
@@ -218,6 +239,7 @@ export default function Page() {
     trackRemovalError,
     currentlyPlayingError,
     playbackError,
+    recentlyPlayedError,
   ]);
 
   useEffect(() => {
@@ -286,7 +308,7 @@ export default function Page() {
 
       if (!res.ok || data?.error) {
         throw new Error(
-          data?.message || String(data?.error) || "Failed to add song to queue"
+          data?.message || String(data?.error) || "Failed to add song to queue",
         );
       }
 
@@ -301,6 +323,128 @@ export default function Page() {
         title: "Could not add to queue",
         description: getErrorMessage(error),
       });
+    }
+  }
+
+  async function handlePlayRecentlyPlayedTrack(track: RecentlyPlayedTrack) {
+    setError(null);
+
+    if (!accessToken) {
+      toast({
+        type: "error",
+        title: "Could not play song",
+        description: "Missing access token.",
+      });
+      return;
+    }
+
+    if (!track.uri) {
+      toast({
+        type: "error",
+        title: "Could not play song",
+        description: "This track is missing a Spotify URI.",
+      });
+      return;
+    }
+
+    setRecentTrackActionLoadingUri(track.uri);
+
+    try {
+      const res = await fetch("/api/play-track-uri", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          trackUri: track.uri,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to play song",
+        );
+      }
+
+      await refreshCurrentlyPlaying();
+
+      toast({
+        type: "success",
+        title: "Playing track",
+        description: track.title,
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not play song",
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setRecentTrackActionLoadingUri(null);
+    }
+  }
+
+  async function handleAddRecentlyPlayedTrackToQueue(
+    track: RecentlyPlayedTrack,
+  ) {
+    setError(null);
+
+    if (!accessToken) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: "Missing access token.",
+      });
+      return;
+    }
+
+    if (!track.uri) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: "This track is missing a Spotify URI.",
+      });
+      return;
+    }
+
+    setRecentTrackActionLoadingUri(track.uri);
+
+    try {
+      const res = await fetch("/api/add-to-queue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          trackUri: track.uri,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        throw new Error(
+          data?.message || String(data?.error) || "Failed to add song to queue",
+        );
+      }
+
+      toast({
+        type: "success",
+        title: "Added to queue",
+        description: track.title,
+      });
+    } catch (error: unknown) {
+      toast({
+        type: "error",
+        title: "Could not add to queue",
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setRecentTrackActionLoadingUri(null);
     }
   }
 
@@ -555,32 +699,46 @@ export default function Page() {
         )}
 
         {view === "ai" && (
-          <AiPlaylistCreator
-            profile={profile}
-            playlists={playlists}
-            aiPrompt={aiPrompt}
-            aiPlaylistName={aiPlaylistName}
-            aiPlaylistMode={aiPlaylistMode}
-            aiPlaylistTarget={aiPlaylistTarget}
-            selectedTargetPlaylistId={selectedTargetPlaylistId}
-            creatingPlaylist={creatingPlaylist}
-            createdPlaylistUrl={createdPlaylistUrl}
-            successMessage={aiPlaylistSuccessMessage}
-            previewTracks={previewTracks}
-            selectedPreviewTrackUris={selectedPreviewTrackUris}
-            generatingPreview={generatingPreview}
-            onPromptChange={setAiPrompt}
-            onPlaylistNameChange={setAiPlaylistName}
-            onModeChange={setAiPlaylistMode}
-            onTargetChange={setAiPlaylistTarget}
-            onTargetPlaylistChange={setSelectedTargetPlaylistId}
-            onGeneratePreview={generateTrackPreview}
-            onTogglePreviewTrack={togglePreviewTrack}
-            onSelectAllPreviewTracks={selectAllPreviewTracks}
-            onClearPreviewSelection={clearPreviewSelection}
-            onClearPreview={clearPreview}
-            onCreatePlaylist={handleCreateAiPlaylist}
-          />
+          <>
+            <RecentlyPlayedDashboard
+              tracks={recentlyPlayed}
+              stats={recentlyPlayedStats}
+              loading={recentlyPlayedLoading}
+              loaded={recentlyPlayedLoaded}
+              hasRecentlyPlayedScope={hasRecentlyPlayedScope}
+              actionLoadingUri={recentTrackActionLoadingUri}
+              onRefresh={loadRecentlyPlayed}
+              onPlayTrack={handlePlayRecentlyPlayedTrack}
+              onAddToQueue={handleAddRecentlyPlayedTrackToQueue}
+            />
+
+            <AiPlaylistCreator
+              profile={profile}
+              playlists={playlists}
+              aiPrompt={aiPrompt}
+              aiPlaylistName={aiPlaylistName}
+              aiPlaylistMode={aiPlaylistMode}
+              aiPlaylistTarget={aiPlaylistTarget}
+              selectedTargetPlaylistId={selectedTargetPlaylistId}
+              creatingPlaylist={creatingPlaylist}
+              createdPlaylistUrl={createdPlaylistUrl}
+              successMessage={aiPlaylistSuccessMessage}
+              previewTracks={previewTracks}
+              selectedPreviewTrackUris={selectedPreviewTrackUris}
+              generatingPreview={generatingPreview}
+              onPromptChange={setAiPrompt}
+              onPlaylistNameChange={setAiPlaylistName}
+              onModeChange={setAiPlaylistMode}
+              onTargetChange={setAiPlaylistTarget}
+              onTargetPlaylistChange={setSelectedTargetPlaylistId}
+              onGeneratePreview={generateTrackPreview}
+              onTogglePreviewTrack={togglePreviewTrack}
+              onSelectAllPreviewTracks={selectAllPreviewTracks}
+              onClearPreviewSelection={clearPreviewSelection}
+              onClearPreview={clearPreview}
+              onCreatePlaylist={handleCreateAiPlaylist}
+            />
+          </>
         )}
 
         {view === "playlist" && selectedPlaylist && (
@@ -631,8 +789,7 @@ export default function Page() {
       <ConfirmDialog
         open={confirmingBulkRemove}
         title="Remove selected songs?"
-        description={`This will remove ${selectedTrackUris.length
-          } selected song${selectedTrackUris.length === 1 ? "" : "s"
+        description={`This will remove ${selectedTrackUris.length} selected song${selectedTrackUris.length === 1 ? "" : "s"
           } from "${selectedPlaylist?.name ?? "this playlist"}".`}
         confirmLabel="Remove songs"
         cancelLabel="Keep songs"
