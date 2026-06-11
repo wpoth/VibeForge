@@ -50,15 +50,14 @@ export function FullscreenNowPlaying({
 
   const touchStartYRef = useRef<number | null>(null);
   const touchCurrentYRef = useRef<number | null>(null);
+  const cursorTimeoutRef = useRef<number | null>(null);
+  const hintTimeoutRef = useRef<number | null>(null);
 
   const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
-  const [cursorPosition, setCursorPosition] = useState({
-    x: -100,
-    y: -100,
-  });
   const [cursorVisible, setCursorVisible] = useState(false);
+  const [hintPosition, setHintPosition] = useState<"top" | "bottom">("top");
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
@@ -102,13 +101,30 @@ export function FullscreenNowPlaying({
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
 
+    setHintPosition("top");
+
+    hintTimeoutRef.current = window.setTimeout(() => {
+      setHintPosition("bottom");
+    }, 3500);
+
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
       setDragOffset(0);
       setCursorVisible(false);
+      setHintPosition("top");
       touchStartYRef.current = null;
       touchCurrentYRef.current = null;
+
+      if (cursorTimeoutRef.current) {
+        window.clearTimeout(cursorTimeoutRef.current);
+        cursorTimeoutRef.current = null;
+      }
+
+      if (hintTimeoutRef.current) {
+        window.clearTimeout(hintTimeoutRef.current);
+        hintTimeoutRef.current = null;
+      }
     };
   }, [open]);
 
@@ -153,17 +169,34 @@ export function FullscreenNowPlaying({
     }
   }
 
-  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
-    setCursorPosition({
-      x: event.clientX,
-      y: event.clientY,
-    });
-
+  function handleMouseMove() {
     setCursorVisible(true);
+
+    if (cursorTimeoutRef.current) {
+      window.clearTimeout(cursorTimeoutRef.current);
+    }
+
+    cursorTimeoutRef.current = window.setTimeout(() => {
+      setCursorVisible(false);
+    }, 1400);
   }
 
   function handleMouseLeave() {
     setCursorVisible(false);
+
+    if (cursorTimeoutRef.current) {
+      window.clearTimeout(cursorTimeoutRef.current);
+      cursorTimeoutRef.current = null;
+    }
+  }
+
+  function moveHintToBottom() {
+    setHintPosition("bottom");
+
+    if (hintTimeoutRef.current) {
+      window.clearTimeout(hintTimeoutRef.current);
+      hintTimeoutRef.current = null;
+    }
   }
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
@@ -221,7 +254,8 @@ export function FullscreenNowPlaying({
           }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
-          className="fixed inset-0 z-[999999] cursor-auto overflow-hidden bg-black text-white sm:cursor-none"
+          className={`fixed inset-0 z-[999999] overflow-hidden bg-black text-white ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
+            }`}
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen now playing"
@@ -566,12 +600,13 @@ export function FullscreenNowPlaying({
                   </div>
                 </div>
 
-                <div className="mt-6 flex cursor-auto items-center justify-center gap-4 sm:mt-8">
+                <div className="mt-6 flex items-center justify-center gap-4 sm:mt-8">
                   <button
                     type="button"
                     onClick={onPrevious}
                     disabled={controlLoading || !track}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 sm:cursor-none"
+                    className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
+                      }`}
                     aria-label="Previous track"
                   >
                     <SkipBack size={19} />
@@ -581,7 +616,8 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onTogglePlay}
                     disabled={controlLoading || !track}
-                    className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16 sm:cursor-none"
+                    className={`flex h-15 w-15 items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
+                      }`}
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? (
@@ -595,7 +631,8 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onNext}
                     disabled={controlLoading || !track}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 sm:cursor-none"
+                    className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
+                      }`}
                     aria-label="Next track"
                   >
                     <SkipForward size={19} />
@@ -605,11 +642,15 @@ export function FullscreenNowPlaying({
             </div>
           </motion.div>
 
-          <div className="absolute right-4 top-4 hidden cursor-none items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex">
+          <div
+            className={`absolute right-4 top-4 hidden items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
+              }`}
+          >
             <button
               type="button"
               onClick={toggleBrowserFullscreen}
-              className="flex h-10 w-10 cursor-none items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
+                }`}
               aria-label={
                 fullscreenActive
                   ? "Exit browser fullscreen"
@@ -626,7 +667,8 @@ export function FullscreenNowPlaying({
             <button
               type="button"
               onClick={leaveFullscreen}
-              className="flex h-10 w-10 cursor-none items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
+                }`}
               aria-label="Close fullscreen now playing"
             >
               <X size={18} />
@@ -642,26 +684,21 @@ export function FullscreenNowPlaying({
             <X size={18} />
           </button>
 
-          <div className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 cursor-none rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 opacity-0 backdrop-blur-xl transition hover:opacity-100 focus-within:opacity-100 sm:block">
-            Press Esc to close. Controls appear when you move to the top-right.
-          </div>
-
           <motion.div
-            aria-hidden="true"
-            className="pointer-events-none fixed left-0 top-0 z-[1000000] hidden h-5 w-5 rounded-full border-2 border-white bg-black shadow-[0_0_18px_rgba(255,255,255,0.28)] sm:block"
+            initial={false}
             animate={{
-              x: cursorPosition.x - 10,
-              y: cursorPosition.y - 10,
+              top: hintPosition === "top" ? 18 : "auto",
+              bottom: hintPosition === "bottom" ? 16 : "auto",
               opacity: cursorVisible ? 1 : 0,
-              scale: cursorVisible ? 1 : 0.75,
+              y: hintPosition === "top" ? 0 : 0,
             }}
-            transition={{
-              type: "spring",
-              stiffness: 900,
-              damping: 45,
-              mass: 0.25,
-            }}
-          />
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            onMouseEnter={moveHintToBottom}
+            className={`absolute left-1/2 hidden -translate-x-1/2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 backdrop-blur-xl transition-colors hover:bg-white/[0.07] hover:text-zinc-300 sm:block ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
+              }`}
+          >
+            Move to the top-right to exit fullscreen.
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>,
