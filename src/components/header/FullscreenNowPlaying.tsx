@@ -54,6 +54,11 @@ export function FullscreenNowPlaying({
   const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
+  const [cursorPosition, setCursorPosition] = useState({
+    x: -100,
+    y: -100,
+  });
+  const [cursorVisible, setCursorVisible] = useState(false);
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
@@ -101,6 +106,7 @@ export function FullscreenNowPlaying({
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
       setDragOffset(0);
+      setCursorVisible(false);
       touchStartYRef.current = null;
       touchCurrentYRef.current = null;
     };
@@ -145,6 +151,19 @@ export function FullscreenNowPlaying({
     } catch {
       // Ignore fullscreen errors.
     }
+  }
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    setCursorPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    setCursorVisible(true);
+  }
+
+  function handleMouseLeave() {
+    setCursorVisible(false);
   }
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
@@ -196,13 +215,18 @@ export function FullscreenNowPlaying({
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: dragOffset > 0 ? Math.max(0.55, 1 - dragOffset / 260) : 1 }}
+          animate={{
+            opacity:
+              dragOffset > 0 ? Math.max(0.55, 1 - dragOffset / 260) : 1,
+          }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
           className="fixed inset-0 z-[999999] cursor-auto overflow-hidden bg-black text-white sm:cursor-none"
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen now playing"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -547,7 +571,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onPrevious}
                     disabled={controlLoading || !track}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 sm:cursor-none"
                     aria-label="Previous track"
                   >
                     <SkipBack size={19} />
@@ -557,7 +581,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onTogglePlay}
                     disabled={controlLoading || !track}
-                    className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16"
+                    className="flex h-15 w-15 cursor-pointer items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16 sm:cursor-none"
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? (
@@ -571,7 +595,7 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onNext}
                     disabled={controlLoading || !track}
-                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 sm:cursor-none"
                     aria-label="Next track"
                   >
                     <SkipForward size={19} />
@@ -581,11 +605,11 @@ export function FullscreenNowPlaying({
             </div>
           </motion.div>
 
-          <div className="absolute right-4 top-4 hidden cursor-auto items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex">
+          <div className="absolute right-4 top-4 hidden cursor-none items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex">
             <button
               type="button"
               onClick={toggleBrowserFullscreen}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className="flex h-10 w-10 cursor-none items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label={
                 fullscreenActive
                   ? "Exit browser fullscreen"
@@ -602,7 +626,7 @@ export function FullscreenNowPlaying({
             <button
               type="button"
               onClick={leaveFullscreen}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
+              className="flex h-10 w-10 cursor-none items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label="Close fullscreen now playing"
             >
               <X size={18} />
@@ -618,9 +642,26 @@ export function FullscreenNowPlaying({
             <X size={18} />
           </button>
 
-          <div className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 cursor-auto rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 opacity-0 backdrop-blur-xl transition hover:opacity-100 focus-within:opacity-100 sm:block">
+          <div className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 cursor-none rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 opacity-0 backdrop-blur-xl transition hover:opacity-100 focus-within:opacity-100 sm:block">
             Press Esc to close. Controls appear when you move to the top-right.
           </div>
+
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none fixed left-0 top-0 z-[1000000] hidden h-5 w-5 rounded-full border-2 border-white bg-black shadow-[0_0_18px_rgba(255,255,255,0.28)] sm:block"
+            animate={{
+              x: cursorPosition.x - 10,
+              y: cursorPosition.y - 10,
+              opacity: cursorVisible ? 1 : 0,
+              scale: cursorVisible ? 1 : 0.75,
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 900,
+              damping: 45,
+              mass: 0.25,
+            }}
+          />
         </motion.div>
       )}
     </AnimatePresence>,
