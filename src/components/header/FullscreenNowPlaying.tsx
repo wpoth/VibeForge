@@ -421,9 +421,19 @@ export function FullscreenNowPlaying({
               <img
                 src={track.imageUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-3xl sm:opacity-20"
+                className="absolute inset-0 h-full w-full scale-150 object-cover opacity-55 blur-3xl saturate-150"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-black via-black/85 to-black/95" />
+
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={track.imageUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-md saturate-125"
+              />
+
+              <div className="absolute inset-0 bg-black/55" />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/45 to-black/85" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.9)_100%)]" />
             </>
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
