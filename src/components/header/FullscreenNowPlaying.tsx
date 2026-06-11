@@ -153,6 +153,121 @@ export function FullscreenNowPlaying({
           aria-modal="true"
           aria-label="Fullscreen now playing"
         >
+          <style>
+            {`
+              @keyframes vf-background-float-a {
+                0% {
+                  transform: translate3d(10vw, 15vh, 0);
+                }
+                25% {
+                  transform: translate3d(70vw, 25vh, 0);
+                }
+                50% {
+                  transform: translate3d(40vw, 70vh, 0);
+                }
+                75% {
+                  transform: translate3d(18vw, 52vh, 0);
+                }
+                100% {
+                  transform: translate3d(10vw, 15vh, 0);
+                }
+              }
+
+              @keyframes vf-background-float-b {
+                0% {
+                  transform: translate3d(75vw, 70vh, 0);
+                }
+                25% {
+                  transform: translate3d(25vw, 60vh, 0);
+                }
+                50% {
+                  transform: translate3d(60vw, 12vh, 0);
+                }
+                75% {
+                  transform: translate3d(82vw, 30vh, 0);
+                }
+                100% {
+                  transform: translate3d(75vw, 70vh, 0);
+                }
+              }
+
+              @keyframes vf-stage-drift {
+                0% {
+                  transform: translate3d(0, 0, 0);
+                }
+                25% {
+                  transform: translate3d(26px, -18px, 0);
+                }
+                50% {
+                  transform: translate3d(-22px, 20px, 0);
+                }
+                75% {
+                  transform: translate3d(14px, 12px, 0);
+                }
+                100% {
+                  transform: translate3d(0, 0, 0);
+                }
+              }
+
+              @keyframes vf-album-drift {
+                0% {
+                  transform: translate3d(0, 0, 0);
+                }
+                25% {
+                  transform: translate3d(18px, -12px, 0);
+                }
+                50% {
+                  transform: translate3d(-14px, 16px, 0);
+                }
+                75% {
+                  transform: translate3d(10px, 8px, 0);
+                }
+                100% {
+                  transform: translate3d(0, 0, 0);
+                }
+              }
+
+              @keyframes vf-progress-shimmer {
+                0% {
+                  opacity: 0.18;
+                }
+                50% {
+                  opacity: 0.38;
+                }
+                100% {
+                  opacity: 0.18;
+                }
+              }
+
+              .vf-gpu-smooth {
+                transform: translate3d(0, 0, 0);
+                backface-visibility: hidden;
+                perspective: 1000px;
+                will-change: transform;
+              }
+
+              .vf-background-float-a {
+                animation: vf-background-float-a 48s linear infinite;
+              }
+
+              .vf-background-float-b {
+                animation: vf-background-float-b 55s linear infinite;
+              }
+
+              .vf-stage-drift {
+                animation: vf-stage-drift 95s linear infinite;
+              }
+
+              .vf-album-drift {
+                animation: vf-album-drift 68s linear infinite;
+              }
+
+              .vf-progress-shimmer {
+                animation: vf-progress-shimmer 2.6s ease-in-out infinite;
+              }
+            `}
+          </style>
+
           {track?.imageUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,48 +282,20 @@ export function FullscreenNowPlaying({
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
           )}
 
-          <motion.div
+          <div
             aria-hidden="true"
-            className="absolute h-80 w-80 rounded-full bg-green-400/10 blur-3xl"
-            animate={{
-              x: ["10vw", "70vw", "40vw", "10vw"],
-              y: ["15vh", "25vh", "70vh", "15vh"],
-            }}
-            transition={{ duration: 48, repeat: Infinity, ease: "linear" }}
+            className="vf-background-float-a vf-gpu-smooth absolute h-80 w-80 rounded-full bg-green-400/10 blur-3xl"
           />
 
-          <motion.div
+          <div
             aria-hidden="true"
-            className="absolute h-72 w-72 rounded-full bg-purple-400/10 blur-3xl"
-            animate={{
-              x: ["75vw", "25vw", "60vw", "75vw"],
-              y: ["70vh", "60vh", "12vh", "70vh"],
-            }}
-            transition={{ duration: 55, repeat: Infinity, ease: "linear" }}
+            className="vf-background-float-b vf-gpu-smooth absolute h-72 w-72 rounded-full bg-purple-400/10 blur-3xl"
           />
 
           <div className="relative flex h-screen w-screen items-center justify-center px-5 py-8 sm:px-10">
-            <motion.div
-              animate={{
-                x: [0, 26, -22, 14, 0],
-                y: [0, -18, 20, 12, 0],
-              }}
-              transition={{ duration: 95, repeat: Infinity, ease: "linear" }}
-              className="flex w-full max-w-6xl flex-col items-center"
-            >
+            <div className="vf-stage-drift vf-gpu-smooth flex w-full max-w-6xl flex-col items-center">
               <div className="relative flex min-h-[min(68vh,640px)] w-full items-center justify-center">
-                <motion.div
-                  animate={{
-                    x: [0, 18, -14, 10, 0],
-                    y: [0, -12, 16, 8, 0],
-                  }}
-                  transition={{
-                    duration: 68,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="relative z-10 w-[min(58vw,430px)] min-w-[260px]"
-                >
+                <div className="vf-album-drift vf-gpu-smooth relative z-10 w-[min(58vw,430px)] min-w-[260px]">
                   <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[calc(100%+5.5rem)] w-[calc(100%+5.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-visible">
                     <svg
                       viewBox="0 0 500 500"
@@ -235,12 +322,15 @@ export function FullscreenNowPlaying({
                         className="fill-white/90 text-[18px] font-black uppercase tracking-[0.28em]"
                         dominantBaseline="middle"
                       >
-                        <textPath href={`#${snakeBorderPathId}`} startOffset="100%">
+                        <textPath
+                          href={`#${snakeBorderPathId}`}
+                          startOffset="-100%"
+                        >
                           {snakeText}
                           <animate
                             attributeName="startOffset"
-                            from="100%"
-                            to="-100%"
+                            from="-100%"
+                            to="100%"
                             dur="18s"
                             repeatCount="indefinite"
                           />
@@ -251,12 +341,15 @@ export function FullscreenNowPlaying({
                         className="fill-white/25 text-[18px] font-black uppercase tracking-[0.28em]"
                         dominantBaseline="middle"
                       >
-                        <textPath href={`#${snakeBorderPathId}`} startOffset="0%">
+                        <textPath
+                          href={`#${snakeBorderPathId}`}
+                          startOffset="-200%"
+                        >
                           {snakeText}
                           <animate
                             attributeName="startOffset"
-                            from="0%"
-                            to="-200%"
+                            from="-200%"
+                            to="0%"
                             dur="18s"
                             repeatCount="indefinite"
                           />
@@ -290,7 +383,7 @@ export function FullscreenNowPlaying({
 
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5" />
                   </div>
-                </motion.div>
+                </div>
               </div>
 
               <div className="relative z-20 -mt-2 w-full max-w-4xl text-center">
@@ -339,15 +432,7 @@ export function FullscreenNowPlaying({
                         <div className="h-full w-full bg-green-300" />
                       )}
 
-                      <motion.div
-                        className="absolute inset-0 bg-white/25"
-                        animate={{ opacity: [0.18, 0.38, 0.18] }}
-                        transition={{
-                          duration: 2.6,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                      />
+                      <div className="vf-progress-shimmer absolute inset-0 bg-white/25" />
                     </motion.div>
                   </div>
 
@@ -393,7 +478,7 @@ export function FullscreenNowPlaying({
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           <div className="absolute right-4 top-4 flex cursor-auto items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100">
