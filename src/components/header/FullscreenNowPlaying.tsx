@@ -46,7 +46,7 @@ export function FullscreenNowPlaying({
   onTogglePlay,
   onClose,
 }: FullscreenNowPlayingProps) {
-  const circleTextId = useId();
+  const snakeBorderPathId = useId();
 
   const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
@@ -54,11 +54,11 @@ export function FullscreenNowPlaying({
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
 
-  const orbitText = useMemo(() => {
+  const snakeText = useMemo(() => {
     const title = track?.title || "Nothing playing";
     const artists = artistText || "Unknown artist";
 
-    return `${title} • ${artists} • ${albumText} • `.repeat(8);
+    return `${title}  •  ${artists}  •  ${albumText}  •  `;
   }, [track?.title, artistText, albumText]);
 
   const progressPercent = useMemo(() => {
@@ -196,68 +196,7 @@ export function FullscreenNowPlaying({
               transition={{ duration: 95, repeat: Infinity, ease: "linear" }}
               className="flex w-full max-w-6xl flex-col items-center"
             >
-              <div className="relative flex min-h-[min(72vh,680px)] w-full items-center justify-center">
-                <motion.div
-                  aria-hidden="true"
-                  animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 95,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="absolute left-1/2 top-1/2 h-[min(86vw,680px)] w-[min(86vw,680px)] -translate-x-1/2 -translate-y-1/2"
-                >
-                  <svg
-                    viewBox="0 0 500 500"
-                    className="h-full w-full overflow-visible"
-                  >
-                    <defs>
-                      <path
-                        id={circleTextId}
-                        d="M 250,250 m -205,0 a 205,205 0 1,1 410,0 a 205,205 0 1,1 -410,0"
-                      />
-                    </defs>
-
-                    <text className="fill-white/12 text-[20px] font-black uppercase tracking-[0.35em]">
-                      <textPath href={`#${circleTextId}`} startOffset="0%">
-                        {orbitText}
-                      </textPath>
-                    </text>
-                  </svg>
-                </motion.div>
-
-                <motion.div
-                  aria-hidden="true"
-                  animate={{ rotate: -360 }}
-                  transition={{
-                    duration: 130,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="absolute left-1/2 top-1/2 h-[min(98vw,780px)] w-[min(98vw,780px)] -translate-x-1/2 -translate-y-1/2"
-                >
-                  <svg
-                    viewBox="0 0 500 500"
-                    className="h-full w-full overflow-visible"
-                  >
-                    <defs>
-                      <path
-                        id={`${circleTextId}-outer`}
-                        d="M 250,250 m -235,0 a 235,235 0 1,1 470,0 a 235,235 0 1,1 -470,0"
-                      />
-                    </defs>
-
-                    <text className="fill-white/[0.055] text-[14px] font-black uppercase tracking-[0.5em]">
-                      <textPath
-                        href={`#${circleTextId}-outer`}
-                        startOffset="15%"
-                      >
-                        {orbitText}
-                      </textPath>
-                    </text>
-                  </svg>
-                </motion.div>
-
+              <div className="relative flex min-h-[min(68vh,640px)] w-full items-center justify-center">
                 <motion.div
                   animate={{
                     x: [0, 18, -14, 10, 0],
@@ -270,6 +209,71 @@ export function FullscreenNowPlaying({
                   }}
                   className="relative z-10 w-[min(58vw,430px)] min-w-[260px]"
                 >
+                  <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[calc(100%+5.5rem)] w-[calc(100%+5.5rem)] -translate-x-1/2 -translate-y-1/2 overflow-visible">
+                    <svg
+                      viewBox="0 0 500 500"
+                      className="h-full w-full overflow-visible"
+                    >
+                      <defs>
+                        <path
+                          id={snakeBorderPathId}
+                          d="
+                            M 82 46
+                            H 418
+                            Q 454 46 454 82
+                            V 418
+                            Q 454 454 418 454
+                            H 82
+                            Q 46 454 46 418
+                            V 82
+                            Q 46 46 82 46
+                          "
+                        />
+                      </defs>
+
+                      <text
+                        className="fill-white/90 text-[18px] font-black uppercase tracking-[0.28em]"
+                        dominantBaseline="middle"
+                      >
+                        <textPath href={`#${snakeBorderPathId}`} startOffset="100%">
+                          {snakeText}
+                          <animate
+                            attributeName="startOffset"
+                            from="100%"
+                            to="-100%"
+                            dur="18s"
+                            repeatCount="indefinite"
+                          />
+                        </textPath>
+                      </text>
+
+                      <text
+                        className="fill-white/25 text-[18px] font-black uppercase tracking-[0.28em]"
+                        dominantBaseline="middle"
+                      >
+                        <textPath href={`#${snakeBorderPathId}`} startOffset="0%">
+                          {snakeText}
+                          <animate
+                            attributeName="startOffset"
+                            from="0%"
+                            to="-200%"
+                            dur="18s"
+                            repeatCount="indefinite"
+                          />
+                        </textPath>
+                      </text>
+                    </svg>
+                  </div>
+
+                  {track?.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={track.imageUrl}
+                      alt=""
+                      className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-125 rounded-[2.4rem] object-cover opacity-35 blur-3xl"
+                    />
+                  )}
+
                   <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60">
                     {track?.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -286,19 +290,10 @@ export function FullscreenNowPlaying({
 
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5" />
                   </div>
-
-                  {track?.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={track.imageUrl}
-                      alt=""
-                      className="pointer-events-none absolute inset-0 -z-10 h-full w-full scale-110 rounded-[2.4rem] object-cover opacity-30 blur-2xl"
-                    />
-                  )}
                 </motion.div>
               </div>
 
-              <div className="relative z-20 -mt-4 w-full max-w-4xl text-center">
+              <div className="relative z-20 -mt-2 w-full max-w-4xl text-center">
                 <p className="mb-3 text-xs uppercase tracking-[0.45em] text-green-300/70 sm:text-sm">
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
