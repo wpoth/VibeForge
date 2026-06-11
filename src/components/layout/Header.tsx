@@ -56,6 +56,13 @@ export function Header({
   const [seekLoading, setSeekLoading] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
+  function handleLogoClick() {
+    setPopoverOpen(false);
+    onAiModeClick();
+
+    window.dispatchEvent(new CustomEvent("vibeforge:landing-home"));
+  }
+
   function toggleNowPlayingPopover(anchorElement: HTMLDivElement | null) {
     if (anchorElement) {
       setAnchorRect(anchorElement.getBoundingClientRect());
@@ -178,23 +185,25 @@ export function Header({
         className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0f1117]/90 px-3 backdrop-blur-xl sm:h-14 sm:px-5"
       >
         <div className="flex h-14 items-center sm:hidden">
-          <motion.div
+          <motion.button
+            type="button"
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.22, delay: 0.05 }}
-            className="flex min-w-0 shrink-0 items-center gap-2"
+            whileTap={{ scale: 0.96 }}
+            onClick={handleLogoClick}
+            className="flex min-w-0 shrink-0 items-center gap-2 rounded-full pr-2 text-left transition hover:text-green-100"
+            aria-label="Go to landing page"
+            title="Go to landing page"
           >
-            <motion.div
-              whileTap={{ scale: 0.95 }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10"
-            >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10">
               ♪
-            </motion.div>
+            </span>
 
             <span className="font-display truncate text-sm font-bold tracking-tight">
               VibeForge
             </span>
-          </motion.div>
+          </motion.button>
 
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <motion.button
@@ -280,27 +289,26 @@ export function Header({
         </div>
 
         <div className="hidden h-14 items-center sm:flex">
-          <motion.div
+          <motion.button
+            type="button"
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.22, delay: 0.05 }}
-            className="relative z-20 flex min-w-0 shrink-0 items-center gap-2"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={handleLogoClick}
+            className="relative z-20 flex min-w-0 shrink-0 items-center gap-2 rounded-full pr-2 text-left transition hover:text-green-100"
+            aria-label="Go to landing page"
+            title="Go to landing page"
           >
-            <motion.div
-              whileHover={{ scale: 1.08, rotate: -4 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10"
-            >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10">
               ♪
-            </motion.div>
+            </span>
 
-            <motion.h1
-              layout
-              className="font-display hidden truncate font-bold tracking-tight sm:block"
-            >
+            <span className="font-display hidden truncate font-bold tracking-tight sm:block">
               VibeForge
-            </motion.h1>
-          </motion.div>
+            </span>
+          </motion.button>
 
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex min-w-0 -translate-x-1/2 -translate-y-1/2 justify-center">
             <AnimatePresence mode="wait">

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 
@@ -39,6 +39,21 @@ export function LandingPage({
     const [activeView, setActiveView] = useState<LandingView>("home");
 
     const hasCurrentTrack = Boolean(currentlyPlaying?.title);
+
+    useEffect(() => {
+        function handleLandingHomeEvent() {
+            setActiveView("home");
+        }
+
+        window.addEventListener("vibeforge:landing-home", handleLandingHomeEvent);
+
+        return () => {
+            window.removeEventListener(
+                "vibeforge:landing-home",
+                handleLandingHomeEvent,
+            );
+        };
+    }, []);
 
     return (
         <div className="mx-auto w-full max-w-6xl">
