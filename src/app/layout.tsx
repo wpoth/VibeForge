@@ -15,9 +15,28 @@ const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
 });
 
-export const metadata: Metadata = {
-  title: "VibeForge",
-  description: "Analyze your Spotify playlists and generate music insights.",
+export const metadata = {
+  title: "VibeForge | AI Spotify Playlist Generator",
+  description:
+    "VibeForge helps you create AI-powered Spotify playlists, explore recently played tracks, and manage your music library with a calm, modern dashboard.",
+  keywords: [
+    "VibeForge",
+    "Spotify playlist generator",
+    "AI playlist generator",
+    "Spotify dashboard",
+    "music discovery app",
+    "playlist manager",
+  ],
+  authors: [{ name: "Wesley Poth" }],
+  creator: "Wesley Poth",
+  openGraph: {
+    title: "VibeForge | AI Spotify Playlist Generator",
+    description:
+      "Create AI-powered Spotify playlists, explore recent listens, and manage your music library.",
+    type: "website",
+    url: "https://vibeforge-music.vercel.app/",
+    siteName: "VibeForge",
+  }
 };
 
 export default function RootLayout({
