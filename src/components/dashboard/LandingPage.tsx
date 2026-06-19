@@ -9,13 +9,17 @@ import {
     Sparkles,
     Wand2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 
+type LandingView = "home" | "recently-played" | "ai-playlist";
+
 type LandingPageProps = {
+    initialView?: LandingView;
     currentlyPlaying?: CurrentlyPlayingTrack | null;
     isPlaying?: boolean;
     recentlyPlayedCount?: number;
@@ -23,26 +27,31 @@ type LandingPageProps = {
     aiPlaylistPanel: ReactNode;
 };
 
-type LandingView = "home" | "recently-played" | "ai-playlist";
-
 function getArtistText(artists?: string[]) {
     return artists && artists.length > 0 ? artists.join(", ") : "Spotify";
 }
 
 export function LandingPage({
+    initialView = "home",
     currentlyPlaying,
     isPlaying = false,
     recentlyPlayedCount = 0,
     recentlyPlayedPanel,
     aiPlaylistPanel,
 }: LandingPageProps) {
-    const [activeView, setActiveView] = useState<LandingView>("home");
+    const router = useRouter();
+    const [activeView, setActiveView] = useState<LandingView>(initialView);
 
     const hasCurrentTrack = Boolean(currentlyPlaying?.title);
 
     useEffect(() => {
+        setActiveView(initialView);
+    }, [initialView]);
+
+    useEffect(() => {
         function handleLandingHomeEvent() {
             setActiveView("home");
+            router.push("/dashboard");
         }
 
         window.addEventListener("vibeforge:landing-home", handleLandingHomeEvent);
@@ -53,7 +62,22 @@ export function LandingPage({
                 handleLandingHomeEvent,
             );
         };
-    }, []);
+    }, [router]);
+
+    function goHome() {
+        setActiveView("home");
+        router.push("/dashboard");
+    }
+
+    function goToRecentlyPlayed() {
+        setActiveView("recently-played");
+        router.push("/dashboard/recent");
+    }
+
+    function goToAiPlaylist() {
+        setActiveView("ai-playlist");
+        router.push("/dashboard/ai");
+    }
 
     return (
         <div className="mx-auto w-full max-w-6xl">
@@ -90,7 +114,7 @@ export function LandingPage({
                                     <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                                         <button
                                             type="button"
-                                            onClick={() => setActiveView("ai-playlist")}
+                                            onClick={goToAiPlaylist}
                                             className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-bold text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300"
                                         >
                                             <Wand2 size={17} />
@@ -99,7 +123,7 @@ export function LandingPage({
 
                                         <button
                                             type="button"
-                                            onClick={() => setActiveView("recently-played")}
+                                            onClick={goToRecentlyPlayed}
                                             className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08] hover:text-white"
                                         >
                                             <Clock3 size={17} />
@@ -174,7 +198,7 @@ export function LandingPage({
                         <section className="grid gap-4 md:grid-cols-3">
                             <button
                                 type="button"
-                                onClick={() => setActiveView("recently-played")}
+                                onClick={goToRecentlyPlayed}
                                 className="group rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5 text-left shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-white/[0.055]"
                             >
                                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-green-300">
@@ -199,7 +223,7 @@ export function LandingPage({
 
                             <button
                                 type="button"
-                                onClick={() => setActiveView("ai-playlist")}
+                                onClick={goToAiPlaylist}
                                 className="group rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5 text-left shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-white/[0.055]"
                             >
                                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-green-300">
@@ -252,7 +276,7 @@ export function LandingPage({
                     >
                         <button
                             type="button"
-                            onClick={() => setActiveView("home")}
+                            onClick={goHome}
                             className="mb-4 inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white"
                         >
                             <ArrowLeft size={16} />
@@ -273,7 +297,7 @@ export function LandingPage({
                     >
                         <button
                             type="button"
-                            onClick={() => setActiveView("home")}
+                            onClick={goHome}
                             className="mb-4 inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-medium text-zinc-300 transition hover:bg-white/[0.07] hover:text-white"
                         >
                             <ArrowLeft size={16} />
