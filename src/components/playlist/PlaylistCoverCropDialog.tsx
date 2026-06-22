@@ -70,6 +70,7 @@ export function PlaylistCoverCropDialog({
     onClose,
     onConfirm,
 }: PlaylistCoverCropDialogProps) {
+    const previewFrameRef = useRef<HTMLDivElement | null>(null);
     const imageElementRef = useRef<HTMLImageElement | null>(null);
     const dragStartRef = useRef<{
         pointerX: number;
@@ -78,6 +79,7 @@ export function PlaylistCoverCropDialog({
         offsetY: number;
     } | null>(null);
 
+    const [previewDisplaySize, setPreviewDisplaySize] = useState(PREVIEW_SIZE);
     const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
@@ -123,6 +125,31 @@ export function PlaylistCoverCropDialog({
             y: clamp(nextOffset.y, -maxY, maxY),
         };
     }
+
+    useEffect(() => {
+        if (!open) return;
+
+        const frame = previewFrameRef.current;
+
+        if (!frame) return;
+
+        function updatePreviewSize() {
+            const bounds = frame?.getBoundingClientRect();
+
+            if (!bounds) return;
+
+            setPreviewDisplaySize(bounds.width);
+        }
+
+        updatePreviewSize();
+
+        const observer = new ResizeObserver(updatePreviewSize);
+        observer.observe(frame);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [open]);
 
     useEffect(() => {
         if (!open || !file) {
@@ -247,6 +274,8 @@ export function PlaylistCoverCropDialog({
         }
     }
 
+    const previewScale = previewDisplaySize / PREVIEW_SIZE;
+
     return (
         <AnimatePresence>
             {open && (
@@ -312,10 +341,9 @@ export function PlaylistCoverCropDialog({
 
                                     <div className="relative rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-2 shadow-2xl shadow-black/30">
                                         <div
-                                            className="relative mx-auto overflow-hidden rounded-[1.25rem] bg-black"
+                                            ref={previewFrameRef}
+                                            className="relative mx-auto aspect-square w-full max-w-[360px] overflow-hidden rounded-[1.25rem] bg-black"
                                             style={{
-                                                width: "min(100%, 360px)",
-                                                aspectRatio: "1 / 1",
                                                 touchAction: "none",
                                             }}
                                             onPointerDown={(event) => {
@@ -335,16 +363,12 @@ export function PlaylistCoverCropDialog({
                                                     return;
                                                 }
 
-                                                const bounds =
-                                                    event.currentTarget.getBoundingClientRect();
-                                                const scale = PREVIEW_SIZE / bounds.width;
-
                                                 const deltaX =
-                                                    (event.clientX - dragStartRef.current.pointerX) *
-                                                    scale;
+                                                    (event.clientX - dragStartRef.current.pointerX) /
+                                                    previewScale;
                                                 const deltaY =
-                                                    (event.clientY - dragStartRef.current.pointerY) *
-                                                    scale;
+                                                    (event.clientY - dragStartRef.current.pointerY) /
+                                                    previewScale;
 
                                                 setOffset(
                                                     clampOffset({
@@ -367,13 +391,12 @@ export function PlaylistCoverCropDialog({
                                             }}
                                         >
                                             <div
-                                                className="absolute left-1/2 top-1/2"
+                                                className="absolute left-0 top-0"
                                                 style={{
                                                     width: PREVIEW_SIZE,
                                                     height: PREVIEW_SIZE,
-                                                    transform:
-                                                        "translate(-50%, -50%) scale(calc(min(100vw - 48px, 360px) / 360))",
-                                                    transformOrigin: "center",
+                                                    transform: `scale(${previewScale})`,
+                                                    transformOrigin: "top left",
                                                 }}
                                             >
                                                 {imageInfo && (
@@ -406,7 +429,8 @@ export function PlaylistCoverCropDialog({
                                     </div>
 
                                     <p className="mt-3 text-center text-xs leading-5 text-zinc-600">
-                                        This is exactly what Spotify will receive after compression.
+                                        This preview now uses the same crop math as the Spotify
+                                        upload.
                                     </p>
                                 </div>
 
