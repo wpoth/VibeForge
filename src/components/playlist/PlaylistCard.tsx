@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ImagePlus } from "lucide-react";
 import { motion } from "motion/react";
 
 import {
@@ -18,9 +19,12 @@ type PlaylistCardProps = {
   isSelected: boolean;
   canRemove?: boolean;
   canPlay?: boolean;
+  canChangeCover?: boolean;
+  coverUploading?: boolean;
   onClick: () => void;
   onRemove: () => void;
   onPlay: () => void;
+  onCoverChange?: (file: File) => void;
 };
 
 type MenuState = {
@@ -34,10 +38,15 @@ export function PlaylistCard({
   isSelected,
   canRemove = true,
   canPlay = true,
+  canChangeCover = true,
+  coverUploading = false,
   onClick,
   onRemove,
   onPlay,
+  onCoverChange,
 }: PlaylistCardProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [menu, setMenu] = useState<MenuState>({
     open: false,
     x: 0,
@@ -46,6 +55,7 @@ export function PlaylistCard({
 
   const spotifyUrl = playlist.external_urls?.spotify;
   const likedSongs = isLikedSongsPlaylist(playlist);
+  const allowCoverChange = !likedSongs && canChangeCover && Boolean(onCoverChange);
 
   const menuItems: ContextMenuItem[] = [
     {
@@ -56,6 +66,14 @@ export function PlaylistCard({
       label: likedSongs ? "Play a song after opening" : "Play",
       disabled: !canPlay,
       onClick: onPlay,
+    },
+    {
+      label: coverUploading ? "Uploading cover..." : "Change cover image",
+      icon: ImagePlus,
+      disabled: !allowCoverChange || coverUploading,
+      onClick: () => {
+        fileInputRef.current?.click();
+      },
     },
     {
       label: "Open in Spotify",
@@ -75,6 +93,22 @@ export function PlaylistCard({
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+
+          event.target.value = "";
+
+          if (!file || !onCoverChange) return;
+
+          onCoverChange(file);
+        }}
+      />
+
       <motion.div
         role="button"
         tabIndex={0}
@@ -129,6 +163,12 @@ export function PlaylistCard({
                   ▶
                 </span>
               </motion.button>
+            )}
+
+            {coverUploading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/70 text-[10px] font-semibold uppercase tracking-wide text-white">
+                Uploading
+              </div>
             )}
           </div>
 

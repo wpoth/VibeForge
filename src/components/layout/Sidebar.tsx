@@ -9,9 +9,11 @@ type SidebarProps = {
   playlistsLoaded: boolean;
   hiddenPlaylists: number;
   selectedPlaylist: SpotifyPlaylist | null;
+  playlistCoverUploadingId?: string | null;
   onPlaylistClick: (playlist: SpotifyPlaylist) => void;
   onPlaylistRemove: (playlist: SpotifyPlaylist) => void;
   onPlaylistPlay: (playlist: SpotifyPlaylist) => void;
+  onPlaylistCoverChange?: (playlist: SpotifyPlaylist, file: File) => void;
 };
 
 export function Sidebar({
@@ -19,9 +21,11 @@ export function Sidebar({
   playlistsLoaded,
   hiddenPlaylists,
   selectedPlaylist,
+  playlistCoverUploadingId = null,
   onPlaylistClick,
   onPlaylistRemove,
   onPlaylistPlay,
+  onPlaylistCoverChange,
 }: SidebarProps) {
   return (
     <motion.aside
@@ -130,9 +134,14 @@ export function Sidebar({
                       isSelected={selectedPlaylist?.id === playlist.id}
                       canRemove={!likedSongs}
                       canPlay={!likedSongs}
+                      canChangeCover={!likedSongs}
+                      coverUploading={playlistCoverUploadingId === playlist.id}
                       onClick={() => onPlaylistClick(playlist)}
                       onRemove={() => onPlaylistRemove(playlist)}
                       onPlay={() => onPlaylistPlay(playlist)}
+                      onCoverChange={(file) => {
+                        onPlaylistCoverChange?.(playlist, file);
+                      }}
                     />
                   </motion.div>
                 );

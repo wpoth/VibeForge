@@ -15,15 +15,16 @@ type PlaylistViewProps = {
   selectedPlaylist: SpotifyPlaylist;
   tracks: SpotifyPlaylistItem[];
   loadingTracks: boolean;
-  loadingMoreTracks: boolean;
-  hasMoreTracks: boolean;
-  totalTrackCount: number | null;
+  loadingMoreTracks?: boolean;
+  hasMoreTracks?: boolean;
+  totalTrackCount?: number | null;
   loadingAI: boolean;
   aiAnalysis: string | null;
   playingTrackUri: string | null;
   playbackLoading: boolean;
   selectionMode: boolean;
   selectedTrackUris: string[];
+  playlistCoverUploading?: boolean;
 
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
@@ -36,22 +37,24 @@ type PlaylistViewProps = {
   onRemoveTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleTrackSelection: (playlistItem: SpotifyPlaylistItem) => void;
   onRequestRemoveSelectedTracks: () => void;
-  onLoadMoreTracks: () => void;
+  onLoadMoreTracks?: () => void;
+  onPlaylistCoverChange?: (playlist: SpotifyPlaylist, file: File) => void;
 };
 
 export function PlaylistView({
   selectedPlaylist,
   tracks,
   loadingTracks,
-  loadingMoreTracks,
-  hasMoreTracks,
-  totalTrackCount,
+  loadingMoreTracks = false,
+  hasMoreTracks = false,
+  totalTrackCount = null,
   loadingAI,
   aiAnalysis,
   selectionMode,
   selectedTrackUris,
   playingTrackUri,
   playbackLoading,
+  playlistCoverUploading = false,
   onToggleSelectionMode,
   onClearSelection,
   onSelectAllTracks,
@@ -64,6 +67,7 @@ export function PlaylistView({
   onResearchTrack,
   onFindSimilarTracks,
   onLoadMoreTracks,
+  onPlaylistCoverChange,
 }: PlaylistViewProps) {
   const likedSongs = isLikedSongsPlaylist(selectedPlaylist);
   const canRemoveTracks = !likedSongs;
@@ -80,7 +84,11 @@ export function PlaylistView({
       transition={{ duration: 0.22 }}
       className="w-full max-w-6xl"
     >
-      <PlaylistHeader selectedPlaylist={selectedPlaylist} />
+      <PlaylistHeader
+        selectedPlaylist={selectedPlaylist}
+        coverUploading={playlistCoverUploading}
+        onPlaylistCoverChange={onPlaylistCoverChange}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0">

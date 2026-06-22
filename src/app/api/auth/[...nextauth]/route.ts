@@ -57,12 +57,13 @@ const scopes = [
   "playlist-read-collaborative",
   "playlist-modify-public",
   "playlist-modify-private",
+  "ugc-image-upload",
+  "user-library-read",
   "user-library-modify",
   "user-read-currently-playing",
   "user-read-playback-state",
   "user-modify-playback-state",
   "user-read-recently-played",
-  "user-library-read",
 ].join(" ");
 
 export const authOptions = {

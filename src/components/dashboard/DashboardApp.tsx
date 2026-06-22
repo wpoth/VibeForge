@@ -34,6 +34,8 @@ import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 
+import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
+
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
@@ -123,6 +125,17 @@ export function DashboardApp({
     } = usePlaylistTracks({
         accessToken,
         onViewChange: setView,
+    });
+    const {
+        playlistCoverUploadingId,
+        playlistCoverUploadError,
+        uploadPlaylistCover,
+    } = usePlaylistCoverUpload({
+        accessToken,
+        selectedPlaylist,
+        setSelectedPlaylist,
+        setPlaylists,
+        loadPlaylists,
     });
     const {
         playingTrackUri,
@@ -230,6 +243,7 @@ export function DashboardApp({
             profileError ||
             playlistsError ||
             playlistTracksError ||
+            playlistCoverUploadError ||
             aiAnalysisError ||
             aiPlaylistCreatorError ||
             playlistRemovalError ||
@@ -251,6 +265,7 @@ export function DashboardApp({
         trackRemovalError,
         currentlyPlayingError,
         playbackError,
+        playlistCoverUploadError,
         recentlyPlayedError,
     ]);
 
@@ -281,6 +296,32 @@ export function DashboardApp({
     async function handleFindSimilarTracks(playlistItem: SpotifyPlaylistItem) {
         setError(null);
         await findSimilarTracks(playlistItem);
+    }
+
+    async function handlePlaylistCoverChange(
+        playlist: SpotifyPlaylist,
+        file: File,
+    ) {
+        setError(null);
+
+        try {
+            await uploadPlaylistCover({
+                playlist,
+                file,
+            });
+
+            toast({
+                type: "success",
+                title: "Cover updated",
+                description: `${playlist.name} has a new cover image.`,
+            });
+        } catch (error: unknown) {
+            toast({
+                type: "error",
+                title: "Could not update cover",
+                description: getErrorMessage(error),
+            });
+        }
     }
 
     async function handleAddSimilarTrackToQueue(track: SimilarTrack) {
@@ -693,9 +734,11 @@ export function DashboardApp({
                 playlistsLoaded={playlistsLoaded}
                 hiddenPlaylists={hiddenPlaylists}
                 selectedPlaylist={selectedPlaylist}
+                playlistCoverUploadingId={playlistCoverUploadingId}
                 onPlaylistClick={handlePlaylistClick}
                 onPlaylistRemove={handleRequestRemovePlaylist}
                 onPlaylistPlay={handlePlaylistPlay}
+                onPlaylistCoverChange={handlePlaylistCoverChange}
             />
 
             <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
@@ -781,6 +824,8 @@ export function DashboardApp({
                         hasMoreTracks={hasMoreTracks}
                         totalTrackCount={totalTrackCount}
                         onLoadMoreTracks={loadMoreTracks}
+                        playlistCoverUploading={playlistCoverUploadingId === selectedPlaylist.id}
+                        onPlaylistCoverChange={handlePlaylistCoverChange}
                     />
                 )}
             </main>
