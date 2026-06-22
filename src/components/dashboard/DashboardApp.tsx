@@ -133,7 +133,8 @@ export function DashboardApp({
         addToQueue,
     } = useSpotifyPlayback({
         accessToken,
-        selectedPlaylistId: selectedPlaylist?.id,
+        selectedPlaylist,
+        tracks,
     });
 
     const {

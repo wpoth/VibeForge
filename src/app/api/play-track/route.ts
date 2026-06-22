@@ -7,16 +7,27 @@ type SpotifyPlayResponse = {
     };
 };
 
+function getValidTrackUris(trackUris: unknown) {
+    if (!Array.isArray(trackUris)) return [];
+
+    return trackUris.filter(
+        (uri): uri is string =>
+            typeof uri === "string" && uri.startsWith("spotify:track:"),
+    );
+}
+
 export async function POST(req: Request) {
     try {
         const {
             accessToken,
             trackUri,
+            trackUris,
             playlistId,
             deviceId,
         }: {
             accessToken?: string;
             trackUri?: string;
+            trackUris?: string[];
             playlistId?: string;
             deviceId?: string;
         } = await req.json();
@@ -45,27 +56,29 @@ export async function POST(req: Request) {
             );
         }
 
-        if (playlistId === LIKED_SONGS_PLAYLIST_ID && !trackUri) {
-            return Response.json(
-                {
-                    error: true,
-                    message:
-                        "Spotify does not expose Liked Songs as a playable playlist context. Open Liked Songs and start a specific song instead.",
-                },
-                { status: 400 },
-            );
-        }
-
         const url = new URL("https://api.spotify.com/v1/me/player/play");
 
         if (deviceId) {
             url.searchParams.set("device_id", deviceId);
         }
 
+        const likedSongsUris = getValidTrackUris(trackUris);
+
+        if (playlistId === LIKED_SONGS_PLAYLIST_ID && likedSongsUris.length === 0) {
+            return Response.json(
+                {
+                    error: true,
+                    message:
+                        "Spotify does not expose Liked Songs as a normal playlist context. Open Liked Songs and start a loaded song instead.",
+                },
+                { status: 400 },
+            );
+        }
+
         const body =
             playlistId === LIKED_SONGS_PLAYLIST_ID
                 ? {
-                    uris: trackUri ? [trackUri] : [],
+                    uris: likedSongsUris,
                     position_ms: 0,
                 }
                 : trackUri

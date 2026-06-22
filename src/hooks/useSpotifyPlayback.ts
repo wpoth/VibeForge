@@ -7,7 +7,8 @@ import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 type UseSpotifyPlaybackArgs = {
   accessToken: string | undefined;
-  selectedPlaylistId: string | undefined;
+  selectedPlaylist: SpotifyPlaylist | null;
+  tracks: SpotifyPlaylistItem[];
 };
 
 type UseSpotifyPlaybackResult = {
@@ -20,9 +21,36 @@ type UseSpotifyPlaybackResult = {
   addToQueue: (playlistItem: SpotifyPlaylistItem) => Promise<void>;
 };
 
+function getTrackUriFromPlaylistItem(playlistItem: SpotifyPlaylistItem) {
+  return playlistItem.item?.uri ?? playlistItem.track?.uri ?? null;
+}
+
+function getLoadedUrisFromTrack({
+  tracks,
+  selectedTrackUri,
+}: {
+  tracks: SpotifyPlaylistItem[];
+  selectedTrackUri: string;
+}) {
+  const selectedIndex = tracks.findIndex((playlistItem) => {
+    return getTrackUriFromPlaylistItem(playlistItem) === selectedTrackUri;
+  });
+
+  if (selectedIndex === -1) {
+    return [selectedTrackUri];
+  }
+
+  return tracks
+    .slice(selectedIndex)
+    .map(getTrackUriFromPlaylistItem)
+    .filter((uri): uri is string => Boolean(uri))
+    .slice(0, 100);
+}
+
 export function useSpotifyPlayback({
   accessToken,
-  selectedPlaylistId,
+  selectedPlaylist,
+  tracks,
 }: UseSpotifyPlaybackArgs): UseSpotifyPlaybackResult {
   const [playingTrackUri, setPlayingTrackUri] = useState<string | null>(null);
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(
@@ -38,7 +66,7 @@ export function useSpotifyPlayback({
       throw new Error(message);
     }
 
-    if (!selectedPlaylistId) {
+    if (!selectedPlaylist) {
       const message = "Could not play this song because no playlist is selected.";
       setPlaybackError(message);
       throw new Error(message);
@@ -57,6 +85,8 @@ export function useSpotifyPlayback({
     setPlaybackError(null);
 
     try {
+      const likedSongs = isLikedSongsPlaylist(selectedPlaylist);
+
       const res = await fetch("/api/play-track", {
         method: "POST",
         headers: {
@@ -65,7 +95,13 @@ export function useSpotifyPlayback({
         body: JSON.stringify({
           accessToken,
           trackUri: track.uri,
-          playlistId: selectedPlaylistId,
+          trackUris: likedSongs
+            ? getLoadedUrisFromTrack({
+              tracks,
+              selectedTrackUri: track.uri,
+            })
+            : undefined,
+          playlistId: selectedPlaylist.id,
         }),
       });
 
@@ -78,7 +114,7 @@ export function useSpotifyPlayback({
       }
 
       setPlayingTrackUri(track.uri);
-      setPlayingPlaylistId(selectedPlaylistId);
+      setPlayingPlaylistId(selectedPlaylist.id);
     } catch (error: unknown) {
       console.error("Play song failed:", error);
       setPlaybackError(getErrorMessage(error));
