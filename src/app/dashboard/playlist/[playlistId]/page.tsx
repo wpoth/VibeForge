@@ -1,15 +1,15 @@
 import { DashboardApp } from "@/components/dashboard/DashboardApp";
 
 type PlaylistDashboardPageProps = {
-    params: {
+    params: Promise<{
         playlistId: string;
-    };
+    }>;
 };
 
-export default function PlaylistDashboardPage({
+export default async function PlaylistDashboardPage({
     params,
 }: PlaylistDashboardPageProps) {
-    return (
-        <DashboardApp initialPlaylistId={decodeURIComponent(params.playlistId)} />
-    );
+    const { playlistId } = await params;
+
+    return <DashboardApp initialPlaylistId={decodeURIComponent(playlistId)} />;
 }

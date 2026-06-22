@@ -18,26 +18,27 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 
-import { PlaylistCoverCropDialog } from "@/components/playlist/PlaylistCoverCropDialog";
 import { PlaylistView } from "@/components/playlist/PlaylistView";
 
 import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 import { useAiPlaylistCreator } from "@/hooks/useAiPlaylistCreator";
 import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
-import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
 import { usePlaylistRemoval } from "@/hooks/usePlaylistRemoval";
 import { usePlaylistTracks } from "@/hooks/usePlaylistTracks";
 import {
     useRecentlyPlayed,
     type RecentlyPlayedTrack,
 } from "@/hooks/useRecentlyPlayed";
-import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
 import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
+import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 
+import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
+import { PlaylistCoverCropDialog } from "@/components/playlist/PlaylistCoverCropDialog";
 import type { PreparedSpotifyCoverImage } from "@/lib/spotify-cover-image";
+
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
@@ -149,7 +150,15 @@ export function DashboardApp({
     useEffect(() => {
         if (!initialPlaylistId) return;
         if (!playlistsLoaded) return;
-        if (selectedPlaylist?.id === initialPlaylistId) return;
+
+        // On route changes, DashboardApp can mount before playlists are available.
+        // Avoid showing a false "not found" error while the list is still empty.
+        if (playlists.length === 0) return;
+
+        if (selectedPlaylist?.id === initialPlaylistId) {
+            setError(null);
+            return;
+        }
 
         const playlist = playlists.find((item) => item.id === initialPlaylistId);
 
@@ -562,7 +571,7 @@ export function DashboardApp({
         }
     }
 
-    async function handlePlaylistClick(playlist: SpotifyPlaylist) {
+    function handlePlaylistClick(playlist: SpotifyPlaylist) {
         setError(null);
         setAiAnalysis(null);
 
@@ -572,9 +581,10 @@ export function DashboardApp({
 
         if (pathname !== playlistPath) {
             router.push(playlistPath);
+            return;
         }
 
-        await openPlaylist(playlist);
+        void openPlaylist(playlist);
     }
 
     async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
