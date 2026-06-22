@@ -14,6 +14,7 @@ type PlaylistTrackListProps = {
   selectedTrackUris: string[];
   playingTrackUri: string | null;
   playbackLoading: boolean;
+  canRemoveTracks?: boolean;
 
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
@@ -43,6 +44,7 @@ export function PlaylistTrackList({
   selectedTrackUris,
   playingTrackUri,
   playbackLoading,
+  canRemoveTracks = true,
   onPlayTrack,
   onAddToQueue,
   onResearchTrack,
@@ -154,6 +156,7 @@ export function PlaylistTrackList({
                   selected={selected}
                   playingTrackUri={playingTrackUri}
                   playbackLoading={playbackLoading}
+                  canRemove={canRemoveTracks}
                   onToggleSelect={onToggleTrackSelection}
                   onRemove={onRemoveTrack}
                   onPlay={onPlayTrack}

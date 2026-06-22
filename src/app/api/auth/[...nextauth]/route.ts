@@ -62,6 +62,7 @@ const scopes = [
   "user-read-playback-state",
   "user-modify-playback-state",
   "user-read-recently-played",
+  "user-library-read",
 ].join(" ");
 
 export const authOptions = {

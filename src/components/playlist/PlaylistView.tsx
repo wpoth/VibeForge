@@ -9,6 +9,7 @@ import { PlaylistHeader } from "@/components/playlist/PlaylistHeader";
 import { PlaylistLoadingState } from "@/components/playlist/PlaylistLoadingState";
 import { PlaylistTrackList } from "@/components/playlist/PlaylistTrackList";
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
+import { isLikedSongsPlaylist } from "@/lib/spotify-types";
 
 type PlaylistViewProps = {
   selectedPlaylist: SpotifyPlaylist;
@@ -56,6 +57,9 @@ export function PlaylistView({
   onResearchTrack,
   onFindSimilarTracks,
 }: PlaylistViewProps) {
+  const likedSongs = isLikedSongsPlaylist(selectedPlaylist);
+  const canRemoveTracks = !likedSongs;
+
   if (loadingTracks) {
     return <PlaylistLoadingState />;
   }
@@ -87,10 +91,11 @@ export function PlaylistView({
 
           <PlaylistTrackList
             tracks={tracks}
-            selectionMode={selectionMode}
+            selectionMode={canRemoveTracks ? selectionMode : false}
             selectedTrackUris={selectedTrackUris}
             playingTrackUri={playingTrackUri}
             playbackLoading={playbackLoading}
+            canRemoveTracks={canRemoveTracks}
             onPlayTrack={onPlayTrack}
             onAddToQueue={onAddToQueue}
             onResearchTrack={onResearchTrack}
@@ -101,7 +106,7 @@ export function PlaylistView({
         </div>
 
         <AnimatePresence>
-          {tracks.length > 0 && (
+          {tracks.length > 0 && canRemoveTracks && (
             <ManageTracksPanel
               key="manage-tracks-panel"
               selectionMode={selectionMode}

@@ -1,3 +1,5 @@
+export const LIKED_SONGS_PLAYLIST_ID = "vibeforge-liked-songs";
+
 export type SpotifyArtist = {
   id?: string;
   name?: string;
@@ -51,6 +53,7 @@ export type SpotifyPlaylist = {
   tracks?: {
     total?: number;
   };
+  isLikedSongs?: boolean;
 };
 
 export type SpotifyProfile = {
@@ -187,3 +190,9 @@ export type SpotifyPlaylistTracksResponse = {
     message?: string;
   };
 };
+
+export function isLikedSongsPlaylist(playlist?: SpotifyPlaylist | null) {
+  return Boolean(
+    playlist?.isLikedSongs || playlist?.id === LIKED_SONGS_PLAYLIST_ID,
+  );
+}

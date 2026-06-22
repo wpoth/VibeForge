@@ -35,6 +35,7 @@ type TrackRowProps = {
   selected: boolean;
   playingTrackUri: string | null;
   playbackLoading: boolean;
+  canRemove?: boolean;
   onToggleSelect: (playlistItem: SpotifyPlaylistItem) => void;
   onRemove: (playlistItem: SpotifyPlaylistItem) => void;
   onPlay: (playlistItem: SpotifyPlaylistItem) => void;
@@ -56,6 +57,7 @@ export function TrackRow({
   selected,
   playingTrackUri,
   playbackLoading,
+  canRemove = true,
   onToggleSelect,
   onRemove,
   onPlay,
@@ -80,7 +82,9 @@ export function TrackRow({
   const artistNames =
     track?.artists?.map((artist) => artist.name).filter(Boolean).join(", ") ||
     "Unknown artist";
+
   const { settings } = useAppSettings();
+
   const canQueue = Boolean(trackUri) && !playbackLoading;
   const canUseTrackActions = Boolean(track?.name);
   const canSwipeToQueue =
@@ -120,13 +124,16 @@ export function TrackRow({
         window.open(spotifyUrl, "_blank", "noopener,noreferrer");
       },
     },
-    {
+  ];
+
+  if (canRemove) {
+    sharedActionItems.push({
       label: "Remove from playlist",
       icon: Trash2,
       destructive: true,
       onClick: () => onRemove(playlistItem),
-    },
-  ];
+    });
+  }
 
   return (
     <>
@@ -166,8 +173,8 @@ export function TrackRow({
                 type="button"
                 onClick={() => onToggleSelect(playlistItem)}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
-                  ? "border-green-400 bg-green-500 text-black"
-                  : "border-white/20 text-transparent hover:border-white/40"
+                    ? "border-green-400 bg-green-500 text-black"
+                    : "border-white/20 text-transparent hover:border-white/40"
                   }`}
                 aria-label={selected ? "Deselect song" : "Select song"}
               >

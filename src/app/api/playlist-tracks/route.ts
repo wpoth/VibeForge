@@ -1,4 +1,5 @@
-import { getPlaylistItems } from "@/lib/spotify";
+import { getPlaylistItems, getSavedTracks } from "@/lib/spotify";
+import { LIKED_SONGS_PLAYLIST_ID } from "@/lib/spotify-types";
 
 function getErrorMessage(err: unknown) {
     return err instanceof Error ? err.message : "Unknown error";
@@ -14,11 +15,14 @@ export async function POST(req: Request) {
         if (!accessToken || !playlistId) {
             return Response.json(
                 { error: "Missing accessToken or playlistId" },
-                { status: 400 }
+                { status: 400 },
             );
         }
-        // get the playlist items from spotify and return them in the response
-        const items = await getPlaylistItems(accessToken, playlistId);
+
+        const items =
+            playlistId === LIKED_SONGS_PLAYLIST_ID
+                ? await getSavedTracks(accessToken, 200)
+                : await getPlaylistItems(accessToken, playlistId);
 
         return Response.json({
             success: true,
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
     } catch (err: unknown) {
         return Response.json(
             { error: true, message: getErrorMessage(err) },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }

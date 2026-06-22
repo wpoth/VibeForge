@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
+import { isLikedSongsPlaylist } from "@/lib/spotify-types";
 
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
@@ -25,7 +26,7 @@ export function useSpotifyPlayback({
 }: UseSpotifyPlaybackArgs): UseSpotifyPlaybackResult {
   const [playingTrackUri, setPlayingTrackUri] = useState<string | null>(null);
   const [playingPlaylistId, setPlayingPlaylistId] = useState<string | null>(
-    null
+    null,
   );
   const [playbackLoading, setPlaybackLoading] = useState(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -38,8 +39,7 @@ export function useSpotifyPlayback({
     }
 
     if (!selectedPlaylistId) {
-      const message =
-        "Could not play this song because no playlist is selected.";
+      const message = "Could not play this song because no playlist is selected.";
       setPlaybackError(message);
       throw new Error(message);
     }
@@ -73,7 +73,7 @@ export function useSpotifyPlayback({
 
       if (!res.ok || data?.error) {
         throw new Error(
-          data?.message || String(data?.error) || "Failed to play song"
+          data?.message || String(data?.error) || "Failed to play song",
         );
       }
 
@@ -92,6 +92,13 @@ export function useSpotifyPlayback({
     if (!accessToken) {
       const message =
         "Could not play this playlist because you are not logged in.";
+      setPlaybackError(message);
+      throw new Error(message);
+    }
+
+    if (isLikedSongsPlaylist(playlist)) {
+      const message =
+        "Spotify does not expose Liked Songs as a normal playable playlist. Open it and start a song instead.";
       setPlaybackError(message);
       throw new Error(message);
     }
@@ -121,7 +128,7 @@ export function useSpotifyPlayback({
 
       if (!res.ok || data?.error) {
         throw new Error(
-          data?.message || String(data?.error) || "Failed to play playlist"
+          data?.message || String(data?.error) || "Failed to play playlist",
         );
       }
 
@@ -174,7 +181,7 @@ export function useSpotifyPlayback({
         throw new Error(
           data?.message ||
           String(data?.error) ||
-          "Failed to add song to queue"
+          "Failed to add song to queue",
         );
       }
     } catch (error: unknown) {

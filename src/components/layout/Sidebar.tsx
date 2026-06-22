@@ -1,6 +1,7 @@
 import { PlaylistCardSkeleton } from "@/components/common/Skeletons";
 import { PlaylistCard } from "@/components/playlist/PlaylistCard";
 import type { SpotifyPlaylist } from "@/lib/spotify-types";
+import { isLikedSongsPlaylist } from "@/lib/spotify-types";
 import { AnimatePresence, motion } from "motion/react";
 
 type SidebarProps = {
@@ -37,7 +38,7 @@ export function Sidebar({
       >
         <h2 className="text-lg font-semibold">Playlists</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Owned and collaborative playlists
+          Liked songs, owned playlists and collaborative playlists
         </p>
       </motion.div>
 
@@ -105,28 +106,37 @@ export function Sidebar({
             className="flex gap-3 overflow-x-auto pb-2 lg:block lg:space-y-2 lg:overflow-x-visible lg:pb-0"
           >
             <AnimatePresence initial={false}>
-              {playlists.map((playlist, index) => (
-                <motion.div
-                  key={playlist.id}
-                  layout
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10, height: 0 }}
-                  transition={{
-                    opacity: { duration: 0.16 },
-                    x: { duration: 0.18, delay: Math.min(index * 0.015, 0.12) },
-                    layout: { duration: 0.2 },
-                  }}
-                >
-                  <PlaylistCard
-                    playlist={playlist}
-                    isSelected={selectedPlaylist?.id === playlist.id}
-                    onClick={() => onPlaylistClick(playlist)}
-                    onRemove={() => onPlaylistRemove(playlist)}
-                    onPlay={() => onPlaylistPlay(playlist)}
-                  />
-                </motion.div>
-              ))}
+              {playlists.map((playlist, index) => {
+                const likedSongs = isLikedSongsPlaylist(playlist);
+
+                return (
+                  <motion.div
+                    key={playlist.id}
+                    layout
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10, height: 0 }}
+                    transition={{
+                      opacity: { duration: 0.16 },
+                      x: {
+                        duration: 0.18,
+                        delay: Math.min(index * 0.015, 0.12),
+                      },
+                      layout: { duration: 0.2 },
+                    }}
+                  >
+                    <PlaylistCard
+                      playlist={playlist}
+                      isSelected={selectedPlaylist?.id === playlist.id}
+                      canRemove={!likedSongs}
+                      canPlay={!likedSongs}
+                      onClick={() => onPlaylistClick(playlist)}
+                      onRemove={() => onPlaylistRemove(playlist)}
+                      onPlay={() => onPlaylistPlay(playlist)}
+                    />
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </motion.div>
         )}

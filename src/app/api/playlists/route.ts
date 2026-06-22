@@ -1,3 +1,9 @@
+import {
+  LIKED_SONGS_PLAYLIST_ID,
+  type SpotifyPlaylist,
+} from "@/lib/spotify-types";
+import { getSavedTrackCount } from "@/lib/spotify";
+
 type SpotifyUserResponse = {
   id?: string;
   error?: {
@@ -11,7 +17,7 @@ type SpotifyImage = {
   width?: number | null;
 };
 
-type SpotifyPlaylist = {
+type SpotifyPlaylistFromApi = {
   id: string;
   name: string;
   collaborative?: boolean;
@@ -21,6 +27,9 @@ type SpotifyPlaylist = {
     display_name?: string;
   };
   images?: SpotifyImage[];
+  external_urls?: {
+    spotify?: string;
+  };
   items?: {
     total?: number;
   };
@@ -30,7 +39,7 @@ type SpotifyPlaylist = {
 };
 
 type SpotifyPlaylistsResponse = {
-  items?: SpotifyPlaylist[];
+  items?: SpotifyPlaylistFromApi[];
   next?: string | null;
   error?: {
     message?: string;
@@ -48,7 +57,7 @@ export async function POST(req: Request) {
           error: true,
           message: "Missing access token",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -58,7 +67,7 @@ export async function POST(req: Request) {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-      }
+      },
     );
 
     const meData = (await meRes.json()) as SpotifyUserResponse;
@@ -70,15 +79,14 @@ export async function POST(req: Request) {
           message: meData?.error?.message ?? "Failed to fetch Spotify user",
           details: meData,
         },
-        { status: meRes.status }
+        { status: meRes.status },
       );
     }
 
     const spotifyId = meData.id;
-    const allPlaylists: SpotifyPlaylist[] = [];
+    const allPlaylists: SpotifyPlaylistFromApi[] = [];
 
-    let url: string | null =
-      "https://api.spotify.com/v1/me/playlists?limit=50";
+    let url: string | null = "https://api.spotify.com/v1/me/playlists?limit=50";
 
     while (url) {
       const res: globalThis.Response = await fetch(url, {
@@ -96,7 +104,7 @@ export async function POST(req: Request) {
             message: data?.error?.message ?? "Failed to fetch playlists",
             details: data,
           },
-          { status: res.status }
+          { status: res.status },
         );
       }
 
@@ -111,9 +119,30 @@ export async function POST(req: Request) {
       return isOwner || isCollaborative;
     });
 
+    let likedSongsTotal = 0;
+
+    try {
+      likedSongsTotal = await getSavedTrackCount(accessToken);
+    } catch (error) {
+      console.warn("Could not load liked songs count:", error);
+    }
+
+    const likedSongsPlaylist: SpotifyPlaylist = {
+      id: LIKED_SONGS_PLAYLIST_ID,
+      name: "Liked Songs",
+      images: [],
+      external_urls: {
+        spotify: "https://open.spotify.com/collection/tracks",
+      },
+      tracks: {
+        total: likedSongsTotal,
+      },
+      isLikedSongs: true,
+    };
+
     return Response.json({
-      items: filtered,
-      total: filtered.length,
+      items: [likedSongsPlaylist, ...filtered],
+      total: filtered.length + 1,
       hidden: allPlaylists.length - filtered.length,
     });
   } catch (error) {
@@ -124,7 +153,7 @@ export async function POST(req: Request) {
         error: true,
         message: "Internal server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
