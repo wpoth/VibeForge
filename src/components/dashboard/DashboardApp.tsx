@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 
@@ -17,27 +18,26 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 
+import { PlaylistCoverCropDialog } from "@/components/playlist/PlaylistCoverCropDialog";
 import { PlaylistView } from "@/components/playlist/PlaylistView";
 
 import { useAiAnalysis } from "@/hooks/useAiAnalysis";
 import { useAiPlaylistCreator } from "@/hooks/useAiPlaylistCreator";
 import { useCurrentlyPlaying } from "@/hooks/useCurrentlyPlaying";
+import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
 import { usePlaylistRemoval } from "@/hooks/usePlaylistRemoval";
 import { usePlaylistTracks } from "@/hooks/usePlaylistTracks";
 import {
     useRecentlyPlayed,
     type RecentlyPlayedTrack,
 } from "@/hooks/useRecentlyPlayed";
+import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 import { useSpotifyPlayback } from "@/hooks/useSpotifyPlayback";
 import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
 import { useSpotifyProfile } from "@/hooks/useSpotifyProfile";
 import { useTrackRemoval } from "@/hooks/useTrackRemoval";
-import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 
-import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
-import { PlaylistCoverCropDialog } from "@/components/playlist/PlaylistCoverCropDialog";
 import type { PreparedSpotifyCoverImage } from "@/lib/spotify-cover-image";
-
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
@@ -45,11 +45,16 @@ type DashboardLandingView = "home" | "recently-played" | "ai-playlist";
 
 type DashboardAppProps = {
     initialLandingView?: DashboardLandingView;
+    initialPlaylistId?: string;
 };
 
 export function DashboardApp({
     initialLandingView = "home",
+    initialPlaylistId,
 }: DashboardAppProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+
     const { data: session, status } = useSession();
     const accessToken = session?.accessToken;
 
@@ -57,10 +62,11 @@ export function DashboardApp({
     const [error, setError] = useState<string | null>(null);
     const [recentTrackActionLoadingUri, setRecentTrackActionLoadingUri] =
         useState<string | null>(null);
-    const lastAiSuccessMessageRef = useRef<string | null>(null);
     const [coverEditorPlaylist, setCoverEditorPlaylist] =
         useState<SpotifyPlaylist | null>(null);
     const [coverEditorFile, setCoverEditorFile] = useState<File | null>(null);
+
+    const lastAiSuccessMessageRef = useRef<string | null>(null);
 
     const {
         researchOpen,
@@ -131,6 +137,42 @@ export function DashboardApp({
         accessToken,
         onViewChange: setView,
     });
+
+    const {
+        aiAnalysis,
+        setAiAnalysis,
+        loadingAI,
+        generateAiAnalysis,
+        aiAnalysisError,
+    } = useAiAnalysis();
+
+    useEffect(() => {
+        if (!initialPlaylistId) return;
+        if (!playlistsLoaded) return;
+        if (selectedPlaylist?.id === initialPlaylistId) return;
+
+        const playlist = playlists.find((item) => item.id === initialPlaylistId);
+
+        if (!playlist) {
+            setError("Playlist not found or not available in VibeForge.");
+            router.replace("/dashboard");
+            return;
+        }
+
+        setError(null);
+        setAiAnalysis(null);
+
+        void openPlaylist(playlist);
+    }, [
+        initialPlaylistId,
+        playlistsLoaded,
+        playlists,
+        selectedPlaylist?.id,
+        openPlaylist,
+        router,
+        setAiAnalysis,
+    ]);
+
     const {
         playlistCoverUploadingId,
         playlistCoverUploadError,
@@ -142,6 +184,7 @@ export function DashboardApp({
         setPlaylists,
         loadPlaylists,
     });
+
     const {
         playingTrackUri,
         playbackLoading,
@@ -154,14 +197,6 @@ export function DashboardApp({
         selectedPlaylist,
         tracks,
     });
-
-    const {
-        aiAnalysis,
-        setAiAnalysis,
-        loadingAI,
-        generateAiAnalysis,
-        aiAnalysisError,
-    } = useAiAnalysis();
 
     const {
         aiPrompt,
@@ -264,13 +299,13 @@ export function DashboardApp({
         profileError,
         playlistsError,
         playlistTracksError,
+        playlistCoverUploadError,
         aiAnalysisError,
         aiPlaylistCreatorError,
         playlistRemovalError,
         trackRemovalError,
         currentlyPlayingError,
         playbackError,
-        playlistCoverUploadError,
         recentlyPlayedError,
     ]);
 
@@ -291,6 +326,10 @@ export function DashboardApp({
 
     function handleAiModeClick() {
         setView("ai");
+
+        if (pathname !== "/dashboard") {
+            router.push("/dashboard");
+        }
     }
 
     async function handleResearchTrack(playlistItem: SpotifyPlaylistItem) {
@@ -528,6 +567,15 @@ export function DashboardApp({
     async function handlePlaylistClick(playlist: SpotifyPlaylist) {
         setError(null);
         setAiAnalysis(null);
+
+        const playlistPath = `/dashboard/playlist/${encodeURIComponent(
+            playlist.id,
+        )}`;
+
+        if (pathname !== playlistPath) {
+            router.push(playlistPath);
+        }
+
         await openPlaylist(playlist);
     }
 
@@ -827,12 +875,18 @@ export function DashboardApp({
                         selectedPlaylist={selectedPlaylist}
                         tracks={tracks}
                         loadingTracks={loadingTracks}
+                        loadingMoreTracks={loadingMoreTracks}
+                        hasMoreTracks={hasMoreTracks}
+                        totalTrackCount={totalTrackCount}
                         loadingAI={loadingAI}
                         aiAnalysis={aiAnalysis}
                         selectionMode={selectionMode}
                         selectedTrackUris={selectedTrackUris}
                         playingTrackUri={currentlyPlaying?.uri ?? playingTrackUri}
                         playbackLoading={playbackLoading}
+                        playlistCoverUploading={
+                            playlistCoverUploadingId === selectedPlaylist.id
+                        }
                         onToggleSelectionMode={toggleSelectionMode}
                         onClearSelection={clearTrackSelection}
                         onSelectAllTracks={selectAllTracks}
@@ -844,11 +898,7 @@ export function DashboardApp({
                         onFindSimilarTracks={handleFindSimilarTracks}
                         onToggleTrackSelection={toggleTrackSelection}
                         onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
-                        loadingMoreTracks={loadingMoreTracks}
-                        hasMoreTracks={hasMoreTracks}
-                        totalTrackCount={totalTrackCount}
                         onLoadMoreTracks={loadMoreTracks}
-                        playlistCoverUploading={playlistCoverUploadingId === selectedPlaylist.id}
                         onPlaylistCoverChange={handlePlaylistCoverFileSelect}
                     />
                 )}

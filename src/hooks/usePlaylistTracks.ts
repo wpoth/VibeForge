@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import type {
   PlaylistTracksResponse,
@@ -50,7 +50,7 @@ export function usePlaylistTracks({
     null,
   );
 
-  function resetPlaylistView() {
+  const resetPlaylistView = useCallback(() => {
     setSelectedPlaylist(null);
     setTracks([]);
     setHasMoreTracks(false);
@@ -58,81 +58,89 @@ export function usePlaylistTracks({
     setTotalTrackCount(null);
     setPlaylistTracksError(null);
     onViewChange("ai");
-  }
+  }, [onViewChange]);
 
-  async function fetchPlaylistTracks({
-    playlist,
-    offset = 0,
-  }: {
-    playlist: SpotifyPlaylist;
-    offset?: number;
-  }) {
-    if (!accessToken) {
-      throw new Error("Missing access token.");
-    }
+  const fetchPlaylistTracks = useCallback(
+    async ({
+      playlist,
+      offset = 0,
+    }: {
+      playlist: SpotifyPlaylist;
+      offset?: number;
+    }) => {
+      if (!accessToken) {
+        throw new Error("Missing access token.");
+      }
 
-    const shouldUsePagedLoading = isLikedSongsPlaylist(playlist);
+      const shouldUsePagedLoading = isLikedSongsPlaylist(playlist);
 
-    const tracksRes = await fetch("/api/playlist-tracks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        playlistId: playlist.id,
-        accessToken,
-        limit: shouldUsePagedLoading ? LIKED_SONGS_PAGE_SIZE : undefined,
-        offset: shouldUsePagedLoading ? offset : undefined,
-      }),
-    });
-
-    const tracksData = (await tracksRes.json()) as PlaylistTracksResponse;
-
-    if (!tracksRes.ok || tracksData?.error) {
-      throw new Error(
-        tracksData?.message ||
-        "Could not load playlist tracks. Spotify may not expose items for this playlist.",
-      );
-    }
-
-    return tracksData;
-  }
-
-  async function openPlaylist(playlist: SpotifyPlaylist) {
-    if (!accessToken) return;
-
-    onViewChange("playlist");
-    setSelectedPlaylist(playlist);
-    setTracks([]);
-    setHasMoreTracks(false);
-    setNextTrackOffset(null);
-    setTotalTrackCount(null);
-    setLoadingTracks(true);
-    setPlaylistTracksError(null);
-
-    try {
-      const tracksData = await fetchPlaylistTracks({
-        playlist,
-        offset: 0,
+      const tracksRes = await fetch("/api/playlist-tracks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          playlistId: playlist.id,
+          accessToken,
+          limit: shouldUsePagedLoading ? LIKED_SONGS_PAGE_SIZE : undefined,
+          offset: shouldUsePagedLoading ? offset : undefined,
+        }),
       });
 
-      setTracks(tracksData.items ?? []);
-      setHasMoreTracks(Boolean(tracksData.hasMore));
-      setNextTrackOffset(tracksData.nextOffset ?? null);
-      setTotalTrackCount(tracksData.total ?? tracksData.items?.length ?? null);
-    } catch (error: unknown) {
-      console.error("Failed to open playlist:", error);
-      setPlaylistTracksError(getErrorMessage(error));
+      const tracksData = (await tracksRes.json()) as PlaylistTracksResponse;
+
+      if (!tracksRes.ok || tracksData?.error) {
+        throw new Error(
+          tracksData?.message ||
+          "Could not load playlist tracks. Spotify may not expose items for this playlist.",
+        );
+      }
+
+      return tracksData;
+    },
+    [accessToken],
+  );
+
+  const openPlaylist = useCallback(
+    async (playlist: SpotifyPlaylist) => {
+      if (!accessToken) return;
+
+      onViewChange("playlist");
+      setSelectedPlaylist(playlist);
       setTracks([]);
       setHasMoreTracks(false);
       setNextTrackOffset(null);
       setTotalTrackCount(null);
-    } finally {
-      setLoadingTracks(false);
-    }
-  }
+      setLoadingTracks(true);
+      setPlaylistTracksError(null);
 
-  async function loadMoreTracks() {
+      try {
+        const tracksData = await fetchPlaylistTracks({
+          playlist,
+          offset: 0,
+        });
+
+        setTracks(tracksData.items ?? []);
+        setHasMoreTracks(Boolean(tracksData.hasMore));
+        setNextTrackOffset(tracksData.nextOffset ?? null);
+        setTotalTrackCount(
+          tracksData.total ?? tracksData.items?.length ?? null,
+        );
+      } catch (error: unknown) {
+        console.error("Failed to open playlist:", error);
+        setPlaylistTracksError(getErrorMessage(error));
+        setTracks([]);
+        setHasMoreTracks(false);
+        setNextTrackOffset(null);
+        setTotalTrackCount(null);
+      } finally {
+        setLoadingTracks(false);
+      }
+    },
+    [accessToken, fetchPlaylistTracks, onViewChange],
+  );
+
+  const loadMoreTracks = useCallback(async () => {
     if (!accessToken) return;
     if (!selectedPlaylist) return;
     if (!isLikedSongsPlaylist(selectedPlaylist)) return;
@@ -156,14 +164,22 @@ export function usePlaylistTracks({
 
       setHasMoreTracks(Boolean(tracksData.hasMore));
       setNextTrackOffset(tracksData.nextOffset ?? null);
-      setTotalTrackCount(tracksData.total ?? totalTrackCount);
+      setTotalTrackCount((currentTotal) => tracksData.total ?? currentTotal);
     } catch (error: unknown) {
       console.error("Failed to load more tracks:", error);
       setPlaylistTracksError(getErrorMessage(error));
     } finally {
       setLoadingMoreTracks(false);
     }
-  }
+  }, [
+    accessToken,
+    selectedPlaylist,
+    hasMoreTracks,
+    loadingTracks,
+    loadingMoreTracks,
+    nextTrackOffset,
+    fetchPlaylistTracks,
+  ]);
 
   return {
     selectedPlaylist,
