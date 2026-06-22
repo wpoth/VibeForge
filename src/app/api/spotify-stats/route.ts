@@ -61,6 +61,13 @@ type SpotifyRecentlyPlayedResponse = {
     };
 };
 
+type SpotifyArtistsResponse = {
+    artists?: SpotifyArtist[];
+    error?: {
+        message?: string;
+    };
+};
+
 type CounterItem = {
     id: string;
     name: string;
@@ -267,6 +274,45 @@ async function fetchSpotify<T>({
     return data;
 }
 
+async function enrichRecentArtistImages({
+    accessToken,
+    artists,
+}: {
+    accessToken: string;
+    artists: CounterItem[];
+}) {
+    const artistIds = artists
+        .map((artist) => artist.id)
+        .filter(Boolean)
+        .slice(0, 50);
+
+    if (artistIds.length === 0) {
+        return artists;
+    }
+
+    const artistsUrl = new URL("https://api.spotify.com/v1/artists");
+    artistsUrl.searchParams.set("ids", artistIds.join(","));
+
+    const artistsData = await fetchSpotify<SpotifyArtistsResponse>({
+        accessToken,
+        url: artistsUrl.toString(),
+    });
+
+    const artistDetailsById = new Map(
+        (artistsData.artists ?? []).map((artist) => [artist.id, artist]),
+    );
+
+    return artists.map((artist) => {
+        const details = artistDetailsById.get(artist.id);
+
+        return {
+            ...artist,
+            imageUrl: getImageUrl(details?.images) ?? artist.imageUrl,
+            spotifyUrl: getSpotifyUrl(details) ?? artist.spotifyUrl,
+        };
+    });
+}
+
 export async function POST(req: Request) {
     try {
         const body = (await req.json()) as StatsRequest;
@@ -343,12 +389,20 @@ export async function POST(req: Request) {
 
         const recent = buildRecentStats(recentlyPlayedData.items ?? []);
 
+        const enrichedRecentTopArtists = await enrichRecentArtistImages({
+            accessToken,
+            artists: recent.topArtists,
+        });
+
         return Response.json({
             success: true,
             timeRange,
             topArtists,
             topTracks,
-            recent,
+            recent: {
+                ...recent,
+                topArtists: enrichedRecentTopArtists,
+            },
         });
     } catch (error: unknown) {
         return Response.json(
