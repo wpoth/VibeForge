@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 
-import { prepareSpotifyCoverImage } from "@/lib/spotify-cover-image";
+import type { PreparedSpotifyCoverImage } from "@/lib/spotify-cover-image";
 import type { SpotifyPlaylist } from "@/lib/spotify-types";
 import { isLikedSongsPlaylist } from "@/lib/spotify-types";
 import { getErrorMessage } from "@/lib/ui-helpers";
@@ -15,7 +15,7 @@ type UsePlaylistCoverUploadArgs = {
 
 type UploadPlaylistCoverArgs = {
     playlist: SpotifyPlaylist;
-    file: File;
+    preparedImage: PreparedSpotifyCoverImage;
 };
 
 type UsePlaylistCoverUploadResult = {
@@ -41,7 +41,7 @@ export function usePlaylistCoverUpload({
 
     async function uploadPlaylistCover({
         playlist,
-        file,
+        preparedImage,
     }: UploadPlaylistCoverArgs) {
         if (!accessToken) {
             throw new Error("Missing access token.");
@@ -55,8 +55,6 @@ export function usePlaylistCoverUpload({
         setPlaylistCoverUploadError(null);
 
         try {
-            const preparedImage = await prepareSpotifyCoverImage(file);
-
             const res = await fetch("/api/upload-playlist-cover", {
                 method: "POST",
                 headers: {

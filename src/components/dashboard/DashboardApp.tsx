@@ -35,6 +35,8 @@ import { useTrackRemoval } from "@/hooks/useTrackRemoval";
 import { useSimilarTracks, type SimilarTrack } from "@/hooks/useSimilarTracks";
 
 import { usePlaylistCoverUpload } from "@/hooks/usePlaylistCoverUpload";
+import { PlaylistCoverCropDialog } from "@/components/playlist/PlaylistCoverCropDialog";
+import type { PreparedSpotifyCoverImage } from "@/lib/spotify-cover-image";
 
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
@@ -56,6 +58,9 @@ export function DashboardApp({
     const [recentTrackActionLoadingUri, setRecentTrackActionLoadingUri] =
         useState<string | null>(null);
     const lastAiSuccessMessageRef = useRef<string | null>(null);
+    const [coverEditorPlaylist, setCoverEditorPlaylist] =
+        useState<SpotifyPlaylist | null>(null);
+    const [coverEditorFile, setCoverEditorFile] = useState<File | null>(null);
 
     const {
         researchOpen,
@@ -298,23 +303,42 @@ export function DashboardApp({
         await findSimilarTracks(playlistItem);
     }
 
-    async function handlePlaylistCoverChange(
+    function handlePlaylistCoverFileSelect(
         playlist: SpotifyPlaylist,
         file: File,
     ) {
         setError(null);
+        setCoverEditorPlaylist(playlist);
+        setCoverEditorFile(file);
+    }
+
+    function closePlaylistCoverEditor() {
+        if (playlistCoverUploadingId) return;
+
+        setCoverEditorPlaylist(null);
+        setCoverEditorFile(null);
+    }
+
+    async function handleConfirmPlaylistCoverUpload(
+        preparedImage: PreparedSpotifyCoverImage,
+    ) {
+        if (!coverEditorPlaylist) return;
+
+        setError(null);
 
         try {
             await uploadPlaylistCover({
-                playlist,
-                file,
+                playlist: coverEditorPlaylist,
+                preparedImage,
             });
 
             toast({
                 type: "success",
                 title: "Cover updated",
-                description: `${playlist.name} has a new cover image.`,
+                description: `${coverEditorPlaylist.name} has a new cover image.`,
             });
+
+            closePlaylistCoverEditor();
         } catch (error: unknown) {
             toast({
                 type: "error",
@@ -738,7 +762,7 @@ export function DashboardApp({
                 onPlaylistClick={handlePlaylistClick}
                 onPlaylistRemove={handleRequestRemovePlaylist}
                 onPlaylistPlay={handlePlaylistPlay}
-                onPlaylistCoverChange={handlePlaylistCoverChange}
+                onPlaylistCoverChange={handlePlaylistCoverFileSelect}
             />
 
             <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
@@ -825,7 +849,7 @@ export function DashboardApp({
                         totalTrackCount={totalTrackCount}
                         onLoadMoreTracks={loadMoreTracks}
                         playlistCoverUploading={playlistCoverUploadingId === selectedPlaylist.id}
-                        onPlaylistCoverChange={handlePlaylistCoverChange}
+                        onPlaylistCoverChange={handlePlaylistCoverFileSelect}
                     />
                 )}
             </main>
@@ -847,6 +871,18 @@ export function DashboardApp({
                 tracks={similarTracks}
                 onClose={closeSimilarTracks}
                 onAddToQueue={handleAddSimilarTrackToQueue}
+            />
+
+            <PlaylistCoverCropDialog
+                open={Boolean(coverEditorPlaylist && coverEditorFile)}
+                playlistName={coverEditorPlaylist?.name ?? "playlist"}
+                file={coverEditorFile}
+                uploading={Boolean(
+                    coverEditorPlaylist &&
+                    playlistCoverUploadingId === coverEditorPlaylist.id,
+                )}
+                onClose={closePlaylistCoverEditor}
+                onConfirm={handleConfirmPlaylistCoverUpload}
             />
 
             <ConfirmDialog
