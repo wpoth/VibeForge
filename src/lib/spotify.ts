@@ -8,6 +8,8 @@ type SpotifyPagingResponse<T> = {
   items?: T[];
   next?: string | null;
   total?: number;
+  limit?: number;
+  offset?: number;
   error?: {
     message?: string;
   };
@@ -107,34 +109,51 @@ export async function getPlaylistItems(accessToken: string, playlistId: string) 
   return items;
 }
 
-export async function getSavedTracks(accessToken: string, maxItems = 200) {
-  const items: unknown[] = [];
-  let url: string | null = "https://api.spotify.com/v1/me/tracks?limit=50";
+export async function getSavedTracksPage({
+  accessToken,
+  limit = 50,
+  offset = 0,
+}: {
+  accessToken: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const safeOffset = Math.max(offset, 0);
 
-  while (url && items.length < maxItems) {
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+  const url = new URL("https://api.spotify.com/v1/me/tracks");
+  url.searchParams.set("limit", String(safeLimit));
+  url.searchParams.set("offset", String(safeOffset));
 
-    const data = (await res.json()) as SpotifyPagingResponse<unknown>;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
 
-    if (!res.ok) {
-      throw new Error(
-        `Spotify error ${res.status}: ${getSpotifyErrorMessage(data)}`,
-      );
-    }
+  const data = (await res.json()) as SpotifyPagingResponse<unknown>;
 
-    if (!Array.isArray(data.items)) {
-      throw new Error("Invalid Spotify response: missing saved tracks");
-    }
-
-    items.push(...data.items);
-    url = data.next ?? null;
+  if (!res.ok) {
+    throw new Error(
+      `Spotify error ${res.status}: ${getSpotifyErrorMessage(data)}`,
+    );
   }
 
-  return items.slice(0, maxItems);
+  if (!Array.isArray(data.items)) {
+    throw new Error("Invalid Spotify response: missing saved tracks");
+  }
+
+  const total = data.total ?? data.items.length;
+  const nextOffset = data.next ? safeOffset + safeLimit : null;
+
+  return {
+    items: data.items,
+    total,
+    limit: safeLimit,
+    offset: safeOffset,
+    nextOffset,
+    hasMore: Boolean(data.next),
+  };
 }
 
 export async function getSavedTrackCount(accessToken: string) {

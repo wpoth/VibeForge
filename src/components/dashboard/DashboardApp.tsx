@@ -114,13 +114,16 @@ export function DashboardApp({
         tracks,
         setTracks,
         loadingTracks,
+        loadingMoreTracks,
+        hasMoreTracks,
+        totalTrackCount,
         openPlaylist,
+        loadMoreTracks,
         playlistTracksError,
     } = usePlaylistTracks({
         accessToken,
         onViewChange: setView,
     });
-
     const {
         playingTrackUri,
         playbackLoading,
@@ -773,6 +776,10 @@ export function DashboardApp({
                         onFindSimilarTracks={handleFindSimilarTracks}
                         onToggleTrackSelection={toggleTrackSelection}
                         onRequestRemoveSelectedTracks={requestRemoveSelectedTracks}
+                        loadingMoreTracks={loadingMoreTracks}
+                        hasMoreTracks={hasMoreTracks}
+                        totalTrackCount={totalTrackCount}
+                        onLoadMoreTracks={loadMoreTracks}
                     />
                 )}
             </main>

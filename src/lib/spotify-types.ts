@@ -83,6 +83,14 @@ export type PlaylistsResponse = ApiErrorResponse & {
 };
 
 export type PlaylistTracksResponse = ApiErrorResponse & {
+  success?: boolean;
+  count?: number;
+  total?: number;
+  limit?: number;
+  offset?: number;
+  nextOffset?: number | null;
+  hasMore?: boolean;
+  isPaged?: boolean;
   items?: SpotifyPlaylistItem[];
 };
 

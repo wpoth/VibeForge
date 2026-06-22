@@ -15,6 +15,9 @@ type PlaylistViewProps = {
   selectedPlaylist: SpotifyPlaylist;
   tracks: SpotifyPlaylistItem[];
   loadingTracks: boolean;
+  loadingMoreTracks: boolean;
+  hasMoreTracks: boolean;
+  totalTrackCount: number | null;
   loadingAI: boolean;
   aiAnalysis: string | null;
   playingTrackUri: string | null;
@@ -33,12 +36,16 @@ type PlaylistViewProps = {
   onRemoveTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleTrackSelection: (playlistItem: SpotifyPlaylistItem) => void;
   onRequestRemoveSelectedTracks: () => void;
+  onLoadMoreTracks: () => void;
 };
 
 export function PlaylistView({
   selectedPlaylist,
   tracks,
   loadingTracks,
+  loadingMoreTracks,
+  hasMoreTracks,
+  totalTrackCount,
   loadingAI,
   aiAnalysis,
   selectionMode,
@@ -56,6 +63,7 @@ export function PlaylistView({
   onAddToQueue,
   onResearchTrack,
   onFindSimilarTracks,
+  onLoadMoreTracks,
 }: PlaylistViewProps) {
   const likedSongs = isLikedSongsPlaylist(selectedPlaylist);
   const canRemoveTracks = !likedSongs;
@@ -96,6 +104,11 @@ export function PlaylistView({
             playingTrackUri={playingTrackUri}
             playbackLoading={playbackLoading}
             canRemoveTracks={canRemoveTracks}
+            isPagedPlaylist={likedSongs}
+            hasMoreTracks={hasMoreTracks}
+            loadingMoreTracks={loadingMoreTracks}
+            totalTrackCount={totalTrackCount}
+            onLoadMoreTracks={onLoadMoreTracks}
             onPlayTrack={onPlayTrack}
             onAddToQueue={onAddToQueue}
             onResearchTrack={onResearchTrack}
