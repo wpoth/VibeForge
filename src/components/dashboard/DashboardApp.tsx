@@ -155,7 +155,6 @@ export function DashboardApp({
 
         if (!playlist) {
             setError("Playlist not found or not available in VibeForge.");
-            router.replace("/dashboard");
             return;
         }
 
@@ -169,7 +168,6 @@ export function DashboardApp({
         playlists,
         selectedPlaylist?.id,
         openPlaylist,
-        router,
         setAiAnalysis,
     ]);
 

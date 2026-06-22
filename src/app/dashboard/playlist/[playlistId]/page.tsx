@@ -9,5 +9,7 @@ type PlaylistDashboardPageProps = {
 export default function PlaylistDashboardPage({
     params,
 }: PlaylistDashboardPageProps) {
-    return <DashboardApp initialPlaylistId={decodeURIComponent(params.playlistId)} />;
+    return (
+        <DashboardApp initialPlaylistId={decodeURIComponent(params.playlistId)} />
+    );
 }
