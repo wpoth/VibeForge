@@ -2,11 +2,13 @@
 
 import {
     ArrowLeft,
+    BarChart3,
     Clock3,
     Headphones,
     Music2,
     Plus,
     Sparkles,
+    Trophy,
     Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -16,8 +18,6 @@ import { useEffect, useState } from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 
-type LandingView = "home" | "recently-played" | "ai-playlist";
-
 type LandingPageProps = {
     initialView?: LandingView;
     currentlyPlaying?: CurrentlyPlayingTrack | null;
@@ -26,6 +26,8 @@ type LandingPageProps = {
     recentlyPlayedPanel: ReactNode;
     aiPlaylistPanel: ReactNode;
 };
+
+type LandingView = "home" | "recently-played" | "ai-playlist";
 
 function getArtistText(artists?: string[]) {
     return artists && artists.length > 0 ? artists.join(", ") : "Spotify";
@@ -79,6 +81,10 @@ export function LandingPage({
         router.push("/dashboard/ai");
     }
 
+    function goToStats() {
+        router.push("/dashboard/stats");
+    }
+
     return (
         <div className="mx-auto w-full max-w-6xl">
             <AnimatePresence mode="wait">
@@ -94,6 +100,7 @@ export function LandingPage({
                         <section className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl shadow-black/10 backdrop-blur-xl sm:p-8 lg:p-10">
                             <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-green-400/10 blur-3xl" />
                             <div className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-purple-400/10 blur-3xl" />
+                            <div className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.025] blur-3xl" />
 
                             <div className="relative z-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
                                 <div>
@@ -107,15 +114,24 @@ export function LandingPage({
                                     </h1>
 
                                     <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400 sm:text-lg">
-                                        Check what you have been listening to, create AI playlists,
-                                        or open a playlist when you need it. No clutter up front.
+                                        Check your listening stats, recent plays, AI playlist ideas,
+                                        and playlist tools from one clean dashboard.
                                     </p>
 
-                                    <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                                    <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                                        <button
+                                            type="button"
+                                            onClick={goToStats}
+                                            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-black text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300"
+                                        >
+                                            <BarChart3 size={17} />
+                                            View stats
+                                        </button>
+
                                         <button
                                             type="button"
                                             onClick={goToAiPlaylist}
-                                            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-bold text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300"
+                                            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-5 text-sm font-bold text-green-100 transition hover:bg-green-400/15 hover:text-white"
                                         >
                                             <Wand2 size={17} />
                                             Create with AI
@@ -127,7 +143,7 @@ export function LandingPage({
                                             className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08] hover:text-white"
                                         >
                                             <Clock3 size={17} />
-                                            View recent plays
+                                            Recent plays
                                         </button>
                                     </div>
                                 </div>
@@ -195,7 +211,32 @@ export function LandingPage({
                             </div>
                         </section>
 
-                        <section className="grid gap-4 md:grid-cols-3">
+                        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <button
+                                type="button"
+                                onClick={goToStats}
+                                className="group relative overflow-hidden rounded-[1.5rem] border border-green-400/20 bg-green-400/[0.08] p-5 text-left shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-green-400/[0.12]"
+                            >
+                                <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-green-400/10 blur-2xl" />
+
+                                <div className="relative z-10 flex h-11 w-11 items-center justify-center rounded-2xl border border-green-400/20 bg-green-400/10 text-green-300">
+                                    <Trophy size={19} />
+                                </div>
+
+                                <h3 className="relative z-10 mt-5 text-lg font-black tracking-tight text-white">
+                                    Listening stats
+                                </h3>
+
+                                <p className="relative z-10 mt-2 text-sm leading-6 text-zinc-400">
+                                    See top artists, top tracks, recent top albums, and estimated
+                                    minutes per day.
+                                </p>
+
+                                <p className="relative z-10 mt-4 text-xs font-semibold text-green-200">
+                                    Open stats dashboard
+                                </p>
+                            </button>
+
                             <button
                                 type="button"
                                 onClick={goToRecentlyPlayed}

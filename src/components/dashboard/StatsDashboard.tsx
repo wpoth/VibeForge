@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { signIn, useSession } from "next-auth/react";
 import {
+    ArrowLeft,
     BarChart3,
     CalendarDays,
     Clock3,
     Disc3,
+    ExternalLink,
     Loader2,
     Music2,
     RefreshCw,
+    Sparkles,
     Trophy,
     UserRound,
 } from "lucide-react";
@@ -68,24 +71,36 @@ type SpotifyStatsResponse = {
     };
 };
 
+type ListItem = {
+    rank?: number;
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    spotifyUrl: string | null;
+};
+
 const TIME_RANGE_OPTIONS: {
     value: SpotifyTimeRange;
     label: string;
+    shortLabel: string;
     description: string;
 }[] = [
         {
             value: "short_term",
             label: "Last 4 weeks",
+            shortLabel: "4 weeks",
             description: "Spotify short term",
         },
         {
             value: "medium_term",
             label: "Last 6 months",
+            shortLabel: "6 months",
             description: "Spotify medium term",
         },
         {
             value: "long_term",
             label: "Last year",
+            shortLabel: "1 year",
             description: "Spotify long term",
         },
     ];
@@ -111,37 +126,10 @@ function getErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : "Unknown error";
 }
 
-function StatCard({
-    icon,
-    label,
-    value,
-    description,
-}: {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    description: string;
-}) {
+function getTimeRangeLabel(timeRange: SpotifyTimeRange) {
     return (
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5 shadow-xl shadow-black/10">
-            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-green-400/10 text-green-300">
-                {icon}
-            </div>
-
-            <p className="text-sm font-medium text-zinc-500">{label}</p>
-            <p className="mt-2 text-2xl font-black tracking-tight text-white">
-                {value}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-zinc-600">{description}</p>
-        </div>
-    );
-}
-
-function EmptyArtwork({ icon }: { icon: React.ReactNode }) {
-    return (
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-zinc-500">
-            {icon}
-        </div>
+        TIME_RANGE_OPTIONS.find((option) => option.value === timeRange)?.label ??
+        "Selected period"
     );
 }
 
@@ -149,13 +137,28 @@ function Artwork({
     imageUrl,
     icon,
     alt,
+    size = "md",
 }: {
     imageUrl: string | null;
-    icon: React.ReactNode;
+    icon: ReactNode;
     alt: string;
+    size?: "sm" | "md" | "lg";
 }) {
+    const sizeClass =
+        size === "lg"
+            ? "h-24 w-24 rounded-[1.35rem]"
+            : size === "sm"
+                ? "h-11 w-11 rounded-2xl"
+                : "h-14 w-14 rounded-2xl";
+
     if (!imageUrl) {
-        return <EmptyArtwork icon={icon} />;
+        return (
+            <div
+                className={`flex ${sizeClass} shrink-0 items-center justify-center bg-white/[0.06] text-zinc-500 ring-1 ring-white/10`}
+            >
+                {icon}
+            </div>
+        );
     }
 
     return (
@@ -163,8 +166,98 @@ function Artwork({
         <img
             src={imageUrl}
             alt={alt}
-            className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+            className={`${sizeClass} shrink-0 object-cover shadow-lg shadow-black/20 ring-1 ring-white/10`}
         />
+    );
+}
+
+function StatPill({
+    icon,
+    label,
+    value,
+}: {
+    icon: ReactNode;
+    label: string;
+    value: string;
+}) {
+    return (
+        <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.045] p-4">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-green-400/10 text-green-300">
+                {icon}
+            </div>
+
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-600">
+                {label}
+            </p>
+            <p className="mt-2 line-clamp-2 text-xl font-black tracking-tight text-white">
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function TopSpotlight({
+    artist,
+    track,
+    album,
+}: {
+    artist?: RecentCounterItem;
+    track?: RecentCounterItem;
+    album?: RecentCounterItem;
+}) {
+    return (
+        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="relative overflow-hidden rounded-[2rem] border border-green-400/20 bg-green-400/[0.08] p-5 shadow-2xl shadow-black/20 sm:p-6">
+                <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full bg-green-400/20 blur-3xl" />
+                <div className="pointer-events-none absolute bottom-0 left-1/3 h-52 w-52 rounded-full bg-purple-400/10 blur-3xl" />
+
+                <div className="relative z-10">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-black/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-green-200">
+                        <Trophy size={14} />
+                        Recent winner
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
+                        <Artwork
+                            imageUrl={artist?.imageUrl ?? null}
+                            icon={<UserRound size={28} />}
+                            alt={artist?.name ?? "Top artist"}
+                            size="lg"
+                        />
+
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-green-100/80">
+                                Most played artist from recent history
+                            </p>
+
+                            <h2 className="mt-2 line-clamp-2 text-4xl font-black tracking-tight text-white sm:text-5xl">
+                                {artist?.name ?? "No artist yet"}
+                            </h2>
+
+                            <p className="mt-3 text-sm leading-6 text-zinc-300">
+                                {artist
+                                    ? `${formatMinutes(artist.minutes)} · ${artist.count} recent plays`
+                                    : "Play some music and refresh the stats page."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                <StatPill
+                    icon={<Disc3 size={20} />}
+                    label="Top album"
+                    value={album?.name ?? "No data"}
+                />
+
+                <StatPill
+                    icon={<Music2 size={20} />}
+                    label="Top song"
+                    value={track?.name ?? "No data"}
+                />
+            </div>
+        </section>
     );
 }
 
@@ -177,24 +270,12 @@ function RankedList({
 }: {
     title: string;
     subtitle: string;
-    icon: React.ReactNode;
-    items: {
-        rank?: number;
-        id: string;
-        name: string;
-        imageUrl: string | null;
-        spotifyUrl: string | null;
-    }[];
-    renderMeta?: (item: {
-        rank?: number;
-        id: string;
-        name: string;
-        imageUrl: string | null;
-        spotifyUrl: string | null;
-    }) => string;
+    icon: ReactNode;
+    items: ListItem[];
+    renderMeta?: (item: ListItem) => string;
 }) {
     return (
-        <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5">
+        <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 shadow-xl shadow-black/10 sm:p-5">
             <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
                     <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.06] text-green-300">
@@ -209,7 +290,7 @@ function RankedList({
                 </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
                 {items.length === 0 && (
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
                         No data available yet.
@@ -217,8 +298,8 @@ function RankedList({
                 )}
 
                 {items.map((item, index) => {
-                    const content = (
-                        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 transition hover:bg-white/[0.04]">
+                    const row = (
+                        <div className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 transition hover:border-white/15 hover:bg-white/[0.045]">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-xs font-black text-zinc-400">
                                 {item.rank ?? index + 1}
                             </div>
@@ -236,11 +317,18 @@ function RankedList({
                                     </p>
                                 )}
                             </div>
+
+                            {item.spotifyUrl && (
+                                <ExternalLink
+                                    size={15}
+                                    className="shrink-0 text-zinc-700 transition group-hover:text-zinc-400"
+                                />
+                            )}
                         </div>
                     );
 
                     if (!item.spotifyUrl) {
-                        return <div key={item.id}>{content}</div>;
+                        return <div key={item.id}>{row}</div>;
                     }
 
                     return (
@@ -250,7 +338,7 @@ function RankedList({
                             target="_blank"
                             rel="noreferrer"
                         >
-                            {content}
+                            {row}
                         </a>
                     );
                 })}
@@ -266,7 +354,7 @@ function MinutesChart({ days }: { days: MinutesByDay[] }) {
     );
 
     return (
-        <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5">
+        <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 shadow-xl shadow-black/10 sm:p-5">
             <div className="mb-5">
                 <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.06] text-green-300">
                     <BarChart3 size={21} />
@@ -277,11 +365,11 @@ function MinutesChart({ days }: { days: MinutesByDay[] }) {
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-500">
-                    Approximation from your latest 50 recently played tracks.
+                    Estimated from your latest 50 recently played tracks.
                 </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {days.length === 0 && (
                     <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-500">
                         No recently played tracks found.
@@ -294,7 +382,9 @@ function MinutesChart({ days }: { days: MinutesByDay[] }) {
                     return (
                         <div key={day.date}>
                             <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
-                                <span className="font-medium text-zinc-400">{day.label}</span>
+                                <span className="font-semibold text-zinc-300">
+                                    {day.label}
+                                </span>
                                 <span className="text-zinc-500">
                                     {formatMinutes(day.minutes)} · {day.tracks} tracks
                                 </span>
@@ -302,7 +392,7 @@ function MinutesChart({ days }: { days: MinutesByDay[] }) {
 
                             <div className="h-3 overflow-hidden rounded-full bg-white/[0.06]">
                                 <div
-                                    className="h-full rounded-full bg-green-400"
+                                    className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-200 shadow-lg shadow-green-400/20"
                                     style={{ width }}
                                 />
                             </div>
@@ -377,7 +467,9 @@ export function StatsDashboard() {
         return (
             <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] px-4 text-white">
                 <div className="max-w-md text-center">
-                    <h1 className="text-4xl font-black tracking-tight">VibeForge Stats</h1>
+                    <h1 className="text-4xl font-black tracking-tight">
+                        VibeForge Stats
+                    </h1>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-400">
                         Connect Spotify to see your listening stats.
@@ -400,53 +492,61 @@ export function StatsDashboard() {
     }
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] px-4 py-6 text-white sm:px-6 lg:px-8">
+        <main className="min-h-screen overflow-hidden bg-gradient-to-br from-[#12141f] via-[#0f1117] to-[#17111f] px-4 py-5 text-white sm:px-6 lg:px-8">
             <div className="pointer-events-none fixed inset-0 overflow-hidden">
                 <div className="absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
                 <div className="absolute right-0 top-40 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
+                <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-white/[0.025] blur-3xl" />
             </div>
 
             <div className="relative z-10 mx-auto max-w-7xl">
-                <header className="mb-8 flex flex-col gap-5 rounded-[2rem] border border-white/10 bg-white/[0.035] p-5 shadow-2xl shadow-black/20 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <Link
-                            href="/dashboard"
-                            className="mb-4 inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:bg-white/[0.08] hover:text-white"
-                        >
-                            Back to dashboard
-                        </Link>
+                <header className="mb-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/20 backdrop-blur-xl">
+                    <div className="relative p-5 sm:p-7 lg:p-8">
+                        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-green-400/10 blur-3xl" />
 
-                        <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-green-200">
-                            <Trophy size={14} />
-                            Spotify snapshot stats
+                        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <Link
+                                    href="/dashboard"
+                                    className="mb-5 inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-400 transition hover:bg-white/[0.08] hover:text-white"
+                                >
+                                    <ArrowLeft size={16} />
+                                    Dashboard
+                                </Link>
+
+                                <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-green-200">
+                                    <Sparkles size={14} />
+                                    No database version
+                                </div>
+
+                                <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                                    Your Spotify stats snapshot.
+                                </h1>
+
+                                <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
+                                    Top artists, top tracks, recent favourites, and estimated
+                                    listening minutes using only Spotify API data.
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={loadStats}
+                                disabled={loading}
+                                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-black text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {loading ? (
+                                    <Loader2 size={17} className="animate-spin" />
+                                ) : (
+                                    <RefreshCw size={17} />
+                                )}
+                                Refresh stats
+                            </button>
                         </div>
-
-                        <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-                            Your listening stats
-                        </h1>
-
-                        <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-                            This version uses only live Spotify API data. No database, no saved
-                            history, and no background tracking.
-                        </p>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={loadStats}
-                        disabled={loading}
-                        className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-black text-black transition hover:bg-green-300 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        {loading ? (
-                            <Loader2 size={17} className="animate-spin" />
-                        ) : (
-                            <RefreshCw size={17} />
-                        )}
-                        Refresh
-                    </button>
                 </header>
 
-                <div className="mb-6 flex flex-wrap gap-2">
+                <div className="mb-6 flex flex-wrap gap-2 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-2">
                     {TIME_RANGE_OPTIONS.map((option) => {
                         const active = timeRange === option.value;
 
@@ -455,12 +555,18 @@ export function StatsDashboard() {
                                 key={option.value}
                                 type="button"
                                 onClick={() => setTimeRange(option.value)}
-                                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${active
-                                        ? "border-green-400 bg-green-400 text-black"
-                                        : "border-white/10 bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-white"
+                                className={`flex flex-1 flex-col rounded-[1.1rem] border px-4 py-3 text-left transition sm:flex-none sm:min-w-44 ${active
+                                        ? "border-green-400 bg-green-400 text-black shadow-lg shadow-green-400/15"
+                                        : "border-transparent bg-transparent text-zinc-400 hover:bg-white/[0.055] hover:text-white"
                                     }`}
                             >
-                                {option.label}
+                                <span className="text-sm font-black">{option.label}</span>
+                                <span
+                                    className={`mt-0.5 text-xs ${active ? "text-black/60" : "text-zinc-600"
+                                        }`}
+                                >
+                                    {option.description}
+                                </span>
                             </button>
                         );
                     })}
@@ -473,71 +579,53 @@ export function StatsDashboard() {
                 )}
 
                 <div className="mb-6 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4 text-sm leading-6 text-yellow-100">
-                    Minutes are an approximation based on track duration from your latest
-                    recently played items. Without a database, VibeForge cannot know exact
-                    historical listening time.
+                    This is a snapshot, not full historical tracking. Minutes are
+                    estimated from track duration in your latest recently played items.
                 </div>
 
-                <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <StatCard
-                        icon={<Clock3 size={21} />}
+                <TopSpotlight
+                    artist={topRecentArtist}
+                    album={topRecentAlbum}
+                    track={topRecentTrack}
+                />
+
+                <section className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatPill
+                        icon={<Clock3 size={20} />}
                         label="Recent minutes"
                         value={formatMinutes(stats?.recent.totalMinutes ?? 0)}
-                        description={`Based on ${stats?.recent.itemsAnalyzed ?? 0
-                            } recently played tracks.`}
                     />
 
-                    <StatCard
-                        icon={<UserRound size={21} />}
-                        label="Recent top artist"
-                        value={topRecentArtist?.name ?? "No data"}
-                        description={
-                            topRecentArtist
-                                ? `${formatMinutes(topRecentArtist.minutes)} in recent history.`
-                                : "No recently played artist found."
-                        }
+                    <StatPill
+                        icon={<CalendarDays size={20} />}
+                        label="Recent tracks"
+                        value={`${stats?.recent.itemsAnalyzed ?? 0} tracks`}
                     />
 
-                    <StatCard
-                        icon={<Disc3 size={21} />}
-                        label="Recent top album"
-                        value={topRecentAlbum?.name ?? "No data"}
-                        description={
-                            topRecentAlbum
-                                ? `${formatMinutes(topRecentAlbum.minutes)} in recent history.`
-                                : "No recently played album found."
-                        }
+                    <StatPill
+                        icon={<UserRound size={20} />}
+                        label="Period"
+                        value={getTimeRangeLabel(timeRange)}
                     />
 
-                    <StatCard
-                        icon={<Music2 size={21} />}
-                        label="Recent top song"
-                        value={topRecentTrack?.name ?? "No data"}
-                        description={
-                            topRecentTrack
-                                ? `${topRecentTrack.count} plays in recent history.`
-                                : "No recently played song found."
-                        }
+                    <StatPill
+                        icon={<Trophy size={20} />}
+                        label="Top source"
+                        value="Spotify API"
                     />
                 </section>
 
                 <div className="grid gap-6 xl:grid-cols-2">
                     <RankedList
                         title="Top artists"
-                        subtitle={
-                            TIME_RANGE_OPTIONS.find((option) => option.value === timeRange)
-                                ?.description ?? "Spotify ranking"
-                        }
+                        subtitle={`${getTimeRangeLabel(timeRange)} ranking from Spotify`}
                         icon={<UserRound size={20} />}
                         items={stats?.topArtists ?? []}
                     />
 
                     <RankedList
                         title="Top tracks"
-                        subtitle={
-                            TIME_RANGE_OPTIONS.find((option) => option.value === timeRange)
-                                ?.description ?? "Spotify ranking"
-                        }
+                        subtitle={`${getTimeRangeLabel(timeRange)} ranking from Spotify`}
                         icon={<Music2 size={20} />}
                         items={stats?.topTracks ?? []}
                         renderMeta={(item) => {
@@ -575,7 +663,7 @@ export function StatsDashboard() {
                     <RankedList
                         title="Recent top songs"
                         subtitle="Calculated from latest 50 recently played tracks"
-                        icon={<CalendarDays size={20} />}
+                        icon={<Music2 size={20} />}
                         items={stats?.recent.topTracks ?? []}
                         renderMeta={(item) => {
                             const recentItem = item as RecentCounterItem;
