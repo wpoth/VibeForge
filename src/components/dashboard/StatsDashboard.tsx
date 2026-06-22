@@ -514,11 +514,6 @@ export function StatsDashboard() {
                                     Dashboard
                                 </Link>
 
-                                <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-green-200">
-                                    <Sparkles size={14} />
-                                    No database version
-                                </div>
-
                                 <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
                                     Your Spotify stats snapshot.
                                 </h1>
