@@ -277,40 +277,67 @@ async function fetchSpotify<T>({
 async function enrichRecentArtistImages({
     accessToken,
     artists,
+    fallbackArtists,
 }: {
     accessToken: string;
     artists: CounterItem[];
+    fallbackArtists: {
+        id: string;
+        imageUrl: string | null;
+        spotifyUrl: string | null;
+    }[];
 }) {
-    const artistIds = artists
+    const fallbackById = new Map(
+        fallbackArtists.map((artist) => [artist.id, artist]),
+    );
+
+    const artistsWithTopArtistFallback = artists.map((artist) => {
+        const fallback = fallbackById.get(artist.id);
+
+        return {
+            ...artist,
+            imageUrl: fallback?.imageUrl ?? artist.imageUrl,
+            spotifyUrl: fallback?.spotifyUrl ?? artist.spotifyUrl,
+        };
+    });
+
+    const artistIds = artistsWithTopArtistFallback
+        .filter((artist) => !artist.imageUrl)
         .map((artist) => artist.id)
         .filter(Boolean)
         .slice(0, 50);
 
     if (artistIds.length === 0) {
-        return artists;
+        return artistsWithTopArtistFallback;
     }
 
-    const artistsUrl = new URL("https://api.spotify.com/v1/artists");
-    artistsUrl.searchParams.set("ids", artistIds.join(","));
+    try {
+        const artistsUrl = new URL("https://api.spotify.com/v1/artists");
+        artistsUrl.searchParams.set("ids", artistIds.join(","));
 
-    const artistsData = await fetchSpotify<SpotifyArtistsResponse>({
-        accessToken,
-        url: artistsUrl.toString(),
-    });
+        const artistsData = await fetchSpotify<SpotifyArtistsResponse>({
+            accessToken,
+            url: artistsUrl.toString(),
+        });
 
-    const artistDetailsById = new Map(
-        (artistsData.artists ?? []).map((artist) => [artist.id, artist]),
-    );
+        const artistDetailsById = new Map(
+            (artistsData.artists ?? []).map((artist) => [artist.id, artist]),
+        );
 
-    return artists.map((artist) => {
-        const details = artistDetailsById.get(artist.id);
+        return artistsWithTopArtistFallback.map((artist) => {
+            const details = artistDetailsById.get(artist.id);
 
-        return {
-            ...artist,
-            imageUrl: getImageUrl(details?.images) ?? artist.imageUrl,
-            spotifyUrl: getSpotifyUrl(details) ?? artist.spotifyUrl,
-        };
-    });
+            return {
+                ...artist,
+                imageUrl: getImageUrl(details?.images) ?? artist.imageUrl,
+                spotifyUrl: getSpotifyUrl(details) ?? artist.spotifyUrl,
+            };
+        });
+    } catch (error) {
+        console.warn("Could not enrich recent artist images:", error);
+
+        return artistsWithTopArtistFallback;
+    }
 }
 
 export async function POST(req: Request) {
@@ -392,6 +419,7 @@ export async function POST(req: Request) {
         const enrichedRecentTopArtists = await enrichRecentArtistImages({
             accessToken,
             artists: recent.topArtists,
+            fallbackArtists: topArtists,
         });
 
         return Response.json({
