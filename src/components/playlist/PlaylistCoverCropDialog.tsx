@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ImagePlus, Loader2, RotateCcw, X } from "lucide-react";
+import {
+    Check,
+    ImagePlus,
+    Loader2,
+    Minus,
+    Move,
+    Plus,
+    RotateCcw,
+    X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import {
@@ -24,7 +33,7 @@ type ImageInfo = {
     naturalHeight: number;
 };
 
-const PREVIEW_SIZE = 320;
+const PREVIEW_SIZE = 360;
 const OUTPUT_SIZE = 640;
 
 function clamp(value: number, min: number, max: number) {
@@ -180,6 +189,16 @@ export function PlaylistCoverCropDialog({
         });
     }
 
+    function nudgeZoom(direction: "in" | "out") {
+        const nextZoom =
+            direction === "in"
+                ? clamp(zoom + 0.1, 1, 3)
+                : clamp(zoom - 0.1, 1, 3);
+
+        setZoom(nextZoom);
+        setOffset((currentOffset) => clampOffset(currentOffset, nextZoom));
+    }
+
     function createCroppedCanvas() {
         const image = imageElementRef.current;
 
@@ -236,7 +255,7 @@ export function PlaylistCoverCropDialog({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-xl"
+                    className="fixed inset-0 z-[999999] flex items-end justify-center bg-black/75 p-0 text-white backdrop-blur-xl sm:items-center sm:p-4"
                     onMouseDown={(event) => {
                         if (event.target === event.currentTarget && !uploading) {
                             onClose();
@@ -244,26 +263,25 @@ export function PlaylistCoverCropDialog({
                     }}
                 >
                     <motion.div
-                        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                        initial={{ opacity: 0, y: 36, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 18, scale: 0.98 }}
-                        transition={{ duration: 0.18 }}
-                        className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-[#101217] p-5 text-white shadow-2xl"
+                        exit={{ opacity: 0, y: 36, scale: 0.98 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="flex max-h-[96dvh] w-full flex-col overflow-hidden rounded-t-[2rem] border border-white/10 bg-[#0d0f14] shadow-2xl shadow-black/50 sm:max-h-[92vh] sm:max-w-3xl sm:rounded-[2rem]"
                     >
-                        <div className="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-medium text-green-200">
-                                    <ImagePlus size={14} />
-                                    Playlist cover
+                        <div className="flex items-start justify-between gap-4 border-b border-white/10 bg-white/[0.035] px-4 py-4 sm:px-6">
+                            <div className="min-w-0">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-green-200">
+                                    <ImagePlus size={13} />
+                                    Cover editor
                                 </div>
 
-                                <h2 className="mt-3 text-2xl font-black tracking-tight">
-                                    Choose the crop
+                                <h2 className="mt-3 truncate text-2xl font-black tracking-tight sm:text-3xl">
+                                    Crop playlist cover
                                 </h2>
 
-                                <p className="mt-1 text-sm text-zinc-500">
-                                    Drag and zoom the image for{" "}
-                                    <span className="text-zinc-300">{playlistName}</span>.
+                                <p className="mt-1 truncate text-sm text-zinc-500">
+                                    {playlistName}
                                 </p>
                             </div>
 
@@ -271,168 +289,238 @@ export function PlaylistCoverCropDialog({
                                 type="button"
                                 disabled={uploading}
                                 onClick={onClose}
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-zinc-400 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-400 transition hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label="Close cover crop dialog"
                             >
-                                <X size={18} />
+                                <X size={19} />
                             </button>
                         </div>
 
-                        <div className="grid gap-5 md:grid-cols-[auto_1fr] md:items-start">
-                            <div className="mx-auto">
-                                <div
-                                    className="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/30"
-                                    style={{
-                                        width: PREVIEW_SIZE,
-                                        height: PREVIEW_SIZE,
-                                        maxWidth: "calc(100vw - 48px)",
-                                        maxHeight: "calc(100vw - 48px)",
-                                        touchAction: "none",
-                                    }}
-                                    onPointerDown={(event) => {
-                                        if (!imageInfo || uploading) return;
-
-                                        event.currentTarget.setPointerCapture(event.pointerId);
-
-                                        dragStartRef.current = {
-                                            pointerX: event.clientX,
-                                            pointerY: event.clientY,
-                                            offsetX: offset.x,
-                                            offsetY: offset.y,
-                                        };
-                                    }}
-                                    onPointerMove={(event) => {
-                                        if (!dragStartRef.current || !imageInfo || uploading) {
-                                            return;
-                                        }
-
-                                        const deltaX = event.clientX - dragStartRef.current.pointerX;
-                                        const deltaY = event.clientY - dragStartRef.current.pointerY;
-
-                                        setOffset(
-                                            clampOffset({
-                                                x: dragStartRef.current.offsetX + deltaX,
-                                                y: dragStartRef.current.offsetY + deltaY,
-                                            }),
-                                        );
-                                    }}
-                                    onPointerUp={(event) => {
-                                        dragStartRef.current = null;
-                                        event.currentTarget.releasePointerCapture(event.pointerId);
-                                    }}
-                                    onPointerCancel={(event) => {
-                                        dragStartRef.current = null;
-                                        event.currentTarget.releasePointerCapture(event.pointerId);
-                                    }}
-                                >
-                                    {imageInfo && (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            ref={imageElementRef}
-                                            src={imageInfo.src}
-                                            alt="Selected playlist cover"
-                                            draggable={false}
-                                            className="absolute left-1/2 top-1/2 select-none"
-                                            style={{
-                                                width: scaledImageSize.width,
-                                                height: scaledImageSize.height,
-                                                transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
-                                                maxWidth: "none",
-                                            }}
-                                        />
-                                    )}
-
-                                    {!imageInfo && !imageError && (
-                                        <div className="flex h-full w-full items-center justify-center text-zinc-500">
-                                            <Loader2 size={24} className="animate-spin" />
+                        <div className="custom-sidebar-scrollbar flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+                            <div className="grid gap-6 lg:grid-cols-[minmax(0,390px)_minmax(260px,1fr)] lg:items-start">
+                                <div className="mx-auto w-full max-w-[390px]">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <div className="inline-flex items-center gap-2 text-xs font-medium text-zinc-500">
+                                            <Move size={14} />
+                                            Drag to reposition
                                         </div>
-                                    )}
 
-                                    <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10" />
-                                </div>
-
-                                <p className="mt-3 text-center text-xs text-zinc-600">
-                                    Drag inside the square to reposition.
-                                </p>
-                            </div>
-
-                            <div className="space-y-5">
-                                <div>
-                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                        <label
-                                            htmlFor="cover-zoom"
-                                            className="text-sm font-semibold text-zinc-200"
-                                        >
-                                            Zoom
-                                        </label>
-
-                                        <span className="text-xs text-zinc-500">
-                                            {Math.round(zoom * 100)}%
+                                        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-xs text-zinc-400">
+                                            1:1 square
                                         </span>
                                     </div>
 
-                                    <input
-                                        id="cover-zoom"
-                                        type="range"
-                                        min="1"
-                                        max="3"
-                                        step="0.01"
-                                        value={zoom}
-                                        disabled={!imageInfo || uploading}
-                                        onChange={(event) => {
-                                            const nextZoom = Number(event.target.value);
-                                            setZoom(nextZoom);
-                                            setOffset((currentOffset) =>
-                                                clampOffset(currentOffset, nextZoom),
-                                            );
-                                        }}
-                                        className="w-full accent-green-400"
-                                    />
+                                    <div className="relative rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-2 shadow-2xl shadow-black/30">
+                                        <div
+                                            className="relative mx-auto overflow-hidden rounded-[1.25rem] bg-black"
+                                            style={{
+                                                width: "min(100%, 360px)",
+                                                aspectRatio: "1 / 1",
+                                                touchAction: "none",
+                                            }}
+                                            onPointerDown={(event) => {
+                                                if (!imageInfo || uploading) return;
+
+                                                event.currentTarget.setPointerCapture(event.pointerId);
+
+                                                dragStartRef.current = {
+                                                    pointerX: event.clientX,
+                                                    pointerY: event.clientY,
+                                                    offsetX: offset.x,
+                                                    offsetY: offset.y,
+                                                };
+                                            }}
+                                            onPointerMove={(event) => {
+                                                if (!dragStartRef.current || !imageInfo || uploading) {
+                                                    return;
+                                                }
+
+                                                const bounds =
+                                                    event.currentTarget.getBoundingClientRect();
+                                                const scale = PREVIEW_SIZE / bounds.width;
+
+                                                const deltaX =
+                                                    (event.clientX - dragStartRef.current.pointerX) *
+                                                    scale;
+                                                const deltaY =
+                                                    (event.clientY - dragStartRef.current.pointerY) *
+                                                    scale;
+
+                                                setOffset(
+                                                    clampOffset({
+                                                        x: dragStartRef.current.offsetX + deltaX,
+                                                        y: dragStartRef.current.offsetY + deltaY,
+                                                    }),
+                                                );
+                                            }}
+                                            onPointerUp={(event) => {
+                                                dragStartRef.current = null;
+                                                event.currentTarget.releasePointerCapture(
+                                                    event.pointerId,
+                                                );
+                                            }}
+                                            onPointerCancel={(event) => {
+                                                dragStartRef.current = null;
+                                                event.currentTarget.releasePointerCapture(
+                                                    event.pointerId,
+                                                );
+                                            }}
+                                        >
+                                            <div
+                                                className="absolute left-1/2 top-1/2"
+                                                style={{
+                                                    width: PREVIEW_SIZE,
+                                                    height: PREVIEW_SIZE,
+                                                    transform:
+                                                        "translate(-50%, -50%) scale(calc(min(100vw - 48px, 360px) / 360))",
+                                                    transformOrigin: "center",
+                                                }}
+                                            >
+                                                {imageInfo && (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        ref={imageElementRef}
+                                                        src={imageInfo.src}
+                                                        alt="Selected playlist cover"
+                                                        draggable={false}
+                                                        className="absolute left-1/2 top-1/2 select-none"
+                                                        style={{
+                                                            width: scaledImageSize.width,
+                                                            height: scaledImageSize.height,
+                                                            transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+                                                            maxWidth: "none",
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {!imageInfo && !imageError && (
+                                                <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                                                    <Loader2 size={26} className="animate-spin" />
+                                                </div>
+                                            )}
+
+                                            <div className="pointer-events-none absolute inset-0 rounded-[1.25rem] ring-1 ring-inset ring-white/10" />
+                                            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:33.333%_33.333%] opacity-40" />
+                                        </div>
+                                    </div>
+
+                                    <p className="mt-3 text-center text-xs leading-5 text-zinc-600">
+                                        This is exactly what Spotify will receive after compression.
+                                    </p>
                                 </div>
+
+                                <div className="space-y-5">
+                                    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4">
+                                        <div className="mb-4 flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-sm font-bold text-white">Zoom</p>
+                                                <p className="mt-1 text-xs text-zinc-600">
+                                                    Use the slider or buttons.
+                                                </p>
+                                            </div>
+
+                                            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-semibold text-zinc-300">
+                                                {Math.round(zoom * 100)}%
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                disabled={!imageInfo || uploading || zoom <= 1}
+                                                onClick={() => nudgeZoom("out")}
+                                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 transition hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Zoom out"
+                                            >
+                                                <Minus size={17} />
+                                            </button>
+
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="3"
+                                                step="0.01"
+                                                value={zoom}
+                                                disabled={!imageInfo || uploading}
+                                                onChange={(event) => {
+                                                    const nextZoom = Number(event.target.value);
+                                                    setZoom(nextZoom);
+                                                    setOffset((currentOffset) =>
+                                                        clampOffset(currentOffset, nextZoom),
+                                                    );
+                                                }}
+                                                className="h-2 w-full cursor-pointer accent-green-400 disabled:cursor-not-allowed"
+                                            />
+
+                                            <button
+                                                type="button"
+                                                disabled={!imageInfo || uploading || zoom >= 3}
+                                                onClick={() => nudgeZoom("in")}
+                                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 transition hover:bg-white/[0.09] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                                aria-label="Zoom in"
+                                            >
+                                                <Plus size={17} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        disabled={!imageInfo || uploading}
+                                        onClick={resetCrop}
+                                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <RotateCcw size={16} />
+                                        Reset position
+                                    </button>
+
+                                    {imageError && (
+                                        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-6 text-red-200">
+                                            {imageError}
+                                        </div>
+                                    )}
+
+                                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                        <p className="text-sm font-semibold text-zinc-200">
+                                            Spotify requirements
+                                        </p>
+
+                                        <ul className="mt-2 space-y-1.5 text-xs leading-5 text-zinc-500">
+                                            <li>JPEG cover image</li>
+                                            <li>Square crop</li>
+                                            <li>Maximum 256 KB</li>
+                                            <li>VibeForge compresses it automatically</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="sticky bottom-0 border-t border-white/10 bg-[#0d0f14]/95 p-4 backdrop-blur-xl sm:px-6">
+                            <div className="mx-auto flex max-w-3xl flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    disabled={uploading}
+                                    onClick={onClose}
+                                    className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] px-5 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-32"
+                                >
+                                    Cancel
+                                </button>
 
                                 <button
                                     type="button"
                                     disabled={!imageInfo || uploading}
-                                    onClick={resetCrop}
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={handleConfirm}
+                                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-400 px-5 text-sm font-black text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-44"
                                 >
-                                    <RotateCcw size={16} />
-                                    Reset crop
+                                    {uploading ? (
+                                        <Loader2 size={17} className="animate-spin" />
+                                    ) : (
+                                        <Check size={17} />
+                                    )}
+                                    {uploading ? "Uploading..." : "Use this cover"}
                                 </button>
-
-                                {imageError && (
-                                    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
-                                        {imageError}
-                                    </div>
-                                )}
-
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-xs leading-5 text-zinc-500">
-                                    Spotify requires a JPEG cover under 256 KB. VibeForge will
-                                    compress the cropped image automatically before uploading.
-                                </div>
-
-                                <div className="flex flex-col gap-3 sm:flex-row">
-                                    <button
-                                        type="button"
-                                        disabled={uploading}
-                                        onClick={onClose}
-                                        className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        disabled={!imageInfo || uploading}
-                                        onClick={handleConfirm}
-                                        className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-green-400 px-4 text-sm font-bold text-black shadow-lg shadow-green-400/20 transition hover:bg-green-300 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {uploading && (
-                                            <Loader2 size={16} className="animate-spin" />
-                                        )}
-                                        {uploading ? "Uploading..." : "Use this cover"}
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </motion.div>
