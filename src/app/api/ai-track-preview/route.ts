@@ -187,11 +187,11 @@ async function searchSpotifyTracks({
     foundCount: tracks.length,
     firstTrack: tracks[0]
       ? {
-          id: tracks[0].id,
-          name: tracks[0].name,
-          uri: tracks[0].uri,
-          artists: tracks[0].artists?.map((artist) => artist.name),
-        }
+        id: tracks[0].id,
+        name: tracks[0].name,
+        uri: tracks[0].uri,
+        artists: tracks[0].artists?.map((artist) => artist.name),
+      }
       : null,
     error: searchError,
   });
@@ -390,10 +390,10 @@ async function searchSpotifyArtist({
     firstArtist:
       !isRawText(data) && data.artists?.items?.[0]
         ? {
-            id: data.artists.items[0].id,
-            name: data.artists.items[0].name,
-            uri: data.artists.items[0].uri,
-          }
+          id: data.artists.items[0].id,
+          name: data.artists.items[0].name,
+          uri: data.artists.items[0].uri,
+        }
         : null,
     error,
   });
@@ -551,9 +551,8 @@ async function generateArtistTopTracksPreview({
     .map((track) =>
       mapSpotifyTrackToPreviewTrack({
         track,
-        query: `${artistResult.artist?.name ?? artistName} ${
-          track.name ?? ""
-        }`.trim(),
+        query: `${artistResult.artist?.name ?? artistName} ${track.name ?? ""
+          }`.trim(),
         source: "requested artist",
       })
     );
@@ -657,8 +656,10 @@ You are VibeForge, an expert Spotify playlist curator and music metadata assista
 Your job is to generate accurate Spotify-resolvable track candidates.
 These candidates will be searched on Spotify immediately, so every candidate must be a real track with the correct artist.
 
-User request:
-"${prompt}"
+IMPORTANT:
+The USER_REQUEST is the only source of truth.
+Do not use artists, songs, anime, games, franchises, moods, genres, or examples unless they are explicitly requested by the user.
+Do not copy tracks from examples unless the user request clearly asks for that exact artist, franchise, or topic.
 
 Mode:
 "${mode ?? "vibe"}"
@@ -687,12 +688,7 @@ ABSOLUTE RULES:
 - "query" must usually be formatted as: "Artist Name Song Title".
 - "name" must be the track title only.
 - "artists" must be an array of real artist/composer names.
-- "source" must be short and useful, for example:
-  - "requested artist"
-  - "similar artist"
-  - "Persona 4 battle theme"
-  - "Bleach opening 1"
-  - "official OST"
+- "source" must be short and useful.
 - Do not invent songs.
 - Do not invent artists.
 - Do not invent anime/game/song associations.
@@ -703,6 +699,15 @@ ABSOLUTE RULES:
 - Prefer tracks likely to exist on Spotify.
 - Prefer official artist names and official song titles.
 - Avoid duplicates.
+
+EXAMPLE CONTAMINATION RULES:
+- Examples are only formatting references.
+- Never treat example artists as requested artists.
+- Never treat example franchises as requested franchises.
+- Never use example songs unless the USER_REQUEST asks for the exact related artist, franchise, anime, game, or soundtrack.
+- If the user asks for "rock workout music", do not include Aimer, Ado, Radiohead, Persona, Bleach, Demon Slayer, or Jujutsu Kaisen just because those names appear in examples.
+- If the user asks for "sad piano music", do not include anime/game tracks unless the user asks for anime/game music.
+- If the user asks for a broad vibe, generate tracks based on the vibe only.
 
 REQUEST TYPE DETECTION:
 Before generating tracks, silently classify the request as one of these:
@@ -718,9 +723,7 @@ Use this only if the user asks for:
 - an artist's songs
 - tracks from an artist
 - more songs from an artist
-- "Aimer's songs"
-- "songs by Ado"
-- "more Radiohead songs"
+- examples: "songs by Ado", "Aimer's songs", "more Radiohead songs"
 
 Rules:
 - Only return tracks by the exact requested artist.
@@ -744,6 +747,7 @@ Rules:
 - Do not randomly switch to unrelated mainstream artists.
 - If the requested artist is Japanese, prefer Japanese or closely related artists unless the user asks otherwise.
 - "source" should explain the relation briefly.
+- Do not mark similar artists as "requested artist".
 
 MEDIA_FRANCHISE:
 Use this if the user asks for:
@@ -771,7 +775,7 @@ Rules:
 - Do not include unrelated mainstream artists unless they are actually connected to the franchise.
 - Do not interpret titles literally. For example, "Bleach" means the anime Bleach, not cleaning products, colors, or unrelated songs.
 - For Japanese anime/games, prefer Japanese artists, official composers, and songs actually used in that anime/game.
-- "source" should say where it belongs, for example "Persona 4 battle theme", "Bleach opening 2", or "official OST".
+- "source" should say where it belongs, for example "opening theme", "ending theme", "battle theme", or "official OST".
 
 VIBE_OR_GENRE:
 Use this if the user asks for:
@@ -788,195 +792,44 @@ Rules:
 - Use variety across artists.
 - If the prompt mentions a genre, stay close to that genre.
 - If the prompt mentions an activity, choose tracks that fit that activity.
+- Do not use artists, songs, or franchises from examples.
+- Do not use "requested artist" as a source unless the user explicitly named an artist.
 
-KNOWN ARTIST EXAMPLES:
-If the user asks for Aimer tracks, prefer real well-known Aimer songs such as:
-- Aimer Brave Shine
-- Aimer LAST STARDUST
-- Aimer 残響散歌
-- Aimer カタオモイ
-- Aimer 蝶々結び
-- Aimer Ref:rain
-- Aimer I beg you
-- Aimer SPARK-AGAIN
-- Aimer ONE
-- Aimer ninelie
-- Aimer RE:I AM
-- Aimer StarRingChild
-- Aimer 六等星の夜
-- Aimer Black Bird
-- Aimer Torches
+SOURCE FIELD RULES:
+Use one of these styles:
+- "requested artist" only when the user explicitly requested that artist.
+- "similar artist" only when the user requested music like a specific artist.
+- "matches dark rock vibe"
+- "fits energetic workout mood"
+- "official opening theme"
+- "official ending theme"
+- "official OST"
+- "matches requested genre"
+- "matches requested mood"
 
-If the user asks for Ado tracks, prefer:
-- Ado Usseewa
-- Ado Odo
-- Ado New Genesis
-- Ado Backlight
-- Ado Tot Musica
-- Ado Show
-- Ado Readymade
-- Ado Gira Gira
-- Ado Ashura-chan
-- Ado Eien no Akuruhi
-- Ado KokoroToIuNaNoFukakai
-- Ado Kura Kura
+BAD OUTPUT PATTERNS:
+Never do these:
+- User asks: "dark workout music"
+  Bad source: "requested artist"
+- User asks: "sad songs"
+  Bad result: Aimer, Ado, Persona, Bleach, Demon Slayer, Jujutsu Kaisen just because they appear in examples.
+- User asks: "anime vibes"
+  Bad result: random anime songs with invented anime associations.
+- User asks: "songs like Aimer"
+  Bad source for LiSA: "requested artist"
+  Correct source for LiSA: "similar Japanese emotional rock style"
 
-If the user asks for Radiohead tracks, prefer:
-- Radiohead Let Down
-- Radiohead No Surprises
-- Radiohead Weird Fishes Arpeggi
-- Radiohead Jigsaw Falling Into Place
-- Radiohead Paranoid Android
-- Radiohead Karma Police
-- Radiohead Everything In Its Right Place
-- Radiohead Reckoner
-- Radiohead Nude
-- Radiohead Street Spirit Fade Out
+GOOD OUTPUT FORMAT EXAMPLE:
+This example is only about JSON formatting.
+Do not copy these placeholder values.
 
-KNOWN MEDIA EXAMPLES:
-Persona:
-- Persona 3: "Yumi Kawamura Burn My Dread", "Lotus Juice Mass Destruction", "Yumi Kawamura Memories of You", "Shoji Meguro When the Moon's Reaching Out Stars", "Lotus Juice It's Going Down Now".
-- Persona 4: "Shihoko Hirata Pursuing My True Self", "Shihoko Hirata Reach Out To The Truth", "Shihoko Hirata I'll Face Myself", "Shoji Meguro Heartbeat Heartbreak", "Shoji Meguro Your Affection", "Shihoko Hirata Never More", "Shihoko Hirata Shadow World", "Shoji Meguro Signs Of Love".
-- Persona 5: "Lyn Last Surprise", "Lyn Wake Up Get Up Get Out There", "Lyn Life Will Change", "Lyn Rivers In the Desert", "Lyn Beneath the Mask", "Lyn Whims of Fate", "Lyn Take Over", "Lyn Colors Flying High".
-
-Bleach:
-- "ORANGE RANGE Asterisk"
-- "UVERworld D-tecnoLife"
-- "High and Mighty Color Ichirin no Hana"
-- "YUI Rolling star"
-- "Aqua Timez ALONES"
-- "KELUN CHU-BURA"
-- "SCANDAL Shoujo S"
-- "SID Ranbu no Melody"
-- "miwa chAngE"
-- "Shiro Sagisu Number One"
-- "Shiro Sagisu Treachery"
-- "Shiro Sagisu Invasion"
-
-Demon Slayer:
-- "LiSA Gurenge"
-- "LiSA Homura"
-- "Aimer Zankyosanka"
-- "Aimer Asa ga Kuru"
-- "MAN WITH A MISSION Kizuna no Kiseki"
-- "milet Koi Kogare"
-
-Jujutsu Kaisen:
-- "Eve Kaikai Kitan"
-- "ALI LOST IN PARADISE"
-- "Who-ya Extended VIVID VICE"
-- "King Gnu SPECIALZ"
-- "Tatsuya Kitani Ao no Sumika"
-- "Soushi Sakiyama Akari"
-
-GOOD OUTPUT EXAMPLES:
-
-User request: "Aimer's songs"
-Mode: "artist"
-Good output:
 {
   "tracks": [
     {
-      "query": "Aimer Brave Shine",
-      "name": "Brave Shine",
-      "artists": ["Aimer"],
-      "source": "requested artist"
-    },
-    {
-      "query": "Aimer LAST STARDUST",
-      "name": "LAST STARDUST",
-      "artists": ["Aimer"],
-      "source": "requested artist"
-    },
-    {
-      "query": "Aimer Ref:rain",
-      "name": "Ref:rain",
-      "artists": ["Aimer"],
-      "source": "requested artist"
-    }
-  ]
-}
-
-User request: "music like Aimer"
-Mode: "artist"
-Good output:
-{
-  "tracks": [
-    {
-      "query": "Aimer Brave Shine",
-      "name": "Brave Shine",
-      "artists": ["Aimer"],
-      "source": "requested artist"
-    },
-    {
-      "query": "EGOIST Namae no Nai Kaibutsu",
-      "name": "Namae no Nai Kaibutsu",
-      "artists": ["EGOIST"],
-      "source": "similar dramatic anime vocal style"
-    },
-    {
-      "query": "LiSA Shirushi",
-      "name": "Shirushi",
-      "artists": ["LiSA"],
-      "source": "similar Japanese emotional rock style"
-    }
-  ]
-}
-
-User request: "Persona 4"
-Mode: "vibe"
-Good output:
-{
-  "tracks": [
-    {
-      "query": "Shihoko Hirata Pursuing My True Self",
-      "name": "Pursuing My True Self",
-      "artists": ["Shihoko Hirata"],
-      "source": "Persona 4 opening"
-    },
-    {
-      "query": "Shihoko Hirata Reach Out To The Truth",
-      "name": "Reach Out To The Truth",
-      "artists": ["Shihoko Hirata"],
-      "source": "Persona 4 battle theme"
-    },
-    {
-      "query": "Shoji Meguro Heartbeat Heartbreak",
-      "name": "Heartbeat Heartbreak",
-      "artists": ["Shoji Meguro"],
-      "source": "Persona 4 OST"
-    }
-  ]
-}
-
-User request: "make a playlist containing bleach anime openings endings and ost"
-Mode: "vibe"
-Good output:
-{
-  "tracks": [
-    {
-      "query": "ORANGE RANGE Asterisk",
-      "name": "Asterisk",
-      "artists": ["ORANGE RANGE"],
-      "source": "Bleach opening 1"
-    },
-    {
-      "query": "UVERworld D-tecnoLife",
-      "name": "D-tecnoLife",
-      "artists": ["UVERworld"],
-      "source": "Bleach opening 2"
-    },
-    {
-      "query": "YUI Rolling star",
-      "name": "Rolling star",
-      "artists": ["YUI"],
-      "source": "Bleach opening"
-    },
-    {
-      "query": "Shiro Sagisu Number One",
-      "name": "Number One",
-      "artists": ["Shiro Sagisu"],
-      "source": "Bleach OST"
+      "query": "Artist Name Song Title",
+      "name": "Song Title",
+      "artists": ["Artist Name"],
+      "source": "matches requested mood"
     }
   ]
 }
@@ -988,8 +841,15 @@ Before returning final JSON, silently verify:
 - The result matches the detected request type.
 - There are no duplicate songs.
 - There are exactly 15 tracks.
+- Nothing from examples was used unless explicitly requested in the USER_REQUEST.
+- "requested artist" is only used when the user explicitly named that artist.
 
-Now generate exactly 15 track suggestions for the user's request.
+USER_REQUEST:
+"""
+${prompt}
+"""
+
+Now generate exactly 15 track suggestions for the USER_REQUEST.
 `;
 
     logStep("Sending request to Groq", {
@@ -1116,9 +976,9 @@ Now generate exactly 15 track suggestions for the user's request.
                 : query,
             artists: Array.isArray(track.artists)
               ? track.artists.filter(
-                  (artist): artist is string =>
-                    typeof artist === "string" && Boolean(artist.trim())
-                )
+                (artist): artist is string =>
+                  typeof artist === "string" && Boolean(artist.trim())
+              )
               : [],
             source:
               typeof track.source === "string" && track.source.trim()
