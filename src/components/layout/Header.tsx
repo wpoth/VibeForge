@@ -196,46 +196,51 @@ export function Header({
             aria-label="Go to landing page"
             title="Go to landing page"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-green-400/30 bg-green-500/20 text-sm text-green-300 shadow-lg shadow-green-500/10">
-              ♪
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-green-400/30 bg-green-500/10 shadow-lg shadow-green-500/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/vibeforge-logo.png"
+                alt="VibeForge logo"
+                className="h-full w-full object-cover"
+              />
             </span>
 
             <span className="font-display truncate text-sm font-bold tracking-tight">
               VibeForge
             </span>
           </motion.button>
+        </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.94 }}
-              onClick={onAiModeClick}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-              aria-label="AI Mode"
-            >
-              <Sparkles size={16} strokeWidth={2.2} />
-            </motion.button>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.94 }}
+            onClick={onAiModeClick}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label="AI Mode"
+          >
+            <Sparkles size={16} strokeWidth={2.2} />
+          </motion.button>
 
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.94 }}
-              onClick={() => setSettingsOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-              aria-label="Settings"
-            >
-              <Settings size={16} strokeWidth={2.2} />
-            </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.94 }}
+            onClick={() => setSettingsOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label="Settings"
+          >
+            <Settings size={16} strokeWidth={2.2} />
+          </motion.button>
 
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.94 }}
-              onClick={() => signOut()}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-              aria-label="Logout"
-            >
-              <LogOut size={16} strokeWidth={2.2} />
-            </motion.button>
-          </div>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.94 }}
+            onClick={() => signOut()}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+            aria-label="Logout"
+          >
+            <LogOut size={16} strokeWidth={2.2} />
+          </motion.button>
         </div>
 
         <div className="flex h-12 items-center gap-2 pb-2 sm:hidden">
@@ -404,7 +409,7 @@ export function Header({
             </motion.button>
           </motion.div>
         </div>
-      </motion.header>
+      </motion.header >
 
       <NowPlayingPopover
         open={popoverOpen}
