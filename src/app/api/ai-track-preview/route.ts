@@ -1,5 +1,4 @@
 import type {
-  SpotifyArtist,
   SpotifyArtistSearchResponse,
   SpotifyArtistTopTracksResponse,
   SpotifySearchResponse,
@@ -27,7 +26,7 @@ type GroqResponse = {
 type JsonOrText<T extends object> = T | { rawText: string };
 
 async function readJsonOrText<T extends object>(
-  res: Response
+  res: Response,
 ): Promise<JsonOrText<T>> {
   const text = await res.text();
 
@@ -43,7 +42,7 @@ async function readJsonOrText<T extends object>(
 }
 
 function isRawText<T extends object>(
-  value: JsonOrText<T>
+  value: JsonOrText<T>,
 ): value is { rawText: string } {
   return "rawText" in value;
 }
@@ -101,7 +100,7 @@ function textMatches(expected?: string, actual?: string) {
 
 function spotifyTrackMatchesSuggestion(
   spotifyTrack: SpotifyTrack,
-  suggestion: AiTrackSuggestion
+  suggestion: AiTrackSuggestion,
 ) {
   const expectedName = suggestion.name;
   const actualName = spotifyTrack.name;
@@ -125,8 +124,8 @@ function spotifyTrackMatchesSuggestion(
         (actualArtist) =>
           actualArtist === expectedArtist ||
           actualArtist.includes(expectedArtist) ||
-          expectedArtist.includes(actualArtist)
-      )
+          expectedArtist.includes(actualArtist),
+      ),
     );
 
   return nameMatches && artistMatches;
@@ -145,7 +144,7 @@ function buildSpotifySearchQueries(suggestion: AiTrackSuggestion) {
   ];
 
   return Array.from(
-    new Set(queries.filter((value): value is string => Boolean(value)))
+    new Set(queries.filter((value): value is string => Boolean(value))),
   );
 }
 
@@ -245,7 +244,7 @@ async function resolveSuggestionToSpotifyTrack({
     }
 
     const matchingTrack = result.tracks.find((track) =>
-      spotifyTrackMatchesSuggestion(track, suggestion)
+      spotifyTrackMatchesSuggestion(track, suggestion),
     );
 
     if (!matchingTrack?.uri) {
@@ -302,8 +301,31 @@ function uniqueSuggestions(values: AiTrackSuggestion[]) {
   });
 }
 
+function normalizeMode(mode?: string) {
+  return mode?.toLowerCase().replace(/[_\s-]+/g, "-").trim() ?? "vibe";
+}
+
+function isArtistMode(mode?: string) {
+  const normalizedMode = normalizeMode(mode);
+
+  return (
+    normalizedMode === "artist" ||
+    normalizedMode === "artist-based" ||
+    normalizedMode === "artists"
+  );
+}
+
 function cleanArtistPrompt(prompt: string) {
   return prompt
+    .replace(/\bmusic from these artists\b/gi, "")
+    .replace(/\bmusic from this artist\b/gi, "")
+    .replace(/\bmusic from\b/gi, "")
+    .replace(/\bfrom these artists\b/gi, "")
+    .replace(/\bfrom this artist\b/gi, "")
+    .replace(/\bthese artists\b/gi, "")
+    .replace(/\bthis artist\b/gi, "")
+    .replace(/\bartist based\b/gi, "")
+    .replace(/\bartist mode\b/gi, "")
     .replace(/\bmusic like\b/gi, "")
     .replace(/\bsongs like\b/gi, "")
     .replace(/\bsimilar to\b/gi, "")
@@ -326,26 +348,50 @@ function cleanArtistPrompt(prompt: string) {
     .replace(/['’]s tracks?/gi, "")
     .replace(/\bsongs?\b/gi, "")
     .replace(/\btracks?\b/gi, "")
+    .replace(/[:;]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function looksLikeExactArtistRequest(prompt: string) {
+function extractArtistNamesFromPrompt(prompt: string) {
+  const cleaned = cleanArtistPrompt(prompt);
+
+  return cleaned
+    .split(/,|\band\b|&|\+|\n/gi)
+    .map((artist) =>
+      artist
+        .replace(/^\s*(by|from|with)\s+/i, "")
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean)
+    .filter((artist) => artist.length > 1);
+}
+
+function looksLikeSimilarArtistRequest(prompt: string) {
   const normalized = prompt.toLowerCase().trim();
 
-  const isSimilarRequest =
+  return (
     /\bmusic like\b/.test(normalized) ||
     /\bsongs like\b/.test(normalized) ||
     /\btracks like\b/.test(normalized) ||
     /\bsimilar to\b/.test(normalized) ||
     /\bartists like\b/.test(normalized) ||
-    /\bsame vibe as\b/.test(normalized);
+    /\bsame vibe as\b/.test(normalized)
+  );
+}
 
-  if (isSimilarRequest) {
+function looksLikeExactArtistRequest(prompt: string) {
+  const normalized = prompt.toLowerCase().trim();
+
+  if (looksLikeSimilarArtistRequest(prompt)) {
     return false;
   }
 
   return (
+    /\bmusic from\b/.test(normalized) ||
+    /\bfrom these artists\b/.test(normalized) ||
+    /\bthese artists\b/.test(normalized) ||
     /\b.+['’]s songs?\b/.test(normalized) ||
     /\b.+['’]s tracks?\b/.test(normalized) ||
     /\bsongs? by\b/.test(normalized) ||
@@ -357,6 +403,21 @@ function looksLikeExactArtistRequest(prompt: string) {
     /\bsongs? of\b/.test(normalized) ||
     /\btracks? of\b/.test(normalized)
   );
+}
+
+function shouldUseArtistTopTracksShortcut({
+  prompt,
+  mode,
+}: {
+  prompt: string;
+  mode?: string;
+}) {
+  if (!isArtistMode(mode)) return false;
+  if (looksLikeSimilarArtistRequest(prompt)) return false;
+
+  const artistNames = extractArtistNamesFromPrompt(prompt);
+
+  return looksLikeExactArtistRequest(prompt) && artistNames.length > 0;
 }
 
 async function searchSpotifyArtist({
@@ -426,7 +487,7 @@ async function getSpotifyArtistTopTracks({
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
-    }
+    },
   );
 
   const data = await readJsonOrText<SpotifyArtistTopTracksResponse>(res);
@@ -491,84 +552,117 @@ async function generateArtistTopTracksPreview({
   mode?: string;
   startedAt: number;
 }) {
-  const artistName = cleanArtistPrompt(prompt);
+  const artistNames = extractArtistNamesFromPrompt(prompt);
 
-  if (!artistName) {
+  if (!artistNames.length) {
     return Response.json(
       {
         error: true,
         message: "Could not detect artist name from prompt.",
         step: "detect_artist_name",
       },
-      { status: 400 }
-    );
-  }
-
-  const artistResult = await searchSpotifyArtist({
-    accessToken,
-    artistName,
-  });
-
-  if (!artistResult.artist?.id) {
-    return Response.json(
-      {
-        error: true,
-        message: `Could not find artist "${artistName}" on Spotify.`,
-        step: "spotify_artist_search",
-        details: artistResult.error,
-      },
-      { status: artistResult.status || 404 }
-    );
-  }
-
-  const topTracksResult = await getSpotifyArtistTopTracks({
-    accessToken,
-    artistId: artistResult.artist.id,
-  });
-
-  if (!topTracksResult.tracks.length) {
-    return Response.json(
-      {
-        error: true,
-        message: `Could not load top tracks for "${artistResult.artist.name}".`,
-        step: "spotify_artist_top_tracks",
-        details: topTracksResult.error,
-      },
-      { status: topTracksResult.status || 404 }
+      { status: 400 },
     );
   }
 
   const seenUris = new Set<string>();
+  const tracks: ReturnType<typeof mapSpotifyTrackToPreviewTrack>[] = [];
+  const artistDebug: {
+    requestedName: string;
+    foundArtist?: {
+      id?: string;
+      name?: string;
+      uri?: string;
+    };
+    foundTrackCount: number;
+    error?: unknown;
+  }[] = [];
 
-  const tracks = topTracksResult.tracks
-    .filter((track) => {
-      if (!track.uri || seenUris.has(track.uri)) return false;
+  for (const artistName of artistNames) {
+    const artistResult = await searchSpotifyArtist({
+      accessToken,
+      artistName,
+    });
+
+    if (!artistResult.artist?.id) {
+      artistDebug.push({
+        requestedName: artistName,
+        foundTrackCount: 0,
+        error: artistResult.error,
+      });
+
+      continue;
+    }
+
+    const topTracksResult = await getSpotifyArtistTopTracks({
+      accessToken,
+      artistId: artistResult.artist.id,
+    });
+
+    artistDebug.push({
+      requestedName: artistName,
+      foundArtist: {
+        id: artistResult.artist.id,
+        name: artistResult.artist.name,
+        uri: artistResult.artist.uri,
+      },
+      foundTrackCount: topTracksResult.tracks.length,
+      error: topTracksResult.error,
+    });
+
+    for (const track of topTracksResult.tracks) {
+      if (!track.uri || seenUris.has(track.uri)) {
+        continue;
+      }
 
       seenUris.add(track.uri);
-      return true;
-    })
-    .slice(0, 15)
-    .map((track) =>
-      mapSpotifyTrackToPreviewTrack({
-        track,
-        query: `${artistResult.artist?.name ?? artistName} ${track.name ?? ""
-          }`.trim(),
-        source: "requested artist",
-      })
+
+      tracks.push(
+        mapSpotifyTrackToPreviewTrack({
+          track,
+          query: `${artistResult.artist.name} ${track.name ?? ""}`.trim(),
+          source: "requested artist",
+        }),
+      );
+
+      if (tracks.length >= 15) {
+        break;
+      }
+    }
+
+    if (tracks.length >= 15) {
+      break;
+    }
+
+    await sleep(150);
+  }
+
+  if (!tracks.length) {
+    return Response.json(
+      {
+        error: true,
+        message:
+          artistNames.length > 1
+            ? `Could not load top tracks for these artists: ${artistNames.join(
+              ", ",
+            )}.`
+            : `Could not load top tracks for "${artistNames[0]}".`,
+        step: "spotify_artist_top_tracks",
+        artists: artistDebug,
+      },
+      { status: 404 },
     );
+  }
 
   const responsePayload = {
     success: true,
     tracks,
     debug: {
       prompt,
-      mode: mode ?? "artist",
+      mode: normalizeMode(mode),
       shortcut: "spotify_artist_top_tracks",
-      artist: {
-        id: artistResult.artist.id,
-        name: artistResult.artist.name,
-        uri: artistResult.artist.uri,
-      },
+      requestedArtists: artistNames,
+      artists: artistDebug,
       foundTrackCount: tracks.length,
       durationMs: Date.now() - startedAt,
     },
@@ -608,7 +702,7 @@ export async function POST(req: Request) {
           message: "Missing access token",
           step: "validate_request",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -619,14 +713,14 @@ export async function POST(req: Request) {
           message: "Missing prompt",
           step: "validate_request",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    if (mode === "artist" && looksLikeExactArtistRequest(prompt)) {
+    if (shouldUseArtistTopTracksShortcut({ prompt, mode })) {
       logStep("Using Spotify artist top tracks shortcut", {
         prompt,
-        cleanedArtist: cleanArtistPrompt(prompt),
+        artists: extractArtistNamesFromPrompt(prompt),
       });
 
       return generateArtistTopTracksPreview({
@@ -646,7 +740,7 @@ export async function POST(req: Request) {
           message: "Missing GROQ_API_KEY",
           step: "environment",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -883,7 +977,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
             type: "json_object",
           },
         }),
-      }
+      },
     );
 
     const aiData = await readJsonOrText<GroqResponse>(aiRes);
@@ -919,7 +1013,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           details: aiData,
           step: "ai_request",
         },
-        { status: aiRes.status }
+        { status: aiRes.status },
       );
     }
 
@@ -931,7 +1025,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           rawContent: aiData.rawText,
           step: "ai_response_format",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -958,7 +1052,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           rawContent: content,
           step: "parse_ai_json",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -977,7 +1071,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
             artists: Array.isArray(track.artists)
               ? track.artists.filter(
                 (artist): artist is string =>
-                  typeof artist === "string" && Boolean(artist.trim())
+                  typeof artist === "string" && Boolean(artist.trim()),
               )
               : [],
             source:
@@ -985,7 +1079,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
                 ? track.source.trim()
                 : "AI suggestion",
           };
-        })
+        }),
     ).slice(0, 15);
 
     logStep("Parsed preview suggestions", {
@@ -1000,20 +1094,12 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           message: "AI generated no usable preview tracks",
           step: "parse_preview_tracks",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const resolvedTracks: {
-      id?: string;
-      uri?: string;
-      query: string;
-      name?: string;
-      artists?: string[];
-      album?: string;
-      imageUrl?: string | null;
-      source?: string;
-    }[] = [];
+    const resolvedTracks: ReturnType<typeof mapSpotifyTrackToPreviewTrack>[] =
+      [];
 
     const resolveFailures: {
       query: string;
@@ -1039,7 +1125,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
             query: result.queryUsed ?? suggestion.query,
             resolveFailures,
           },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
@@ -1060,7 +1146,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           track: result.track,
           query: suggestion.query,
           source: suggestion.source ?? "AI suggestion",
-        })
+        }),
       );
 
       await sleep(250);
@@ -1074,6 +1160,20 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
       resolvedTracks,
     });
 
+    if (!resolvedTracks.length && isArtistMode(mode)) {
+      logStep("AI suggestions failed, trying Spotify artist fallback", {
+        prompt,
+        artists: extractArtistNamesFromPrompt(prompt),
+      });
+
+      return generateArtistTopTracksPreview({
+        accessToken,
+        prompt,
+        mode,
+        startedAt,
+      });
+    }
+
     if (!resolvedTracks.length) {
       return Response.json(
         {
@@ -1084,7 +1184,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
           suggestions,
           resolveFailures,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -1093,7 +1193,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
       tracks: resolvedTracks,
       debug: {
         prompt,
-        mode: mode ?? "vibe",
+        mode: normalizeMode(mode),
         generatedQueries: suggestions.map((track) => track.query),
         foundTrackCount: resolvedTracks.length,
         resolveFailureCount: resolveFailures.length,
@@ -1120,7 +1220,7 @@ Now generate exactly 15 track suggestions for the USER_REQUEST.
             : "Failed to generate track preview",
         step: "unhandled_error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
