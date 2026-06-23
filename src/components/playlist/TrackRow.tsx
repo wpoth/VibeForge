@@ -11,7 +11,6 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { motion } from "motion/react";
 
 import {
   closeAllContextMenus,
@@ -145,8 +144,7 @@ export function TrackRow({
           setMobileActionsOpen(false);
         }}
       >
-        <motion.div
-          layout
+        <div
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -159,7 +157,7 @@ export function TrackRow({
               y: event.clientY,
             });
           }}
-          className={`group relative rounded-xl border transition ${settings.compactTrackRows ? "p-2" : "p-3"
+          className={`group relative rounded-xl border transition-colors ${settings.compactTrackRows ? "p-2" : "p-3"
             } ${selected
               ? "border-green-400/40 bg-green-500/10"
               : isPlaying
@@ -172,7 +170,7 @@ export function TrackRow({
               <button
                 type="button"
                 onClick={() => onToggleSelect(playlistItem)}
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${selected
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${selected
                     ? "border-green-400 bg-green-500 text-black"
                     : "border-white/20 text-transparent hover:border-white/40"
                   }`}
@@ -220,13 +218,13 @@ export function TrackRow({
                 event.stopPropagation();
                 setMobileActionsOpen(true);
               }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-zinc-300 transition hover:bg-white/[0.1] hover:text-white lg:hidden"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-zinc-300 transition-colors hover:bg-white/[0.1] hover:text-white lg:hidden"
               aria-label={`Open actions for ${track?.name ?? "song"}`}
             >
               <MoreHorizontal size={18} strokeWidth={2.4} />
             </button>
           </div>
-        </motion.div>
+        </div>
       </SwipeToQueueContainer>
 
       <ContextMenu
