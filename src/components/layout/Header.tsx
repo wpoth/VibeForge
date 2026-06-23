@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Maximize2, Sparkles, Settings } from "lucide-react";
+import { LogOut, Maximize2, Settings, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { signOut } from "next-auth/react";
@@ -38,6 +38,10 @@ export function Header({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [fullscreenNowPlayingOpen, setFullscreenNowPlayingOpen] =
     useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [controlLoading, setControlLoading] = useState(false);
+  const [seekLoading, setSeekLoading] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
 
   const {
     queueOpen,
@@ -51,15 +55,9 @@ export function Header({
     accessToken,
   });
 
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [controlLoading, setControlLoading] = useState(false);
-  const [seekLoading, setSeekLoading] = useState(false);
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-
   function handleLogoClick() {
     setPopoverOpen(false);
     onAiModeClick();
-
     window.dispatchEvent(new CustomEvent("vibeforge:landing-home"));
   }
 
@@ -179,126 +177,124 @@ export function Header({
   return (
     <>
       <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.18 }}
         className="fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#0f1117]/90 px-3 backdrop-blur-xl sm:h-14 sm:px-5"
       >
-        <div className="flex h-14 items-center sm:hidden">
-          <motion.button
-            type="button"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.22, delay: 0.05 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={handleLogoClick}
-            className="flex min-w-0 shrink-0 items-center gap-2 rounded-full pr-2 text-left transition hover:text-green-100"
-            aria-label="Go to landing page"
-            title="Go to landing page"
-          >
-            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-green-400/30 bg-green-500/10 shadow-lg shadow-green-500/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/vibeforge-logo.png"
-                alt="VibeForge logo"
-                className="h-full w-full object-cover"
-              />
-            </span>
-
-            <span className="font-display truncate text-sm font-bold tracking-tight">
-              VibeForge
-            </span>
-          </motion.button>
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-1">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.94 }}
-            onClick={onAiModeClick}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-            aria-label="AI Mode"
-          >
-            <Sparkles size={16} strokeWidth={2.2} />
-          </motion.button>
-
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.94 }}
-            onClick={() => setSettingsOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-            aria-label="Settings"
-          >
-            <Settings size={16} strokeWidth={2.2} />
-          </motion.button>
-
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.94 }}
-            onClick={() => signOut()}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
-            aria-label="Logout"
-          >
-            <LogOut size={16} strokeWidth={2.2} />
-          </motion.button>
-        </div>
-
-        <div className="flex h-12 items-center gap-2 pb-2 sm:hidden">
-          <AnimatePresence mode="wait">
-            {currentlyPlaying?.title ? (
-              <motion.div
-                ref={mobileNowPlayingRef}
-                key="mobile-currently-playing-active"
-                initial={{ opacity: 0, y: -4, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.99 }}
-                transition={{ duration: 0.18 }}
-                className="min-w-0 flex-1"
-              >
-                <CurrentlyPlayingBox
-                  title={currentlyPlaying.title}
-                  artists={currentlyPlaying.artists}
-                  imageUrl={currentlyPlaying.imageUrl}
-                  isPlaying={isPlaying}
-                  onClick={() =>
-                    toggleNowPlayingPopover(mobileNowPlayingRef.current)
-                  }
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="mobile-currently-playing-empty"
-                initial={{ opacity: 0, y: -4, scale: 0.99 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 4, scale: 0.99 }}
-                transition={{ duration: 0.18 }}
-                className="min-w-0 flex-1"
-              >
-                <CurrentlyPlayingBox isPlaying={false} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {currentlyPlaying?.title && (
+        {/* Mobile header */}
+        <div className="sm:hidden">
+          <div className="flex h-14 items-center">
             <motion.button
               type="button"
-              whileTap={{ scale: 0.94 }}
-              onClick={openFullscreenNowPlaying}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white"
-              aria-label="Open fullscreen now playing"
-              title="Open fullscreen now playing"
+              whileTap={{ scale: 0.96 }}
+              onClick={handleLogoClick}
+              className="flex min-w-0 shrink-0 items-center gap-2 rounded-full pr-2 text-left transition hover:text-green-100"
+              aria-label="Go to landing page"
+              title="Go to landing page"
             >
-              <Maximize2 size={15} strokeWidth={2.2} />
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-green-400/30 bg-green-500/10 shadow-lg shadow-green-500/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/vibeforge-logo.png"
+                  alt="VibeForge logo"
+                  className="h-full w-full object-cover"
+                />
+              </span>
+
+              <span className="font-display truncate text-sm font-bold tracking-tight">
+                VibeForge
+              </span>
             </motion.button>
-          )}
+
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94 }}
+                onClick={onAiModeClick}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="AI Mode"
+              >
+                <Sparkles size={16} strokeWidth={2.2} />
+              </motion.button>
+
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94 }}
+                onClick={() => setSettingsOpen(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="Settings"
+              >
+                <Settings size={16} strokeWidth={2.2} />
+              </motion.button>
+
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94 }}
+                onClick={() => signOut()}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+                aria-label="Logout"
+              >
+                <LogOut size={16} strokeWidth={2.2} />
+              </motion.button>
+            </div>
+          </div>
+
+          <div className="flex h-12 items-center gap-2 pb-2">
+            <AnimatePresence mode="wait">
+              {currentlyPlaying?.title ? (
+                <motion.div
+                  ref={mobileNowPlayingRef}
+                  key="mobile-currently-playing-active"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16 }}
+                  className="min-w-0 flex-1"
+                >
+                  <CurrentlyPlayingBox
+                    title={currentlyPlaying.title}
+                    artists={currentlyPlaying.artists}
+                    imageUrl={currentlyPlaying.imageUrl}
+                    isPlaying={isPlaying}
+                    onClick={() =>
+                      toggleNowPlayingPopover(mobileNowPlayingRef.current)
+                    }
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="mobile-currently-playing-empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16 }}
+                  className="min-w-0 flex-1"
+                >
+                  <CurrentlyPlayingBox isPlaying={false} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {currentlyPlaying?.title && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94 }}
+                onClick={openFullscreenNowPlaying}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white"
+                aria-label="Open fullscreen now playing"
+                title="Open fullscreen now playing"
+              >
+                <Maximize2 size={15} strokeWidth={2.2} />
+              </motion.button>
+            )}
+          </div>
         </div>
 
+        {/* Desktop header */}
         <div className="hidden h-14 items-center sm:flex">
           <motion.button
             type="button"
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.22, delay: 0.05 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.96 }}
             onClick={handleLogoClick}
@@ -315,7 +311,7 @@ export function Header({
               />
             </span>
 
-            <span className="font-display hidden truncate font-bold tracking-tight sm:block">
+            <span className="font-display truncate font-bold tracking-tight">
               VibeForge
             </span>
           </motion.button>
@@ -326,10 +322,10 @@ export function Header({
                 <motion.div
                   ref={desktopNowPlayingRef}
                   key="desktop-currently-playing-active"
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16 }}
                   className="pointer-events-auto min-w-0"
                 >
                   <div className="flex items-center gap-2">
@@ -345,10 +341,10 @@ export function Header({
 
                     <motion.button
                       type="button"
-                      whileHover={{ scale: 1.06, y: -1 }}
+                      whileHover={{ scale: 1.06 }}
                       whileTap={{ scale: 0.94 }}
                       onClick={openFullscreenNowPlaying}
-                      className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white sm:flex"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-300 shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white"
                       aria-label="Open fullscreen now playing"
                       title="Open fullscreen now playing"
                     >
@@ -359,10 +355,10 @@ export function Header({
               ) : (
                 <motion.div
                   key="desktop-currently-playing-empty"
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                  transition={{ duration: 0.2 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.16 }}
                   className="pointer-events-auto min-w-0"
                 >
                   <CurrentlyPlayingBox isPlaying={false} />
@@ -372,49 +368,49 @@ export function Header({
           </div>
 
           <motion.div
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.22, delay: 0.08 }}
-            className="relative z-20 ml-auto flex shrink-0 items-center gap-1 sm:gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
+            className="relative z-20 ml-auto flex shrink-0 items-center gap-2"
           >
             <motion.button
               type="button"
-              whileHover={{ scale: 1.04, y: -1 }}
+              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={onAiModeClick}
-              className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white sm:px-3"
+              className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
               aria-label="AI Mode"
             >
               <Sparkles size={16} strokeWidth={2.2} />
-              <span className="hidden sm:inline">AI Mode</span>
+              <span>AI Mode</span>
             </motion.button>
 
             <motion.button
               type="button"
-              whileHover={{ scale: 1.04, y: -1 }}
+              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => setSettingsOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white sm:px-3"
+              className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
               aria-label="Settings"
             >
               <Settings size={16} strokeWidth={2.2} />
-              <span className="hidden sm:inline">Settings</span>
+              <span>Settings</span>
             </motion.button>
 
             <motion.button
               type="button"
-              whileHover={{ scale: 1.04, y: -1 }}
+              whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => signOut()}
-              className="flex h-9 items-center gap-1.5 rounded-full px-2 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white sm:px-3"
+              className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
               aria-label="Logout"
             >
               <LogOut size={16} strokeWidth={2.2} />
-              <span className="hidden sm:inline">Logout</span>
+              <span>Logout</span>
             </motion.button>
           </motion.div>
         </div>
-      </motion.header >
+      </motion.header>
 
       <NowPlayingPopover
         open={popoverOpen}
