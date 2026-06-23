@@ -812,7 +812,7 @@ export function DashboardApp({
     const openingPlaylistRoute = Boolean(
         initialPlaylistId &&
         !playlistRouteMissing &&
-        selectedPlaylist?.id !== initialPlaylistId,
+        (selectedPlaylist?.id !== initialPlaylistId || loadingTracks),
     );
 
     return (
