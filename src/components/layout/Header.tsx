@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { LogOut, Maximize2, Settings, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -194,11 +195,13 @@ export function Header({
               title="Go to landing page"
             >
               <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-green-400/30 bg-green-500/10 shadow-lg shadow-green-500/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src="/vibeforge-logo.png"
                   alt="VibeForge logo"
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="36px"
+                  className="object-cover"
+                  priority
                 />
               </span>
 
