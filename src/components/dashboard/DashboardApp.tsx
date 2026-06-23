@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { SongResearchDrawer } from "@/components/ai/SongResearchDrawer";
 import { useSongResearch } from "@/hooks/useSongResearch";
@@ -66,6 +67,7 @@ export function DashboardApp({
     const [coverEditorPlaylist, setCoverEditorPlaylist] =
         useState<SpotifyPlaylist | null>(null);
     const [coverEditorFile, setCoverEditorFile] = useState<File | null>(null);
+    const [playlistRouteMissing, setPlaylistRouteMissing] = useState(false);
 
     const lastAiSuccessMessageRef = useRef<string | null>(null);
 
@@ -148,7 +150,11 @@ export function DashboardApp({
     } = useAiAnalysis();
 
     useEffect(() => {
-        if (!initialPlaylistId) return;
+        if (!initialPlaylistId) {
+            setPlaylistRouteMissing(false);
+            return;
+        }
+
         if (!playlistsLoaded) return;
 
         // On route changes, DashboardApp can mount before playlists are available.
@@ -157,17 +163,20 @@ export function DashboardApp({
 
         if (selectedPlaylist?.id === initialPlaylistId) {
             setError(null);
+            setPlaylistRouteMissing(false);
             return;
         }
 
         const playlist = playlists.find((item) => item.id === initialPlaylistId);
 
         if (!playlist) {
+            setPlaylistRouteMissing(true);
             setError("Playlist not found or not available in VibeForge.");
             return;
         }
 
         setError(null);
+        setPlaylistRouteMissing(false);
         setAiAnalysis(null);
 
         void openPlaylist(playlist);
@@ -574,6 +583,7 @@ export function DashboardApp({
     function handlePlaylistClick(playlist: SpotifyPlaylist) {
         setError(null);
         setAiAnalysis(null);
+        setPlaylistRouteMissing(false);
 
         const playlistPath = `/dashboard/playlist/${encodeURIComponent(
             playlist.id,
@@ -799,6 +809,12 @@ export function DashboardApp({
         );
     }
 
+    const openingPlaylistRoute = Boolean(
+        initialPlaylistId &&
+        !playlistRouteMissing &&
+        selectedPlaylist?.id !== initialPlaylistId,
+    );
+
     return (
         <AppShell>
             <Header
@@ -822,13 +838,31 @@ export function DashboardApp({
             />
 
             <main className="relative z-10 p-4 sm:p-6 lg:ml-80 lg:pt-20">
-                {error && (
+                {error && !openingPlaylistRoute && (
                     <div className="mb-6 rounded-xl border border-red-900/80 bg-red-950/60 p-4 text-sm text-red-200">
                         {error}
                     </div>
                 )}
 
-                {view === "ai" && (
+                {openingPlaylistRoute && (
+                    <div className="flex min-h-[60vh] items-center justify-center">
+                        <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-white/[0.035] p-8 text-center shadow-2xl shadow-black/20">
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-400/10 text-green-300">
+                                <Loader2 size={24} className="animate-spin" />
+                            </div>
+
+                            <h2 className="mt-5 text-2xl font-black tracking-tight text-white">
+                                Opening playlist
+                            </h2>
+
+                            <p className="mt-2 text-sm leading-6 text-zinc-500">
+                                Loading your Spotify playlist from the URL.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {!openingPlaylistRoute && view === "ai" && (
                     <LandingPage
                         initialView={initialLandingView}
                         currentlyPlaying={currentlyPlaying}
@@ -878,7 +912,7 @@ export function DashboardApp({
                     />
                 )}
 
-                {view === "playlist" && selectedPlaylist && (
+                {!openingPlaylistRoute && view === "playlist" && selectedPlaylist && (
                     <PlaylistView
                         selectedPlaylist={selectedPlaylist}
                         tracks={tracks}
