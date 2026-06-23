@@ -306,11 +306,13 @@ export function Header({
             title="Go to landing page"
           >
             <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-green-400/30 bg-green-500/10 shadow-lg shadow-green-500/10">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/vibeforge-logo.png"
                 alt="VibeForge logo"
-                className="h-full w-full object-cover"
+                fill
+                sizes="32px"
+                className="object-cover"
+                priority
               />
             </span>
 
