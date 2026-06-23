@@ -148,53 +148,89 @@ export function LandingPage({
                                     </div>
                                 </div>
 
-                                <div className="rounded-[1.75rem] border border-white/10 bg-black/20 p-4 shadow-2xl shadow-black/20">
+                                <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/25 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl">
                                     {hasCurrentTrack ? (
-                                        <div className="flex gap-4">
-                                            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-white/[0.08] ring-1 ring-white/10 sm:h-32 sm:w-32">
-                                                {currentlyPlaying?.imageUrl ? (
-                                                    // eslint-disable-next-line @next/next/no-img-element
+                                        <>
+                                            {currentlyPlaying?.imageUrl && (
+                                                <>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img
                                                         src={currentlyPlaying.imageUrl}
-                                                        alt={`${currentlyPlaying.title} cover`}
-                                                        className="h-full w-full object-cover"
+                                                        alt=""
+                                                        aria-hidden="true"
+                                                        className="absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-2xl"
                                                     />
-                                                ) : (
-                                                    <div className="flex h-full w-full items-center justify-center text-zinc-500">
-                                                        <Music2 size={28} />
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-[#11141d]/90 via-[#11141d]/75 to-green-950/35" />
+                                                </>
+                                            )}
+
+                                            <div className="relative flex gap-4">
+                                                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[1.5rem] bg-white/[0.08] shadow-xl shadow-black/30 ring-1 ring-white/10 sm:h-32 sm:w-32">
+                                                    {currentlyPlaying?.imageUrl ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img
+                                                            src={currentlyPlaying.imageUrl}
+                                                            alt={`${currentlyPlaying.title} cover`}
+                                                            className="h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-full w-full items-center justify-center text-zinc-500">
+                                                            <Music2 size={28} />
+                                                        </div>
+                                                    )}
+
+                                                    {isPlaying && (
+                                                        <span className="absolute bottom-3 right-3 h-3.5 w-3.5 rounded-full border-2 border-[#11141d] bg-green-400 shadow-[0_0_16px_rgba(74,222,128,0.9)]" />
+                                                    )}
+                                                </div>
+
+                                                <div className="min-w-0 flex-1 py-1">
+                                                    <div className="mb-3 flex items-center gap-2">
+                                                        <span
+                                                            className={
+                                                                isPlaying
+                                                                    ? "h-1.5 w-1.5 rounded-full bg-green-300 shadow-[0_0_12px_rgba(134,239,172,0.8)]"
+                                                                    : "h-1.5 w-1.5 rounded-full bg-zinc-500"
+                                                            }
+                                                        />
+                                                        <span className="text-[11px] font-black uppercase tracking-[0.32em] text-green-300/90">
+                                                            {isPlaying ? "Live from Spotify" : "Spotify paused"}
+                                                        </span>
                                                     </div>
-                                                )}
 
-                                                {isPlaying && (
-                                                    <span className="absolute bottom-2 right-2 h-3 w-3 rounded-full border border-black bg-green-400" />
-                                                )}
+                                                    <h2 className="line-clamp-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                                                        {currentlyPlaying?.title}
+                                                    </h2>
+
+                                                    <p className="mt-2 line-clamp-1 text-sm font-semibold text-zinc-300">
+                                                        {getArtistText(currentlyPlaying?.artists)}
+                                                    </p>
+
+                                                    <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
+                                                        {currentlyPlaying?.album}
+                                                    </p>
+
+                                                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium">
+                                                        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-zinc-400">
+                                                            Current session
+                                                        </span>
+
+                                                        <span className="rounded-full border border-green-400/15 bg-green-400/10 px-3 py-1 text-green-200/80">
+                                                            {isPlaying ? "Playing now" : "Paused"}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-
-                                            <div className="min-w-0 py-1">
-                                                <p className="text-xs uppercase tracking-[0.25em] text-green-300/70">
-                                                    {isPlaying ? "Now playing" : "Paused"}
-                                                </p>
-
-                                                <h2 className="mt-3 line-clamp-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
-                                                    {currentlyPlaying?.title}
-                                                </h2>
-
-                                                <p className="mt-2 line-clamp-1 text-sm text-zinc-400">
-                                                    {getArtistText(currentlyPlaying?.artists)}
-                                                </p>
-
-                                                <p className="mt-1 line-clamp-1 text-xs text-zinc-600">
-                                                    {currentlyPlaying?.album}
-                                                </p>
-                                            </div>
-                                        </div>
+                                        </>
                                     ) : (
-                                        <div className="flex min-h-32 items-center gap-4">
-                                            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-zinc-500">
+                                        <div className="relative flex min-h-32 items-center gap-4">
+                                            <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-green-400/10 blur-3xl" />
+
+                                            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-zinc-500 shadow-xl shadow-black/20">
                                                 <Headphones size={28} />
                                             </div>
 
-                                            <div>
+                                            <div className="relative">
                                                 <p className="text-xs uppercase tracking-[0.25em] text-zinc-600">
                                                     Nothing playing
                                                 </p>
