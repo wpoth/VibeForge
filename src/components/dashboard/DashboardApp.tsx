@@ -580,7 +580,7 @@ export function DashboardApp({
         }
     }
 
-    function handlePlaylistClick(playlist: SpotifyPlaylist) {
+    async function handlePlaylistClick(playlist: SpotifyPlaylist) {
         setError(null);
         setAiAnalysis(null);
         setPlaylistRouteMissing(false);
@@ -590,11 +590,10 @@ export function DashboardApp({
         )}`;
 
         if (pathname !== playlistPath) {
-            router.push(playlistPath);
-            return;
+            window.history.pushState(null, "", playlistPath);
         }
 
-        void openPlaylist(playlist);
+        await openPlaylist(playlist);
     }
 
     async function handlePlaylistPlay(playlist: SpotifyPlaylist) {
