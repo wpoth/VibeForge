@@ -5,16 +5,10 @@ import {
     PlaylistHeaderSkeleton,
     TrackRowSkeleton,
 } from "@/components/common/Skeletons";
-import { motion } from "motion/react";
 
 export function PlaylistLoadingState() {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="w-full max-w-6xl"
-        >
+        <div className="w-full max-w-6xl">
             <PlaylistHeaderSkeleton />
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
@@ -26,6 +20,6 @@ export function PlaylistLoadingState() {
 
                 <ManagePanelSkeleton />
             </div>
-        </motion.div>
+        </div>
     );
 }

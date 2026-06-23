@@ -78,10 +78,9 @@ export function PlaylistView({
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.12 }}
       className="w-full max-w-6xl"
     >
       <PlaylistHeader
@@ -126,7 +125,7 @@ export function PlaylistView({
           />
         </div>
 
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {tracks.length > 0 && canRemoveTracks && (
             <ManageTracksPanel
               key="manage-tracks-panel"
