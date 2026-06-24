@@ -259,10 +259,6 @@ export function LandingPage({
                                                     </p>
 
                                                     <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-medium">
-                                                        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-zinc-400">
-                                                            Current session
-                                                        </span>
-
                                                         <span
                                                             className="rounded-full border px-3 py-1"
                                                             style={{

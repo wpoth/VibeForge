@@ -10,10 +10,10 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
+import { useImageAccentColor } from "@/hooks/useImageAccentColor";
 
 type FullscreenNowPlayingProps = {
   open: boolean;
@@ -46,28 +46,10 @@ export function FullscreenNowPlaying({
   onTogglePlay,
   onClose,
 }: FullscreenNowPlayingProps) {
-  const snakeBorderPathId = useId();
-
-  const touchStartYRef = useRef<number | null>(null);
-  const touchCurrentYRef = useRef<number | null>(null);
-  const cursorTimeoutRef = useRef<number | null>(null);
-  const hintTimeoutRef = useRef<number | null>(null);
-
-  const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [cursorVisible, setCursorVisible] = useState(false);
-  const [hintPosition, setHintPosition] = useState<"top" | "bottom">("top");
+  const [fullscreenChromeVisible, setFullscreenChromeVisible] = useState(true);
 
-  const artistText = track?.artists?.join(", ") || "Spotify";
-  const albumText = track?.album || "Now playing";
-
-  const snakeText = useMemo(() => {
-    const title = track?.title || "Nothing playing";
-    const artists = artistText || "Unknown artist";
-
-    return `${title}  •  ${artists}  •  ${albumText}  •  `;
-  }, [track?.title, artistText, albumText]);
+  const accentColor = useImageAccentColor(track?.imageUrl);
 
   const progressPercent = useMemo(() => {
     if (!track?.durationMs || !track?.progressMs) return 0;
@@ -79,12 +61,29 @@ export function FullscreenNowPlaying({
   }, [track?.durationMs, track?.progressMs]);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!open) return;
+
+    async function enterFullscreen() {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch {
+        // Some browsers block fullscreen if it was not triggered directly enough by a user gesture.
+      }
+    }
+
+    void enterFullscreen();
+  }, [open]);
 
   useEffect(() => {
     function syncFullscreenState() {
-      setFullscreenActive(Boolean(document.fullscreenElement));
+      const isFullscreen = Boolean(document.fullscreenElement);
+      setFullscreenActive(isFullscreen);
+
+      if (open && !isFullscreen) {
+        onClose();
+      }
     }
 
     document.addEventListener("fullscreenchange", syncFullscreenState);
@@ -93,40 +92,7 @@ export function FullscreenNowPlaying({
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    setHintPosition("top");
-
-    hintTimeoutRef.current = window.setTimeout(() => {
-      setHintPosition("bottom");
-    }, 3500);
-
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-      setDragOffset(0);
-      setCursorVisible(false);
-      setHintPosition("top");
-      touchStartYRef.current = null;
-      touchCurrentYRef.current = null;
-
-      if (cursorTimeoutRef.current) {
-        window.clearTimeout(cursorTimeoutRef.current);
-        cursorTimeoutRef.current = null;
-      }
-
-      if (hintTimeoutRef.current) {
-        window.clearTimeout(hintTimeoutRef.current);
-        hintTimeoutRef.current = null;
-      }
-    };
-  }, [open]);
+  }, [onClose, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -142,7 +108,46 @@ export function FullscreenNowPlaying({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose]);
+  }, [onClose, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setFullscreenChromeVisible(false);
+      return;
+    }
+
+    let hideTimeout: number | undefined;
+
+    function showFullscreenChrome() {
+      setFullscreenChromeVisible(true);
+
+      if (hideTimeout !== undefined) {
+        window.clearTimeout(hideTimeout);
+      }
+
+      hideTimeout = window.setTimeout(() => {
+        setFullscreenChromeVisible(false);
+      }, 1500);
+    }
+
+    showFullscreenChrome();
+
+    window.addEventListener("mousemove", showFullscreenChrome);
+    window.addEventListener("mousedown", showFullscreenChrome);
+    window.addEventListener("touchstart", showFullscreenChrome);
+    window.addEventListener("keydown", showFullscreenChrome);
+
+    return () => {
+      if (hideTimeout !== undefined) {
+        window.clearTimeout(hideTimeout);
+      }
+
+      window.removeEventListener("mousemove", showFullscreenChrome);
+      window.removeEventListener("mousedown", showFullscreenChrome);
+      window.removeEventListener("touchstart", showFullscreenChrome);
+      window.removeEventListener("keydown", showFullscreenChrome);
+    };
+  }, [open]);
 
   async function leaveFullscreen() {
     try {
@@ -150,7 +155,7 @@ export function FullscreenNowPlaying({
         await document.exitFullscreen();
       }
     } catch {
-      // Ignore fullscreen errors.
+      // Ignore browser fullscreen errors.
     }
 
     onClose();
@@ -165,475 +170,202 @@ export function FullscreenNowPlaying({
 
       await document.documentElement.requestFullscreen();
     } catch {
-      // Ignore fullscreen errors.
+      // Ignore browser fullscreen errors.
     }
   }
 
-  function handleMouseMove() {
-    setCursorVisible(true);
+  const artistText = track?.artists?.join(", ") || "Spotify";
+  const albumText = track?.album || "Now playing";
 
-    if (cursorTimeoutRef.current) {
-      window.clearTimeout(cursorTimeoutRef.current);
-    }
-
-    cursorTimeoutRef.current = window.setTimeout(() => {
-      setCursorVisible(false);
-    }, 1400);
-  }
-
-  function handleMouseLeave() {
-    setCursorVisible(false);
-
-    if (cursorTimeoutRef.current) {
-      window.clearTimeout(cursorTimeoutRef.current);
-      cursorTimeoutRef.current = null;
-    }
-  }
-
-  function moveHintToBottom() {
-    setHintPosition("bottom");
-
-    if (hintTimeoutRef.current) {
-      window.clearTimeout(hintTimeoutRef.current);
-      hintTimeoutRef.current = null;
-    }
-  }
-
-  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
-    touchStartYRef.current = event.touches[0]?.clientY ?? null;
-    touchCurrentYRef.current = event.touches[0]?.clientY ?? null;
-  }
-
-  function handleTouchMove(event: React.TouchEvent<HTMLDivElement>) {
-    const startY = touchStartYRef.current;
-    const currentY = event.touches[0]?.clientY ?? null;
-
-    if (startY === null || currentY === null) return;
-
-    touchCurrentYRef.current = currentY;
-
-    const distance = currentY - startY;
-
-    if (distance > 0) {
-      setDragOffset(Math.min(distance, 180));
-    }
-  }
-
-  function handleTouchEnd() {
-    const startY = touchStartYRef.current;
-    const currentY = touchCurrentYRef.current;
-
-    touchStartYRef.current = null;
-    touchCurrentYRef.current = null;
-
-    if (startY === null || currentY === null) {
-      setDragOffset(0);
-      return;
-    }
-
-    const distance = currentY - startY;
-
-    if (distance > 90) {
-      void leaveFullscreen();
-      return;
-    }
-
-    setDragOffset(0);
-  }
-
-  if (!mounted) return null;
-
-  return createPortal(
+  return (
     <AnimatePresence>
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{
-            opacity:
-              dragOffset > 0 ? Math.max(0.55, 1 - dragOffset / 260) : 1,
-          }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.22 }}
-          className={`fixed inset-0 z-[999999] overflow-hidden bg-black text-white ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
+          transition={{ duration: 0.25 }}
+          className={`fixed inset-0 z-[100] overflow-hidden bg-black text-white ${fullscreenChromeVisible ? "cursor-default" : "cursor-none"
             }`}
           role="dialog"
           aria-modal="true"
           aria-label="Fullscreen now playing"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         >
-          <style>
-            {`
-              @keyframes vf-background-float-a {
-                0% {
-                  transform: translate3d(10vw, 15vh, 0);
-                }
-                25% {
-                  transform: translate3d(70vw, 25vh, 0);
-                }
-                50% {
-                  transform: translate3d(40vw, 70vh, 0);
-                }
-                75% {
-                  transform: translate3d(18vw, 52vh, 0);
-                }
-                100% {
-                  transform: translate3d(10vw, 15vh, 0);
-                }
-              }
-
-              @keyframes vf-background-float-b {
-                0% {
-                  transform: translate3d(75vw, 70vh, 0);
-                }
-                25% {
-                  transform: translate3d(25vw, 60vh, 0);
-                }
-                50% {
-                  transform: translate3d(60vw, 12vh, 0);
-                }
-                75% {
-                  transform: translate3d(82vw, 30vh, 0);
-                }
-                100% {
-                  transform: translate3d(75vw, 70vh, 0);
-                }
-              }
-
-              @keyframes vf-stage-drift {
-                0% {
-                  transform: translate3d(0, 0, 0);
-                }
-                25% {
-                  transform: translate3d(26px, -18px, 0);
-                }
-                50% {
-                  transform: translate3d(-22px, 20px, 0);
-                }
-                75% {
-                  transform: translate3d(14px, 12px, 0);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0);
-                }
-              }
-
-              @keyframes vf-album-drift {
-                0% {
-                  transform: translate3d(0, 0, 0);
-                }
-                25% {
-                  transform: translate3d(18px, -12px, 0);
-                }
-                50% {
-                  transform: translate3d(-14px, 16px, 0);
-                }
-                75% {
-                  transform: translate3d(10px, 8px, 0);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0);
-                }
-              }
-
-              @keyframes vf-mobile-album-drift {
-                0% {
-                  transform: translate3d(0, 0, 0);
-                }
-                25% {
-                  transform: translate3d(6px, -4px, 0);
-                }
-                50% {
-                  transform: translate3d(-5px, 5px, 0);
-                }
-                75% {
-                  transform: translate3d(4px, 3px, 0);
-                }
-                100% {
-                  transform: translate3d(0, 0, 0);
-                }
-              }
-
-              @keyframes vf-progress-shimmer {
-                0% {
-                  opacity: 0.18;
-                }
-                50% {
-                  opacity: 0.38;
-                }
-                100% {
-                  opacity: 0.18;
-                }
-              }
-
-              .vf-gpu-smooth {
-                transform: translate3d(0, 0, 0);
-                backface-visibility: hidden;
-                perspective: 1000px;
-                will-change: transform;
-              }
-
-              .vf-background-float-a {
-                animation: vf-background-float-a 48s linear infinite;
-              }
-
-              .vf-background-float-b {
-                animation: vf-background-float-b 55s linear infinite;
-              }
-
-              .vf-stage-drift {
-                animation: vf-stage-drift 95s linear infinite;
-              }
-
-              .vf-album-drift {
-                animation: vf-album-drift 68s linear infinite;
-              }
-
-              .vf-progress-shimmer {
-                animation: vf-progress-shimmer 2.6s ease-in-out infinite;
-              }
-
-              @media (max-width: 639px) {
-                .vf-background-float-a,
-                .vf-background-float-b {
-                  animation-duration: 90s;
-                  opacity: 0.55;
-                }
-
-                .vf-stage-drift {
-                  animation: none;
-                  transform: translate3d(0, 0, 0);
-                }
-
-                .vf-album-drift {
-                  animation: vf-mobile-album-drift 42s linear infinite;
-                }
-              }
-            `}
-          </style>
-
-          {track?.imageUrl ? (
+          {track?.imageUrl && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={track.imageUrl}
                 alt=""
-                className="absolute inset-0 h-full w-full scale-150 object-cover opacity-55 blur-3xl saturate-150"
+                className="absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl"
               />
-
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={track.imageUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-md saturate-125"
-              />
-
-              <div className="absolute inset-0 bg-black/55" />
-              <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/45 to-black/85" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.9)_100%)]" />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/85 via-black/72 to-black/95" />
             </>
-          ) : (
+          )}
+
+          {!track?.imageUrl && (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
           )}
 
-          <div
+          <motion.div
             aria-hidden="true"
-            className="vf-background-float-a vf-gpu-smooth absolute h-52 w-52 rounded-full bg-green-400/10 blur-3xl sm:h-80 sm:w-80"
-          />
-
-          <div
-            aria-hidden="true"
-            className="vf-background-float-b vf-gpu-smooth absolute h-48 w-48 rounded-full bg-purple-400/10 blur-3xl sm:h-72 sm:w-72"
+            className="absolute h-[34rem] w-[34rem] rounded-full blur-[90px]"
+            style={{
+              backgroundColor: accentColor.rgbaStrong,
+              boxShadow: `0 0 160px ${accentColor.rgbaMedium}`,
+            }}
+            animate={{
+              x: ["-8vw", "58vw", "28vw", "-8vw"],
+              y: ["4vh", "14vh", "58vh", "4vh"],
+              scale: [1, 1.18, 0.92, 1],
+              opacity: [0.72, 0.95, 0.8, 0.72],
+            }}
+            transition={{ duration: 42, repeat: Infinity, ease: "linear" }}
           />
 
           <motion.div
-            animate={{ y: dragOffset }}
-            transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="relative flex h-[100dvh] w-screen items-center justify-center overflow-hidden px-4 pb-6 pt-12 sm:h-screen sm:px-10 sm:py-8"
-          >
-            <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 flex-col items-center gap-2 sm:hidden">
-              <div className="h-1.5 w-12 rounded-full bg-white/25" />
-              <p className="text-[10px] uppercase tracking-[0.25em] text-white/35">
-                Swipe down to close
-              </p>
-            </div>
+            aria-hidden="true"
+            className="absolute h-[30rem] w-[30rem] rounded-full blur-[85px]"
+            style={{
+              backgroundColor: accentColor.rgbaMedium,
+              boxShadow: `0 0 150px ${accentColor.rgbaSoft}`,
+            }}
+            animate={{
+              x: ["68vw", "12vw", "62vw", "68vw"],
+              y: ["62vh", "48vh", "0vh", "62vh"],
+              scale: [0.95, 1.22, 1, 0.95],
+              opacity: [0.58, 0.9, 0.72, 0.58],
+            }}
+            transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+          />
 
-            <div className="vf-stage-drift vf-gpu-smooth flex h-full w-full max-w-6xl flex-col items-center justify-center">
-              <div className="relative flex w-full flex-1 items-center justify-center sm:min-h-[min(68vh,640px)]">
-                <div className="vf-album-drift vf-gpu-smooth relative z-10 w-[min(64vw,280px)] min-w-[210px] sm:w-[min(58vw,430px)] sm:min-w-[260px]">
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[calc(100%+3.25rem)] w-[calc(100%+3.25rem)] -translate-x-1/2 -translate-y-1/2 overflow-visible sm:h-[calc(100%+5.5rem)] sm:w-[calc(100%+5.5rem)]">
-                    <svg
-                      viewBox="0 0 500 500"
-                      className="h-full w-full overflow-visible"
-                    >
-                      <defs>
-                        <path
-                          id={snakeBorderPathId}
-                          d="
-                            M 82 46
-                            H 418
-                            Q 454 46 454 82
-                            V 418
-                            Q 454 454 418 454
-                            H 82
-                            Q 46 454 46 418
-                            V 82
-                            Q 46 46 82 46
-                          "
-                        />
-                      </defs>
+          <motion.div
+            aria-hidden="true"
+            className="absolute h-[24rem] w-[24rem] rounded-full blur-[75px]"
+            style={{
+              backgroundColor: `rgba(${accentColor.rgb}, 0.32)`,
+            }}
+            animate={{
+              x: ["38vw", "76vw", "8vw", "38vw"],
+              y: ["-8vh", "42vh", "72vh", "-8vh"],
+              scale: [0.8, 1.12, 0.95, 0.8],
+              opacity: [0.45, 0.8, 0.65, 0.45],
+            }}
+            transition={{ duration: 58, repeat: Infinity, ease: "linear" }}
+          />
 
-                      <text
-                        className="fill-white/90 text-[18px] font-black uppercase tracking-[0.28em] sm:text-[18px]"
-                        dominantBaseline="middle"
-                      >
-                        <textPath
-                          href={`#${snakeBorderPathId}`}
-                          startOffset="-100%"
-                        >
-                          {snakeText}
-                          <animate
-                            attributeName="startOffset"
-                            from="-100%"
-                            to="100%"
-                            dur="18s"
-                            repeatCount="indefinite"
-                          />
-                        </textPath>
-                      </text>
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(circle at 50% 50%, rgba(${accentColor.rgb}, 0.16), transparent 34%)`,
+            }}
+          />
 
-                      <text
-                        className="fill-white/25 text-[18px] font-black uppercase tracking-[0.28em] sm:text-[18px]"
-                        dominantBaseline="middle"
-                      >
-                        <textPath
-                          href={`#${snakeBorderPathId}`}
-                          startOffset="-200%"
-                        >
-                          {snakeText}
-                          <animate
-                            attributeName="startOffset"
-                            from="-200%"
-                            to="0%"
-                            dur="18s"
-                            repeatCount="indefinite"
-                          />
-                        </textPath>
-                      </text>
-                    </svg>
-                  </div>
-
-                  {track?.imageUrl && (
+          <div className="relative flex h-full w-full items-center justify-center p-6 sm:p-10">
+            <motion.div
+              animate={{
+                x: [0, 34, -26, 18, 0],
+                y: [0, -20, 24, 16, 0],
+              }}
+              transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
+              className="grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(280px,420px),1fr]"
+            >
+              <div className="mx-auto w-full max-w-[420px]">
+                <div
+                  className="relative aspect-square overflow-hidden rounded-[2rem] border bg-white/[0.04] shadow-2xl shadow-black/60"
+                  style={{
+                    borderColor: accentColor.rgbaMedium,
+                    boxShadow: `0 28px 110px ${accentColor.rgbaMedium}`,
+                  }}
+                >
+                  {track?.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={track.imageUrl}
-                      alt=""
-                      className="pointer-events-none absolute inset-0 -z-20 h-full w-full scale-110 rounded-[2.4rem] object-cover opacity-25 blur-2xl sm:scale-125 sm:opacity-35 sm:blur-3xl"
+                      alt={`${track.title ?? "Current track"} cover`}
+                      className="h-full w-full object-cover opacity-95"
                     />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-7xl text-white/20">
+                      ♪
+                    </div>
                   )}
-
-                  <div className="relative aspect-square overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/60 sm:rounded-[2rem]">
-                    {track?.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={track.imageUrl}
-                        alt={`${track.title ?? "Current track"} cover`}
-                        className="h-full w-full object-cover opacity-95"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-7xl text-white/20">
-                        ♪
-                      </div>
-                    )}
-
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/5" />
-                  </div>
                 </div>
               </div>
 
-              <div className="relative z-20 w-full max-w-4xl shrink-0 text-center sm:-mt-2">
-                <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-green-300/70 sm:mb-3 sm:text-sm sm:tracking-[0.45em]">
+              <div className="min-w-0 text-center lg:text-left">
+                <p
+                  className="mb-4 text-sm uppercase tracking-[0.45em]"
+                  style={{
+                    color: isPlaying
+                      ? `rgb(${accentColor.rgb})`
+                      : "rgba(212, 212, 216, 0.65)",
+                    textShadow: isPlaying
+                      ? `0 0 24px ${accentColor.rgbaStrong}`
+                      : undefined,
+                  }}
+                >
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
 
-                <h2 className="mx-auto line-clamp-2 max-w-[92vw] text-balance text-2xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+                <h2 className="text-balance text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
                   {track?.title || "Nothing playing"}
                 </h2>
 
-                <p className="mx-auto mt-3 line-clamp-1 max-w-[88vw] text-base text-zinc-300 sm:mt-4 sm:text-2xl">
+                <p className="mt-5 text-xl text-zinc-300 sm:text-2xl">
                   {artistText}
                 </p>
 
-                <p className="mx-auto mt-1 line-clamp-1 max-w-[84vw] text-xs text-zinc-500 sm:mt-2 sm:text-base">
+                <p className="mt-2 text-sm text-zinc-500 sm:text-base">
                   {albumText}
                 </p>
 
-                <div className="mx-auto mt-6 w-full max-w-[88vw] sm:mt-8 sm:max-w-2xl">
-                  <div className="relative h-2.5 overflow-hidden rounded-full border border-white/10 bg-white/10 shadow-[0_0_35px_rgba(255,255,255,0.08)] sm:h-3">
-                    {track?.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={track.imageUrl}
-                        alt=""
-                        className="absolute inset-0 h-full w-full scale-150 object-cover opacity-80 blur-md"
-                      />
-                    )}
-
-                    <div className="absolute inset-0 bg-black/35" />
-
+                <div className="mx-auto mt-10 w-full max-w-2xl lg:mx-0">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                     <motion.div
-                      className="relative h-full overflow-hidden rounded-full shadow-[0_0_22px_rgba(255,255,255,0.35)]"
+                      className="h-full rounded-full"
+                      style={{
+                        backgroundColor: `rgb(${accentColor.rgb})`,
+                        boxShadow: `0 0 22px ${accentColor.rgbaStrong}`,
+                      }}
                       animate={{ width: `${progressPercent}%` }}
                       transition={{ duration: 0.35 }}
-                    >
-                      {track?.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={track.imageUrl}
-                          alt=""
-                          className="h-full w-full scale-[3] object-cover blur-sm"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-green-300" />
-                      )}
-
-                      <div className="vf-progress-shimmer absolute inset-0 bg-white/25" />
-                    </motion.div>
+                    />
                   </div>
 
-                  <div className="mt-2 flex justify-between text-[10px] text-zinc-500 sm:mt-3 sm:text-xs">
+                  <div className="mt-3 flex justify-between text-xs text-zinc-500">
                     <span>{formatTime(track?.progressMs)}</span>
                     <span>{formatTime(track?.durationMs)}</span>
                   </div>
                 </div>
 
-                <div className="mt-6 flex items-center justify-center gap-4 sm:mt-8">
+                <div className="mt-10 flex items-center justify-center gap-4 lg:justify-start">
                   <button
                     type="button"
                     onClick={onPrevious}
                     disabled={controlLoading || !track}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
-                      }`}
+                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous track"
                   >
-                    <SkipBack size={19} />
+                    <SkipBack size={20} />
                   </button>
 
                   <button
                     type="button"
                     onClick={onTogglePlay}
                     disabled={controlLoading || !track}
-                    className={`flex h-15 w-15 items-center justify-center rounded-full bg-white text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 sm:h-16 sm:w-16 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
-                      }`}
+                    className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{
+                      backgroundColor: `rgb(${accentColor.rgb})`,
+                      boxShadow: `0 0 45px ${accentColor.rgbaStrong}`,
+                    }}
                     aria-label={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? (
-                      <Pause size={25} fill="currentColor" />
+                      <Pause size={26} fill="currentColor" />
                     ) : (
-                      <Play size={25} fill="currentColor" />
+                      <Play size={26} fill="currentColor" />
                     )}
                   </button>
 
@@ -641,26 +373,35 @@ export function FullscreenNowPlaying({
                     type="button"
                     onClick={onNext}
                     disabled={controlLoading || !track}
-                    className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40 sm:h-12 sm:w-12 ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
-                      }`}
+                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next track"
                   >
-                    <SkipForward size={19} />
+                    <SkipForward size={20} />
                   </button>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
 
           <div
-            className={`absolute right-4 top-4 hidden items-center gap-2 opacity-0 transition hover:opacity-100 focus-within:opacity-100 sm:flex ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
+            className={`pointer-events-none absolute left-1/2 top-5 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-4 py-2 text-center text-xs font-medium text-zinc-300 shadow-2xl shadow-black/30 backdrop-blur-xl transition-all duration-300 ${fullscreenChromeVisible
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-2 opacity-0"
+              }`}
+          >
+            Move to the top-right to exit fullscreen. Press Esc to close.
+          </div>
+
+          <div
+            className={`absolute right-4 top-4 z-30 flex items-center gap-2 transition-all duration-300 ${fullscreenChromeVisible
+              ? "translate-y-0 opacity-100"
+              : "-translate-y-2 opacity-0"
               }`}
           >
             <button
               type="button"
               onClick={toggleBrowserFullscreen}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
-                }`}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label={
                 fullscreenActive
                   ? "Exit browser fullscreen"
@@ -677,41 +418,14 @@ export function FullscreenNowPlaying({
             <button
               type="button"
               onClick={leaveFullscreen}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white ${cursorVisible ? "sm:cursor-pointer" : "sm:cursor-none"
-                }`}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
               aria-label="Close fullscreen now playing"
             >
               <X size={18} />
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={leaveFullscreen}
-            className="absolute right-4 top-4 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/35 text-zinc-200 backdrop-blur-xl transition active:scale-95 sm:hidden"
-            aria-label="Close fullscreen now playing"
-          >
-            <X size={18} />
-          </button>
-
-          <motion.div
-            initial={false}
-            animate={{
-              top: hintPosition === "top" ? 18 : "auto",
-              bottom: hintPosition === "bottom" ? 16 : "auto",
-              opacity: cursorVisible ? 1 : 0,
-              y: hintPosition === "top" ? 0 : 0,
-            }}
-            transition={{ duration: 0.35, ease: "easeInOut" }}
-            onMouseEnter={moveHintToBottom}
-            className={`absolute left-1/2 hidden -translate-x-1/2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-zinc-500 backdrop-blur-xl transition-colors hover:bg-white/[0.07] hover:text-zinc-300 sm:block ${cursorVisible ? "sm:cursor-auto" : "sm:cursor-none"
-              }`}
-          >
-            Move to the top-right to exit fullscreen.
-          </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>,
-    document.body,
+    </AnimatePresence>
   );
 }
