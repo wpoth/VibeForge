@@ -76,7 +76,6 @@ export function FullscreenNowPlaying({
         hasEnteredFullscreenRef.current = true;
         setFullscreenActive(Boolean(document.fullscreenElement));
       } catch {
-        // The overlay should still open even if browser fullscreen is blocked.
         setFullscreenActive(Boolean(document.fullscreenElement));
       }
     }
@@ -190,6 +189,7 @@ export function FullscreenNowPlaying({
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
+  const trackKey = track?.id ?? track?.title ?? "nothing-playing";
 
   return (
     <AnimatePresence>
@@ -223,7 +223,7 @@ export function FullscreenNowPlaying({
 
           <motion.div
             aria-hidden="true"
-            className="absolute h-[34rem] w-[34rem] rounded-full blur-[90px]"
+            className="absolute h-[34rem] w-[34rem] rounded-full blur-[90px] will-change-transform"
             style={{
               backgroundColor: accentColor.rgbaStrong,
               boxShadow: `0 0 160px ${accentColor.rgbaMedium}`,
@@ -239,7 +239,7 @@ export function FullscreenNowPlaying({
 
           <motion.div
             aria-hidden="true"
-            className="absolute h-[30rem] w-[30rem] rounded-full blur-[85px]"
+            className="absolute h-[30rem] w-[30rem] rounded-full blur-[85px] will-change-transform"
             style={{
               backgroundColor: accentColor.rgbaMedium,
               boxShadow: `0 0 150px ${accentColor.rgbaSoft}`,
@@ -255,7 +255,7 @@ export function FullscreenNowPlaying({
 
           <motion.div
             aria-hidden="true"
-            className="absolute h-[24rem] w-[24rem] rounded-full blur-[75px]"
+            className="absolute h-[24rem] w-[24rem] rounded-full blur-[75px] will-change-transform"
             style={{
               backgroundColor: `rgba(${accentColor.rgb}, 0.32)`,
             }}
@@ -277,15 +277,19 @@ export function FullscreenNowPlaying({
           />
 
           <div className="relative flex h-full w-full items-center justify-center p-6 sm:p-10">
-            <motion.div
-              animate={{
-                x: [0, 24, -18, 14, 0],
-                y: [0, -14, 18, 12, 0],
-              }}
-              transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-              className="flex w-full max-w-5xl flex-col items-center justify-center text-center"
-            >
-              <div className="w-full max-w-[320px] sm:max-w-[380px] lg:max-w-[420px]">
+            <div className="flex w-full max-w-5xl flex-col items-center justify-center text-center">
+              <motion.div
+                animate={{
+                  y: [0, -10, 0],
+                  scale: [1, 1.015, 1],
+                }}
+                transition={{
+                  duration: 8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="w-full max-w-[320px] will-change-transform sm:max-w-[380px] lg:max-w-[420px]"
+              >
                 <div
                   className="relative aspect-square overflow-hidden rounded-[2rem] border bg-white/[0.04] shadow-2xl shadow-black/60"
                   style={{
@@ -293,20 +297,35 @@ export function FullscreenNowPlaying({
                     boxShadow: `0 28px 110px ${accentColor.rgbaMedium}`,
                   }}
                 >
-                  {track?.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={track.imageUrl}
-                      alt={`${track.title ?? "Current track"} cover`}
-                      className="h-full w-full object-cover opacity-95"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-7xl text-white/20">
-                      ♪
-                    </div>
-                  )}
+                  <AnimatePresence mode="wait">
+                    {track?.imageUrl ? (
+                      <motion.img
+                        key={track.imageUrl}
+                        src={track.imageUrl}
+                        alt={`${track.title ?? "Current track"} cover`}
+                        initial={{ opacity: 0, scale: 1.04 }}
+                        animate={{ opacity: 0.95, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        transition={{
+                          duration: 0.35,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <motion.div
+                        key="empty-cover"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex h-full w-full items-center justify-center text-7xl text-white/20"
+                      >
+                        ♪
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
+              </motion.div>
 
               <div className="mt-8 flex w-full max-w-4xl flex-col items-center text-center">
                 <p
@@ -323,17 +342,43 @@ export function FullscreenNowPlaying({
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
 
-                <h2 className="max-w-4xl text-balance text-center text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
-                  {track?.title || "Nothing playing"}
-                </h2>
+                <AnimatePresence mode="wait">
+                  <motion.h2
+                    key={trackKey}
+                    initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
+                    transition={{
+                      duration: 0.32,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="max-w-4xl text-balance text-center text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl"
+                  >
+                    {track?.title || "Nothing playing"}
+                  </motion.h2>
+                </AnimatePresence>
 
-                <p className="mt-5 max-w-3xl truncate text-center text-xl text-zinc-300 sm:text-2xl">
-                  {artistText}
-                </p>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${trackKey}-meta`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{
+                      duration: 0.28,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="flex w-full flex-col items-center"
+                  >
+                    <p className="mt-5 max-w-3xl truncate text-center text-xl text-zinc-300 sm:text-2xl">
+                      {artistText}
+                    </p>
 
-                <p className="mt-2 max-w-3xl truncate text-center text-sm text-zinc-500 sm:text-base">
-                  {albumText}
-                </p>
+                    <p className="mt-2 max-w-3xl truncate text-center text-sm text-zinc-500 sm:text-base">
+                      {albumText}
+                    </p>
+                  </motion.div>
+                </AnimatePresence>
 
                 <div className="mt-10 w-full max-w-2xl">
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -344,7 +389,10 @@ export function FullscreenNowPlaying({
                         boxShadow: `0 0 22px ${accentColor.rgbaStrong}`,
                       }}
                       animate={{ width: `${progressPercent}%` }}
-                      transition={{ duration: 0.35 }}
+                      transition={{
+                        duration: 0.5,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
                     />
                   </div>
 
@@ -394,7 +442,7 @@ export function FullscreenNowPlaying({
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           <div
