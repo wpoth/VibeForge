@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
+import { useImageAccentColor } from "@/hooks/useImageAccentColor";
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 
 type LandingPageProps = {
@@ -45,6 +46,7 @@ export function LandingPage({
     const [activeView, setActiveView] = useState<LandingView>(initialView);
 
     const hasCurrentTrack = Boolean(currentlyPlaying?.title);
+    const accentColor = useImageAccentColor(currentlyPlaying?.imageUrl);
 
     useEffect(() => {
         setActiveView(initialView);
@@ -148,9 +150,33 @@ export function LandingPage({
                                     </div>
                                 </div>
 
-                                <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/25 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl">
+                                <div
+                                    className="relative overflow-hidden rounded-[2rem] border bg-black/25 p-4 shadow-2xl backdrop-blur-xl transition-all duration-500"
+                                    style={{
+                                        borderColor: hasCurrentTrack
+                                            ? accentColor.rgbaMedium
+                                            : "rgba(255, 255, 255, 0.1)",
+                                        boxShadow: hasCurrentTrack
+                                            ? `0 24px 80px ${accentColor.rgbaSoft}`
+                                            : "0 24px 80px rgba(0, 0, 0, 0.2)",
+                                    }}
+                                >
                                     {hasCurrentTrack ? (
                                         <>
+                                            <div
+                                                className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full blur-3xl transition-colors duration-500"
+                                                style={{
+                                                    backgroundColor: accentColor.rgbaMedium,
+                                                }}
+                                            />
+
+                                            <div
+                                                className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full blur-3xl transition-colors duration-500"
+                                                style={{
+                                                    backgroundColor: accentColor.rgbaSoft,
+                                                }}
+                                            />
+
                                             {currentlyPlaying?.imageUrl && (
                                                 <>
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -160,7 +186,7 @@ export function LandingPage({
                                                         aria-hidden="true"
                                                         className="absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-2xl"
                                                     />
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-[#11141d]/90 via-[#11141d]/75 to-green-950/35" />
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-[#11141d]/90 via-[#11141d]/75 to-black/45" />
                                                 </>
                                             )}
 
@@ -180,7 +206,13 @@ export function LandingPage({
                                                     )}
 
                                                     {isPlaying && (
-                                                        <span className="absolute bottom-3 right-3 h-3.5 w-3.5 rounded-full border-2 border-[#11141d] bg-green-400 shadow-[0_0_16px_rgba(74,222,128,0.9)]" />
+                                                        <span
+                                                            className="absolute bottom-3 right-3 h-3.5 w-3.5 rounded-full border-2 border-[#11141d]"
+                                                            style={{
+                                                                backgroundColor: `rgb(${accentColor.rgb})`,
+                                                                boxShadow: `0 0 18px ${accentColor.rgbaStrong}`,
+                                                            }}
+                                                        />
                                                     )}
                                                 </div>
 
@@ -189,11 +221,27 @@ export function LandingPage({
                                                         <span
                                                             className={
                                                                 isPlaying
-                                                                    ? "h-1.5 w-1.5 rounded-full bg-green-300 shadow-[0_0_12px_rgba(134,239,172,0.8)]"
+                                                                    ? "h-1.5 w-1.5 rounded-full"
                                                                     : "h-1.5 w-1.5 rounded-full bg-zinc-500"
                                                             }
+                                                            style={
+                                                                isPlaying
+                                                                    ? {
+                                                                        backgroundColor: `rgb(${accentColor.rgb})`,
+                                                                        boxShadow: `0 0 12px ${accentColor.rgbaStrong}`,
+                                                                    }
+                                                                    : undefined
+                                                            }
                                                         />
-                                                        <span className="text-[11px] font-black uppercase tracking-[0.32em] text-green-300/90">
+
+                                                        <span
+                                                            className="text-[11px] font-black uppercase tracking-[0.32em]"
+                                                            style={{
+                                                                color: isPlaying
+                                                                    ? `rgb(${accentColor.rgb})`
+                                                                    : "rgba(161, 161, 170, 0.9)",
+                                                            }}
+                                                        >
                                                             {isPlaying ? "Live from Spotify" : "Spotify paused"}
                                                         </span>
                                                     </div>
@@ -215,7 +263,14 @@ export function LandingPage({
                                                             Current session
                                                         </span>
 
-                                                        <span className="rounded-full border border-green-400/15 bg-green-400/10 px-3 py-1 text-green-200/80">
+                                                        <span
+                                                            className="rounded-full border px-3 py-1"
+                                                            style={{
+                                                                borderColor: accentColor.rgbaMedium,
+                                                                backgroundColor: accentColor.rgbaSoft,
+                                                                color: `rgb(${accentColor.rgb})`,
+                                                            }}
+                                                        >
                                                             {isPlaying ? "Playing now" : "Paused"}
                                                         </span>
                                                     </div>
