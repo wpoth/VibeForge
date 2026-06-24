@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { useImageAccentColor } from "@/hooks/useImageAccentColor";
@@ -49,6 +49,7 @@ export function FullscreenNowPlaying({
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [fullscreenChromeVisible, setFullscreenChromeVisible] = useState(true);
 
+  const hasEnteredFullscreenRef = useRef(false);
   const accentColor = useImageAccentColor(track?.imageUrl);
 
   const progressPercent = useMemo(() => {
@@ -61,15 +62,22 @@ export function FullscreenNowPlaying({
   }, [track?.durationMs, track?.progressMs]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasEnteredFullscreenRef.current = false;
+      return;
+    }
 
     async function enterFullscreen() {
       try {
         if (!document.fullscreenElement) {
           await document.documentElement.requestFullscreen();
         }
+
+        hasEnteredFullscreenRef.current = true;
+        setFullscreenActive(Boolean(document.fullscreenElement));
       } catch {
-        // Some browsers block fullscreen if it was not triggered directly enough by a user gesture.
+        // The overlay should still open even if browser fullscreen is blocked.
+        setFullscreenActive(Boolean(document.fullscreenElement));
       }
     }
 
@@ -79,15 +87,20 @@ export function FullscreenNowPlaying({
   useEffect(() => {
     function syncFullscreenState() {
       const isFullscreen = Boolean(document.fullscreenElement);
+
       setFullscreenActive(isFullscreen);
 
-      if (open && !isFullscreen) {
+      if (isFullscreen) {
+        hasEnteredFullscreenRef.current = true;
+        return;
+      }
+
+      if (open && hasEnteredFullscreenRef.current) {
         onClose();
       }
     }
 
     document.addEventListener("fullscreenchange", syncFullscreenState);
-    syncFullscreenState();
 
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreenState);
@@ -169,6 +182,7 @@ export function FullscreenNowPlaying({
       }
 
       await document.documentElement.requestFullscreen();
+      hasEnteredFullscreenRef.current = true;
     } catch {
       // Ignore browser fullscreen errors.
     }
@@ -265,13 +279,13 @@ export function FullscreenNowPlaying({
           <div className="relative flex h-full w-full items-center justify-center p-6 sm:p-10">
             <motion.div
               animate={{
-                x: [0, 34, -26, 18, 0],
-                y: [0, -20, 24, 16, 0],
+                x: [0, 24, -18, 14, 0],
+                y: [0, -14, 18, 12, 0],
               }}
               transition={{ duration: 90, repeat: Infinity, ease: "linear" }}
-              className="grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(280px,420px),1fr]"
+              className="flex w-full max-w-5xl flex-col items-center justify-center text-center"
             >
-              <div className="mx-auto w-full max-w-[420px]">
+              <div className="w-full max-w-[320px] sm:max-w-[380px] lg:max-w-[420px]">
                 <div
                   className="relative aspect-square overflow-hidden rounded-[2rem] border bg-white/[0.04] shadow-2xl shadow-black/60"
                   style={{
@@ -294,7 +308,7 @@ export function FullscreenNowPlaying({
                 </div>
               </div>
 
-              <div className="min-w-0 text-center lg:text-left">
+              <div className="mt-8 flex w-full max-w-4xl flex-col items-center text-center">
                 <p
                   className="mb-4 text-sm uppercase tracking-[0.45em]"
                   style={{
@@ -309,19 +323,19 @@ export function FullscreenNowPlaying({
                   {isPlaying ? "Now playing" : "Paused"}
                 </p>
 
-                <h2 className="text-balance text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
+                <h2 className="max-w-4xl text-balance text-center text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
                   {track?.title || "Nothing playing"}
                 </h2>
 
-                <p className="mt-5 text-xl text-zinc-300 sm:text-2xl">
+                <p className="mt-5 max-w-3xl truncate text-center text-xl text-zinc-300 sm:text-2xl">
                   {artistText}
                 </p>
 
-                <p className="mt-2 text-sm text-zinc-500 sm:text-base">
+                <p className="mt-2 max-w-3xl truncate text-center text-sm text-zinc-500 sm:text-base">
                   {albumText}
                 </p>
 
-                <div className="mx-auto mt-10 w-full max-w-2xl lg:mx-0">
+                <div className="mt-10 w-full max-w-2xl">
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
                     <motion.div
                       className="h-full rounded-full"
@@ -340,7 +354,7 @@ export function FullscreenNowPlaying({
                   </div>
                 </div>
 
-                <div className="mt-10 flex items-center justify-center gap-4 lg:justify-start">
+                <div className="mt-10 flex items-center justify-center gap-4">
                   <button
                     type="button"
                     onClick={onPrevious}
@@ -385,8 +399,8 @@ export function FullscreenNowPlaying({
 
           <div
             className={`pointer-events-none absolute left-1/2 top-5 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-4 py-2 text-center text-xs font-medium text-zinc-300 shadow-2xl shadow-black/30 backdrop-blur-xl transition-all duration-300 ${fullscreenChromeVisible
-              ? "translate-y-0 opacity-100"
-              : "-translate-y-2 opacity-0"
+                ? "translate-y-0 opacity-100"
+                : "-translate-y-2 opacity-0"
               }`}
           >
             Move to the top-right to exit fullscreen. Press Esc to close.
@@ -394,8 +408,8 @@ export function FullscreenNowPlaying({
 
           <div
             className={`absolute right-4 top-4 z-30 flex items-center gap-2 transition-all duration-300 ${fullscreenChromeVisible
-              ? "translate-y-0 opacity-100"
-              : "-translate-y-2 opacity-0"
+                ? "translate-y-0 opacity-100"
+                : "-translate-y-2 opacity-0"
               }`}
           >
             <button
