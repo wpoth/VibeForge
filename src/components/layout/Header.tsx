@@ -447,9 +447,11 @@ export function Header({
         track={currentlyPlaying ?? null}
         isPlaying={isPlaying}
         controlLoading={controlLoading}
+        seekLoading={seekLoading}
         onPrevious={() => controlPlayback("previous")}
         onNext={() => controlPlayback("next")}
         onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
+        onSeek={seekPlayback}
         onClose={() => setFullscreenNowPlayingOpen(false)}
       />
     </>
