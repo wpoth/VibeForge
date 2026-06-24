@@ -10,7 +10,14 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type TouchEvent,
+} from "react";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { useImageAccentColor } from "@/hooks/useImageAccentColor";
@@ -20,9 +27,11 @@ type FullscreenNowPlayingProps = {
   track: CurrentlyPlayingTrack | null;
   isPlaying: boolean;
   controlLoading?: boolean;
+  seekLoading?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onTogglePlay: () => void;
+  onSeek: (positionMs: number) => void;
   onClose: () => void;
 };
 
@@ -41,25 +50,48 @@ export function FullscreenNowPlaying({
   track,
   isPlaying,
   controlLoading = false,
+  seekLoading = false,
   onPrevious,
   onNext,
   onTogglePlay,
+  onSeek,
   onClose,
 }: FullscreenNowPlayingProps) {
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [fullscreenChromeVisible, setFullscreenChromeVisible] = useState(true);
+  const [localProgressMs, setLocalProgressMs] = useState(0);
 
   const hasEnteredFullscreenRef = useRef(false);
+  const progressBarRef = useRef<HTMLButtonElement | null>(null);
+
   const accentColor = useImageAccentColor(track?.imageUrl);
 
+  useEffect(() => {
+    setLocalProgressMs(track?.progressMs ?? 0);
+  }, [track?.uri, track?.progressMs]);
+
+  useEffect(() => {
+    if (!isPlaying || !track?.durationMs) return;
+
+    const intervalId = window.setInterval(() => {
+      setLocalProgressMs((current) =>
+        Math.min(current + 1000, track.durationMs ?? current),
+      );
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [isPlaying, track?.durationMs]);
+
   const progressPercent = useMemo(() => {
-    if (!track?.durationMs || !track?.progressMs) return 0;
+    if (!track?.durationMs) return 0;
 
     return Math.min(
       100,
-      Math.max(0, (track.progressMs / track.durationMs) * 100),
+      Math.max(0, (localProgressMs / track.durationMs) * 100),
     );
-  }, [track?.durationMs, track?.progressMs]);
+  }, [localProgressMs, track?.durationMs]);
 
   useEffect(() => {
     if (!open) {
@@ -161,6 +193,29 @@ export function FullscreenNowPlaying({
     };
   }, [open]);
 
+  function seekFromClientX(clientX: number) {
+    if (!track?.durationMs || !progressBarRef.current) return;
+
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const nextPositionMs = Math.floor(track.durationMs * ratio);
+
+    setLocalProgressMs(nextPositionMs);
+    onSeek(nextPositionMs);
+  }
+
+  function handleProgressClick(event: MouseEvent<HTMLButtonElement>) {
+    seekFromClientX(event.clientX);
+  }
+
+  function handleProgressTouch(event: TouchEvent<HTMLButtonElement>) {
+    const touch = event.changedTouches[0];
+
+    if (!touch) return;
+
+    seekFromClientX(touch.clientX);
+  }
+
   async function leaveFullscreen() {
     try {
       if (document.fullscreenElement) {
@@ -189,7 +244,7 @@ export function FullscreenNowPlaying({
 
   const artistText = track?.artists?.join(", ") || "Spotify";
   const albumText = track?.album || "Now playing";
-  const trackKey = track?.id ?? track?.title ?? "nothing-playing";
+  const trackKey = track?.id ?? track?.uri ?? track?.title ?? "nothing-playing";
 
   return (
     <AnimatePresence>
@@ -381,24 +436,63 @@ export function FullscreenNowPlaying({
                 </AnimatePresence>
 
                 <div className="mt-10 w-full max-w-2xl">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{
-                        backgroundColor: `rgb(${accentColor.rgb})`,
-                        boxShadow: `0 0 22px ${accentColor.rgbaStrong}`,
+                  <button
+                    ref={progressBarRef}
+                    type="button"
+                    onClick={handleProgressClick}
+                    onTouchEnd={handleProgressTouch}
+                    disabled={!track?.durationMs || seekLoading}
+                    className="group relative h-6 w-full cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-70"
+                    aria-label="Seek playback position"
+                  >
+                    <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10 shadow-inner">
+                      <motion.div
+                        animate={{ width: `${progressPercent}%` }}
+                        transition={{
+                          duration: 0.35,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className="relative h-full overflow-hidden rounded-full"
+                        style={{
+                          backgroundColor: `rgb(${accentColor.rgb})`,
+                          boxShadow: `0 0 24px ${accentColor.rgbaStrong}`,
+                        }}
+                      >
+                        {isPlaying && (
+                          <motion.div
+                            animate={{
+                              x: ["-120%", "220%"],
+                            }}
+                            transition={{
+                              duration: 1.6,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                            className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                          />
+                        )}
+                      </motion.div>
+                    </div>
+
+                    <motion.span
+                      animate={{
+                        left: `${progressPercent}%`,
                       }}
-                      animate={{ width: `${progressPercent}%` }}
                       transition={{
-                        duration: 0.5,
+                        duration: 0.35,
                         ease: [0.22, 1, 0.36, 1],
                       }}
+                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                      style={{
+                        backgroundColor: `rgb(${accentColor.rgb})`,
+                        boxShadow: `0 0 18px ${accentColor.rgbaStrong}`,
+                      }}
                     />
-                  </div>
+                  </button>
 
-                  <div className="mt-3 flex justify-between text-xs text-zinc-500">
-                    <span>{formatTime(track?.progressMs)}</span>
-                    <span>{formatTime(track?.durationMs)}</span>
+                  <div className="mt-2 flex justify-between text-xs text-zinc-500">
+                    <span>{formatTime(localProgressMs)}</span>
+                    <span>{formatTime(track?.durationMs ?? 0)}</span>
                   </div>
                 </div>
 
