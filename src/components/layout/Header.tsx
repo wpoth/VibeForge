@@ -1,12 +1,14 @@
 "use client";
 
 import { LogOut, Maximize2, Settings, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { signOut } from "next-auth/react";
 
 import { SettingsDrawer } from "@/components/settings/SettingsDrawer";
 import { toast } from "@/components/common/ToastProvider";
+import { KeyboardShortcutsOverlay } from "@/components/common/KeyboardShortcutsOverlay";
 import { CurrentlyPlayingBox } from "@/components/header/CurrentlyPlayingBox";
 import { NowPlayingPopover } from "@/components/header/NowPlayingPopover";
 import { FullscreenNowPlaying } from "@/components/header/FullscreenNowPlaying";
@@ -14,6 +16,7 @@ import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { getErrorMessage } from "@/lib/ui-helpers";
 import { QueueDrawer } from "@/components/header/QueueDrawer";
 import { usePlayerQueue } from "@/hooks/usePlayerQueue";
+import { useDashboardKeyboardShortcuts } from "@/hooks/useDashboardKeyboardShortcuts";
 
 type HeaderProps = {
   accessToken: string | undefined;
@@ -32,13 +35,17 @@ export function Header({
   isPlaying = false,
   onRefreshPlayback,
 }: HeaderProps) {
+  const router = useRouter();
+
   const desktopNowPlayingRef = useRef<HTMLDivElement | null>(null);
   const mobileNowPlayingRef = useRef<HTMLDivElement | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [fullscreenNowPlayingOpen, setFullscreenNowPlayingOpen] =
-    useState(false);
+  const [fullscreenNowPlayingOpen, setFullscreenNowPlayingOpen] = useState(
+    false,
+  );
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
   const [seekLoading, setSeekLoading] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
@@ -61,6 +68,29 @@ export function Header({
     window.dispatchEvent(new CustomEvent("vibeforge:landing-home"));
   }
 
+  function goToHome() {
+    setPopoverOpen(false);
+    onAiModeClick();
+    window.dispatchEvent(new CustomEvent("vibeforge:landing-home"));
+  }
+
+  function goToAi() {
+    setPopoverOpen(false);
+    onAiModeClick();
+    router.push("/dashboard/ai");
+  }
+
+  function goToRecent() {
+    setPopoverOpen(false);
+    onAiModeClick();
+    router.push("/dashboard/recent");
+  }
+
+  function goToStats() {
+    setPopoverOpen(false);
+    router.push("/dashboard/stats");
+  }
+
   function toggleNowPlayingPopover(anchorElement: HTMLDivElement | null) {
     if (anchorElement) {
       setAnchorRect(anchorElement.getBoundingClientRect());
@@ -69,17 +99,9 @@ export function Header({
     setPopoverOpen((current) => !current);
   }
 
-  async function openFullscreenNowPlaying() {
+  function openFullscreenNowPlaying() {
     setPopoverOpen(false);
     setFullscreenNowPlayingOpen(true);
-
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch (error) {
-      console.warn("Fullscreen request failed:", error);
-    }
   }
 
   async function controlPlayback(action: PlayerControlAction) {
@@ -111,8 +133,8 @@ export function Header({
       if (!res.ok || data?.error) {
         throw new Error(
           data?.message ||
-          String(data?.error) ||
-          "Failed to control Spotify playback",
+            String(data?.error) ||
+            "Failed to control Spotify playback",
         );
       }
 
@@ -157,8 +179,8 @@ export function Header({
       if (!res.ok || data?.error) {
         throw new Error(
           data?.message ||
-          String(data?.error) ||
-          "Failed to seek Spotify playback",
+            String(data?.error) ||
+            "Failed to seek Spotify playback",
         );
       }
 
@@ -173,6 +195,36 @@ export function Header({
       setSeekLoading(false);
     }
   }
+
+  useDashboardKeyboardShortcuts({
+    enabled: true,
+    hasCurrentTrack: Boolean(currentlyPlaying?.title),
+    isPlaying,
+    currentProgressMs: currentlyPlaying?.progressMs ?? 0,
+    currentDurationMs: currentlyPlaying?.durationMs ?? 0,
+    onTogglePlay: () => {
+      void controlPlayback(isPlaying ? "pause" : "resume");
+    },
+    onPrevious: () => {
+      void controlPlayback("previous");
+    },
+    onNext: () => {
+      void controlPlayback("next");
+    },
+    onSeek: (positionMs) => {
+      void seekPlayback(positionMs);
+    },
+    onOpenFullscreen: openFullscreenNowPlaying,
+    onOpenQueue: () => {
+      void loadQueue();
+    },
+    onGoHome: goToHome,
+    onGoAi: goToAi,
+    onGoRecent: goToRecent,
+    onGoStats: goToStats,
+    onOpenHelp: () => setShortcutsOpen(true),
+    onCloseHelp: () => setShortcutsOpen(false),
+  });
 
   return (
     <>
@@ -453,6 +505,11 @@ export function Header({
         onTogglePlay={() => controlPlayback(isPlaying ? "pause" : "resume")}
         onSeek={seekPlayback}
         onClose={() => setFullscreenNowPlayingOpen(false)}
+      />
+
+      <KeyboardShortcutsOverlay
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
       />
     </>
   );
