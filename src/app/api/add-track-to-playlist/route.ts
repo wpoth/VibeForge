@@ -1,35 +1,11 @@
-type SpotifyApiErrorResponse = {
-    error: {
+type SpotifyAddItemsResponse = {
+    snapshot_id?: string;
+    error?: {
         status?: number;
         message?: string;
         reason?: string;
     };
 };
-
-type SpotifyAddItemsResponse = {
-    snapshot_id: string;
-};
-
-type SpotifyMeResponse = {
-    id: string;
-    display_name?: string;
-};
-
-type SpotifyPlaylistDebugResponse = {
-    id: string;
-    name: string;
-    public: boolean | null;
-    collaborative: boolean;
-    owner: {
-        id: string;
-        display_name?: string;
-    };
-};
-
-type SpotifyAddItemsApiResponse =
-    | SpotifyAddItemsResponse
-    | SpotifyApiErrorResponse
-    | null;
 
 type AddTrackToPlaylistRequest = {
     accessToken?: string;
@@ -39,49 +15,6 @@ type AddTrackToPlaylistRequest = {
 
 function isSpotifyTrackUri(uri: string) {
     return /^spotify:track:[A-Za-z0-9]+$/.test(uri);
-}
-
-function isSpotifyApiErrorResponse(
-    data: SpotifyAddItemsApiResponse,
-): data is SpotifyApiErrorResponse {
-    return Boolean(
-        data &&
-        typeof data === "object" &&
-        "error" in data &&
-        data.error &&
-        typeof data.error === "object",
-    );
-}
-
-function isSpotifyAddItemsResponse(
-    data: SpotifyAddItemsApiResponse,
-): data is SpotifyAddItemsResponse {
-    return Boolean(
-        data &&
-        typeof data === "object" &&
-        "snapshot_id" in data &&
-        typeof data.snapshot_id === "string",
-    );
-}
-
-async function readSpotifyJson<T>(res: Response) {
-    return (await res.json().catch(() => null)) as T | SpotifyApiErrorResponse | null;
-}
-
-function getSpotifyErrorMessage(data: unknown, fallback: string) {
-    if (
-        data &&
-        typeof data === "object" &&
-        "error" in data &&
-        data.error &&
-        typeof data.error === "object" &&
-        "message" in data.error &&
-        typeof data.error.message === "string"
-    ) {
-        return data.error.message;
-    }
-
-    return fallback;
 }
 
 export async function POST(req: Request) {
@@ -99,7 +32,7 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!playlistId) {
+        if (!playlistId || typeof playlistId !== "string") {
             return Response.json(
                 {
                     error: true,
@@ -109,7 +42,7 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!trackUri) {
+        if (!trackUri || typeof trackUri !== "string") {
             return Response.json(
                 {
                     error: true,
@@ -138,7 +71,7 @@ export async function POST(req: Request) {
             return Response.json(
                 {
                     error: true,
-                    message: `This item cannot be added to a playlist. Expected a Spotify track URI, received: ${trackUri}`,
+                    message: `Only normal Spotify tracks can be added to playlists. Received: ${trackUri}`,
                     debug: {
                         playlistId,
                         trackUri,
@@ -148,87 +81,10 @@ export async function POST(req: Request) {
             );
         }
 
-        const meRes = await fetch("https://api.spotify.com/v1/me", {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-            cache: "no-store",
-        });
-
-        const meData = await readSpotifyJson<SpotifyMeResponse>(meRes);
-
-        if (!meRes.ok || !meData || "error" in meData) {
-            return Response.json(
-                {
-                    error: true,
-                    message: getSpotifyErrorMessage(
-                        meData,
-                        "Could not verify the current Spotify user.",
-                    ),
-                    details: meData,
-                },
-                { status: meRes.status },
-            );
-        }
-
-        const playlistRes = await fetch(
+        const res: globalThis.Response = await fetch(
             `https://api.spotify.com/v1/playlists/${encodeURIComponent(
                 playlistId,
-            )}?fields=id,name,public,collaborative,owner(id,display_name)`,
-            {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-                cache: "no-store",
-            },
-        );
-
-        const playlistData =
-            await readSpotifyJson<SpotifyPlaylistDebugResponse>(playlistRes);
-
-        if (!playlistRes.ok || !playlistData || "error" in playlistData) {
-            return Response.json(
-                {
-                    error: true,
-                    message: getSpotifyErrorMessage(
-                        playlistData,
-                        "Could not read the target playlist.",
-                    ),
-                    details: playlistData,
-                    debug: {
-                        playlistId,
-                        trackUri,
-                        currentUser: meData,
-                    },
-                },
-                { status: playlistRes.status },
-            );
-        }
-
-        const ownedByCurrentUser = playlistData.owner.id === meData.id;
-        const probablyWritable = ownedByCurrentUser || playlistData.collaborative;
-
-        if (!probablyWritable) {
-            return Response.json(
-                {
-                    error: true,
-                    message:
-                        "Spotify says this playlist is not owned by the current user and is not collaborative, so VibeForge cannot add songs to it.",
-                    debug: {
-                        playlistId,
-                        trackUri,
-                        currentUser: meData,
-                        targetPlaylist: playlistData,
-                    },
-                },
-                { status: 403 },
-            );
-        }
-
-        const res = await fetch(
-            `https://api.spotify.com/v1/playlists/${encodeURIComponent(
-                playlistId,
-            )}/tracks`,
+            )}/items`,
             {
                 method: "POST",
                 headers: {
@@ -242,38 +98,33 @@ export async function POST(req: Request) {
             },
         );
 
-        const data = (await res
-            .json()
-            .catch(() => null)) as SpotifyAddItemsApiResponse;
+        const data = (await res.json().catch(() => null)) as
+            | SpotifyAddItemsResponse
+            | null;
 
-        if (!res.ok || isSpotifyApiErrorResponse(data)) {
-            const spotifyMessage = isSpotifyApiErrorResponse(data)
-                ? data.error.message ||
-                data.error.reason ||
-                `Spotify returned ${res.status} while adding the track.`
-                : `Spotify returned ${res.status} while adding the track.`;
+        console.log("Context menu add-to-playlist response:", {
+            status: res.status,
+            ok: res.ok,
+            playlistId,
+            trackUri,
+            snapshotId: data?.snapshot_id,
+            error: data?.error,
+            fullResponse: data,
+        });
 
-            const requiredScope =
-                playlistData.public === true
-                    ? "playlist-modify-public"
-                    : "playlist-modify-private";
-
+        if (!res.ok) {
             return Response.json(
                 {
                     error: true,
                     message:
-                        res.status === 403
-                            ? `Spotify denied adding this track. The target playlist is ${playlistData.public ? "public" : "private"
-                            }, so the token must include ${requiredScope}. Spotify said: ${spotifyMessage}`
-                            : spotifyMessage,
-                    status: res.status,
+                        data?.error?.message ??
+                        data?.error?.reason ??
+                        `Failed to add song to playlist. Spotify returned ${res.status}.`,
                     details: data,
                     debug: {
-                        requiredScope,
                         playlistId,
                         trackUri,
-                        currentUser: meData,
-                        targetPlaylist: playlistData,
+                        endpoint: "POST /playlists/{playlist_id}/items",
                     },
                 },
                 { status: res.status },
@@ -282,15 +133,13 @@ export async function POST(req: Request) {
 
         return Response.json({
             success: true,
-            snapshotId: isSpotifyAddItemsResponse(data) ? data.snapshot_id : null,
-            debug: {
-                playlistId,
-                trackUri,
-                currentUser: meData,
-                targetPlaylist: playlistData,
-            },
+            snapshotId: data?.snapshot_id ?? null,
+            addedTrackUri: trackUri,
+            playlistId,
         });
     } catch (error) {
+        console.error("Add track to playlist route error:", error);
+
         return Response.json(
             {
                 error: true,
