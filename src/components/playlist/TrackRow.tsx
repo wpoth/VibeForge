@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  FolderPlus
 } from "lucide-react";
 
 import {
@@ -27,8 +28,11 @@ import { TrackInlineActions } from "@/components/playlist/TrackInlineActions";
 import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
+import type { SpotifyPlaylist } from "@/lib/spotify-types";
+
 type TrackRowProps = {
   playlistItem: SpotifyPlaylistItem;
+  playlists: SpotifyPlaylist[];
   index: number;
   selectionMode: boolean;
   selected: boolean;
@@ -39,10 +43,10 @@ type TrackRowProps = {
   onRemove: (playlistItem: SpotifyPlaylistItem) => void;
   onPlay: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
+  onAddToPlaylist: (playlistItem: SpotifyPlaylistItem) => void;
   onResearch: (playlistItem: SpotifyPlaylistItem) => void;
   onFindSimilar: (playlistItem: SpotifyPlaylistItem) => void;
 };
-
 type MenuState = {
   open: boolean;
   x: number;
@@ -56,6 +60,7 @@ export function TrackRow({
   selected,
   playingTrackUri,
   playbackLoading,
+  playlists,
   canRemove = true,
   onToggleSelect,
   onRemove,
@@ -63,6 +68,7 @@ export function TrackRow({
   onAddToQueue,
   onResearch,
   onFindSimilar,
+  onAddToPlaylist,
 }: TrackRowProps) {
   const [menu, setMenu] = useState<MenuState>({
     open: false,
@@ -101,6 +107,12 @@ export function TrackRow({
       icon: ListPlus,
       disabled: !trackUri,
       onClick: () => onAddToQueue(playlistItem),
+    },
+    {
+      label: "Add to playlist",
+      icon: FolderPlus,
+      disabled: !trackUri || playlists.length === 0,
+      onClick: () => onAddToPlaylist(playlistItem),
     },
     {
       label: "Research song",
@@ -171,8 +183,8 @@ export function TrackRow({
                 type="button"
                 onClick={() => onToggleSelect(playlistItem)}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition-colors ${selected
-                    ? "border-green-400 bg-green-500 text-black"
-                    : "border-white/20 text-transparent hover:border-white/40"
+                  ? "border-green-400 bg-green-500 text-black"
+                  : "border-white/20 text-transparent hover:border-white/40"
                   }`}
                 aria-label={selected ? "Deselect song" : "Select song"}
               >

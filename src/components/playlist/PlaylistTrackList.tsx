@@ -5,11 +5,12 @@ import { Loader2, Search, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 import { TrackRow } from "@/components/playlist/TrackRow";
-import type { SpotifyPlaylistItem } from "@/lib/spotify-types";
+import type { SpotifyPlaylistItem, SpotifyPlaylist } from "@/lib/spotify-types";
 import { getTrackFromPlaylistItem } from "@/lib/ui-helpers";
 
 type PlaylistTrackListProps = {
   tracks: SpotifyPlaylistItem[];
+  playlists: SpotifyPlaylist[];
   selectionMode: boolean;
   selectedTrackUris: string[];
   playingTrackUri: string | null;
@@ -23,6 +24,7 @@ type PlaylistTrackListProps = {
   onLoadMoreTracks?: () => void;
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
+  onAddToPlaylist: (playlistItem: SpotifyPlaylistItem) => void;
   onResearchTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onFindSimilarTracks: (playlistItem: SpotifyPlaylistItem) => void;
   onRemoveTrack: (playlistItem: SpotifyPlaylistItem) => void;
@@ -49,6 +51,7 @@ export function PlaylistTrackList({
   selectedTrackUris,
   playingTrackUri,
   playbackLoading,
+  playlists,
   canRemoveTracks = true,
   isPagedPlaylist = false,
   hasMoreTracks = false,
@@ -57,6 +60,7 @@ export function PlaylistTrackList({
   onLoadMoreTracks,
   onPlayTrack,
   onAddToQueue,
+  onAddToPlaylist,
   onResearchTrack,
   onFindSimilarTracks,
   onRemoveTrack,
@@ -218,6 +222,7 @@ export function PlaylistTrackList({
               >
                 <TrackRow
                   playlistItem={playlistItem}
+                  playlists={playlists}
                   index={originalIndex}
                   selectionMode={selectionMode}
                   selected={selected}
@@ -228,6 +233,7 @@ export function PlaylistTrackList({
                   onRemove={onRemoveTrack}
                   onPlay={onPlayTrack}
                   onAddToQueue={onAddToQueue}
+                  onAddToPlaylist={onAddToPlaylist}
                   onResearch={onResearchTrack}
                   onFindSimilar={onFindSimilarTracks}
                 />

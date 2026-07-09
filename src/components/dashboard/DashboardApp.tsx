@@ -42,7 +42,7 @@ import type { PreparedSpotifyCoverImage } from "@/lib/spotify-cover-image";
 
 import type { SpotifyPlaylist, SpotifyPlaylistItem } from "@/lib/spotify-types";
 import { getErrorMessage, getTrackFromPlaylistItem } from "@/lib/ui-helpers";
-
+import { AddToPlaylistDialog } from "@/components/playlist/AddToPlaylistDialog";
 type DashboardLandingView = "home" | "recently-played" | "ai-playlist";
 
 type DashboardAppProps = {
@@ -69,6 +69,11 @@ export function DashboardApp({
     const [coverEditorFile, setCoverEditorFile] = useState<File | null>(null);
     const [playlistRouteMissing, setPlaylistRouteMissing] = useState(false);
 
+    const [addToPlaylistTrack, setAddToPlaylistTrack] =
+        useState<SpotifyPlaylistItem | null>(null);
+    const [addingToPlaylistId, setAddingToPlaylistId] = useState<string | null>(
+        null,
+    );
     const lastAiSuccessMessageRef = useRef<string | null>(null);
 
     const {
@@ -340,11 +345,86 @@ export function DashboardApp({
         }
     }, [aiPlaylistSuccessMessage]);
 
+    function requestAddTrackToPlaylist(playlistItem: SpotifyPlaylistItem) {
+        setAddToPlaylistTrack(playlistItem);
+    }
+
     function handleAiModeClick() {
         setView("ai");
 
         if (pathname !== "/dashboard") {
             router.push("/dashboard");
+        }
+    }
+
+    async function handleAddTrackToPlaylist(
+        playlist: SpotifyPlaylist,
+        playlistItem: SpotifyPlaylistItem,
+    ) {
+        setError(null);
+
+        if (!accessToken) {
+            toast({
+                type: "error",
+                title: "Could not add song",
+                description: "Missing access token.",
+            });
+            return;
+        }
+
+        const track = getTrackFromPlaylistItem(playlistItem);
+        const trackUri = track?.uri;
+
+        if (!trackUri) {
+            toast({
+                type: "error",
+                title: "Could not add song",
+                description: "This song is missing a Spotify URI.",
+            });
+            return;
+        }
+
+        setAddingToPlaylistId(playlist.id);
+
+        try {
+            const res = await fetch("/api/add-track-to-playlist", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    accessToken,
+                    playlistId: playlist.id,
+                    trackUri,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || data?.error) {
+                throw new Error(
+                    data?.message ||
+                    String(data?.error) ||
+                    "Failed to add song to playlist",
+                );
+            }
+
+            toast({
+                type: "success",
+                title: "Added to playlist",
+                description: `${track.name ?? "Song"} was added to ${playlist.name}.`,
+            });
+
+            setAddToPlaylistTrack(null);
+            await loadPlaylists();
+        } catch (error: unknown) {
+            toast({
+                type: "error",
+                title: "Could not add song",
+                description: getErrorMessage(error),
+            });
+        } finally {
+            setAddingToPlaylistId(null);
         }
     }
 
@@ -928,6 +1008,8 @@ export function DashboardApp({
                         playlistCoverUploading={
                             playlistCoverUploadingId === selectedPlaylist.id
                         }
+                        playlists={playlists}
+                        onAddToPlaylist={requestAddTrackToPlaylist}
                         onToggleSelectionMode={toggleSelectionMode}
                         onClearSelection={clearTrackSelection}
                         onSelectAllTracks={selectAllTracks}
@@ -944,6 +1026,18 @@ export function DashboardApp({
                     />
                 )}
             </main>
+
+            <AddToPlaylistDialog
+                open={Boolean(addToPlaylistTrack)}
+                playlistItem={addToPlaylistTrack}
+                playlists={playlists}
+                loadingPlaylistId={addingToPlaylistId}
+                onAddToPlaylist={handleAddTrackToPlaylist}
+                onClose={() => {
+                    if (addingToPlaylistId) return;
+                    setAddToPlaylistTrack(null);
+                }}
+            />
 
             <SongResearchDrawer
                 open={researchOpen}

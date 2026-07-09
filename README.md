@@ -127,7 +127,8 @@ SPOTIFY_CLIENT_SECRET=your-client-secret
 
 GROQ_API_KEY=your-groq-key
 
-OPENAI_API_KEY=your-openai-key
+(OPTIONAL)OPENAI_API_KEY=your-openai-key
+
 ```
 
 ---
@@ -184,6 +185,7 @@ pnpm start
 
 VibeForge requests access to:
 
+- Read library (liked songs)
 - Read private playlists
 - Read collaborative playlists
 - Create playlists
@@ -238,11 +240,8 @@ Select a track and discover songs with similar:
 ## Future Improvements
 
 - Playlist sharing
-- Playlist cover generation
-- Advanced analytics
-- Listening history insights
-- Collaborative AI playlists
 - Multi-provider AI support
+- UI makeover
 
 ---
 

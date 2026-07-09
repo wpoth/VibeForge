@@ -13,6 +13,7 @@ import { isLikedSongsPlaylist } from "@/lib/spotify-types";
 
 type PlaylistViewProps = {
   selectedPlaylist: SpotifyPlaylist;
+  playlists: SpotifyPlaylist[];
   tracks: SpotifyPlaylistItem[];
   loadingTracks: boolean;
   loadingMoreTracks?: boolean;
@@ -28,6 +29,7 @@ type PlaylistViewProps = {
 
   onPlayTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onAddToQueue: (playlistItem: SpotifyPlaylistItem) => void;
+  onAddToPlaylist: (playlistItem: SpotifyPlaylistItem) => void;
   onResearchTrack: (playlistItem: SpotifyPlaylistItem) => void;
   onFindSimilarTracks: (playlistItem: SpotifyPlaylistItem) => void;
   onToggleSelectionMode: () => void;
@@ -51,6 +53,7 @@ export function PlaylistView({
   loadingAI,
   aiAnalysis,
   selectionMode,
+  playlists,
   selectedTrackUris,
   playingTrackUri,
   playbackLoading,
@@ -61,6 +64,7 @@ export function PlaylistView({
   onGenerateAiAnalysis,
   onRemoveTrack,
   onToggleTrackSelection,
+  onAddToPlaylist,
   onRequestRemoveSelectedTracks,
   onPlayTrack,
   onAddToQueue,
@@ -106,6 +110,7 @@ export function PlaylistView({
 
           <PlaylistTrackList
             tracks={tracks}
+            playlists={playlists}
             selectionMode={canRemoveTracks ? selectionMode : false}
             selectedTrackUris={selectedTrackUris}
             playingTrackUri={playingTrackUri}
@@ -118,6 +123,7 @@ export function PlaylistView({
             onLoadMoreTracks={onLoadMoreTracks}
             onPlayTrack={onPlayTrack}
             onAddToQueue={onAddToQueue}
+            onAddToPlaylist={onAddToPlaylist}
             onResearchTrack={onResearchTrack}
             onFindSimilarTracks={onFindSimilarTracks}
             onRemoveTrack={onRemoveTrack}
