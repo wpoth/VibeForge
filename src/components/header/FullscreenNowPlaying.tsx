@@ -19,7 +19,7 @@ import {
   type TouchEvent,
 } from "react";
 import { createPortal } from "react-dom";
-// comment
+
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { useImageAccentColor } from "@/hooks/useImageAccentColor";
 
@@ -309,27 +309,27 @@ export function FullscreenNowPlaying({
                   src={track.imageUrl}
                   alt=""
                   aria-hidden="true"
-                  className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-3xl"
+                  className="absolute inset-0 h-full w-full scale-125 object-cover opacity-28 blur-3xl"
                 />
 
                 <motion.div
                   animate={
                     isPlaying
                       ? {
-                        scale: [1, 1.08, 1],
-                        opacity: [0.28, 0.46, 0.28],
-                      }
+                          scale: [1, 1.08, 1],
+                          opacity: [0.3, 0.55, 0.3],
+                        }
                       : {
-                        scale: 1,
-                        opacity: 0.24,
-                      }
+                          scale: 1,
+                          opacity: 0.28,
+                        }
                   }
                   transition={{
                     duration: 7,
                     repeat: isPlaying ? Infinity : 0,
                     ease: "easeInOut",
                   }}
-                  className="absolute left-[8vw] top-[8vh] h-[min(42vw,42vh,360px)] w-[min(42vw,42vh,360px)] rounded-full blur-3xl"
+                  className="absolute left-[7vw] top-[8vh] h-[min(42vw,42vh,380px)] w-[min(42vw,42vh,380px)] rounded-full blur-3xl"
                   style={{
                     backgroundColor: accentColor.rgbaStrong,
                   }}
@@ -339,37 +339,61 @@ export function FullscreenNowPlaying({
                   animate={
                     isPlaying
                       ? {
-                        scale: [1, 1.14, 1],
-                        x: [0, -16, 0],
-                        y: [0, 10, 0],
-                        opacity: [0.2, 0.38, 0.2],
-                      }
+                          scale: [1, 1.14, 1],
+                          x: [0, -18, 0],
+                          y: [0, 12, 0],
+                          opacity: [0.24, 0.46, 0.24],
+                        }
                       : {
-                        scale: 1,
-                        x: 0,
-                        y: 0,
-                        opacity: 0.16,
-                      }
+                          scale: 1,
+                          x: 0,
+                          y: 0,
+                          opacity: 0.2,
+                        }
                   }
                   transition={{
                     duration: 8,
                     repeat: isPlaying ? Infinity : 0,
                     ease: "easeInOut",
                   }}
-                  className="absolute bottom-[6vh] right-[8vw] h-[min(46vw,46vh,420px)] w-[min(46vw,46vh,420px)] rounded-full blur-3xl"
+                  className="absolute bottom-[7vh] right-[8vw] h-[min(48vw,48vh,460px)] w-[min(48vw,48vh,460px)] rounded-full blur-3xl"
                   style={{
                     backgroundColor: accentColor.rgbaMedium,
                   }}
                 />
 
-                <div className="absolute inset-0 bg-gradient-to-br from-black/75 via-[#0d1018]/82 to-black/95" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.12),transparent_38%)]" />
+                <motion.div
+                  animate={
+                    isPlaying
+                      ? {
+                          scale: [1, 1.18, 1],
+                          opacity: [0.12, 0.28, 0.12],
+                        }
+                      : {
+                          scale: 1,
+                          opacity: 0.12,
+                        }
+                  }
+                  transition={{
+                    duration: 9,
+                    repeat: isPlaying ? Infinity : 0,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute left-1/2 top-1/2 h-[min(64vw,64vh,620px)] w-[min(64vw,64vh,620px)] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+                  style={{
+                    backgroundColor: accentColor.rgbaSoft,
+                  }}
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-br from-black/76 via-[#0d1018]/84 to-black/96" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.11),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.13),transparent_38%)]" />
               </>
             ) : (
               <>
                 <div className="absolute inset-0 bg-gradient-to-br from-[#10131c] via-[#151923] to-black" />
-                <div className="absolute left-[8vw] top-[8vh] h-[min(42vw,42vh,360px)] w-[min(42vw,42vh,360px)] rounded-full bg-green-400/20 blur-3xl" />
-                <div className="absolute bottom-[6vh] right-[8vw] h-[min(46vw,46vh,420px)] w-[min(46vw,46vh,420px)] rounded-full bg-purple-400/15 blur-3xl" />
+                <div className="absolute left-[7vw] top-[8vh] h-[min(42vw,42vh,380px)] w-[min(42vw,42vh,380px)] rounded-full bg-green-400/24 blur-3xl" />
+                <div className="absolute bottom-[7vh] right-[8vw] h-[min(48vw,48vh,460px)] w-[min(48vw,48vh,460px)] rounded-full bg-purple-400/20 blur-3xl" />
+                <div className="absolute left-1/2 top-1/2 h-[min(64vw,64vh,620px)] w-[min(64vw,64vh,620px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/5 blur-3xl" />
               </>
             )}
           </div>
@@ -435,34 +459,26 @@ export function FullscreenNowPlaying({
           <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
             <motion.div
               key={track.uri ?? track.title}
-              initial={{ opacity: 0, y: 16, scale: 0.98, filter: "blur(10px)" }}
+              initial={{
+                opacity: 0,
+                y: 16,
+                scale: 0.98,
+                filter: "blur(10px)",
+              }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -12, scale: 0.98, filter: "blur(10px)" }}
+              exit={{
+                opacity: 0,
+                y: -12,
+                scale: 0.98,
+                filter: "blur(10px)",
+              }}
               transition={{
                 duration: 0.32,
                 ease: [0.22, 1, 0.36, 1],
               }}
               className="flex w-full max-w-[min(92vw,880px)] flex-col items-center"
             >
-              <motion.div
-                animate={
-                  isPlaying
-                    ? {
-                      y: [0, -5, 0],
-                      rotate: [-0.7, 0.7, -0.7],
-                      scale: [1, 1.012, 1],
-                    }
-                    : {
-                      y: 0,
-                      rotate: 0,
-                      scale: 1,
-                    }
-                }
-                transition={{
-                  duration: 5,
-                  repeat: isPlaying ? Infinity : 0,
-                  ease: "easeInOut",
-                }}
+              <div
                 className="relative aspect-square w-[min(58vw,58vh,420px)] max-w-[420px] overflow-hidden rounded-[clamp(1.5rem,4vw,2.6rem)] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/45"
                 style={{
                   boxShadow: `0 24px 90px ${accentColor.rgbaMedium}`,
@@ -491,20 +507,9 @@ export function FullscreenNowPlaying({
                     }}
                   />
                 )}
-              </motion.div>
-
-              <div className="mt-[clamp(1rem,3vh,1.6rem)] flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-green-200/90 backdrop-blur-xl sm:text-xs">
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{
-                    backgroundColor: `rgb(${accentColor.rgb})`,
-                    boxShadow: `0 0 14px ${accentColor.rgbaStrong}`,
-                  }}
-                />
-                {isPlaying ? "Live from Spotify" : "Spotify paused"}
               </div>
 
-              <h1 className="mt-[clamp(0.85rem,2.8vh,1.4rem)] max-w-[min(90vw,760px)] text-center text-[clamp(1.7rem,5vw,4rem)] font-black leading-[0.98] tracking-tight text-white">
+              <h1 className="mt-[clamp(1rem,3.2vh,2rem)] max-w-[min(90vw,760px)] text-center text-[clamp(1.7rem,5vw,4rem)] font-black leading-[0.98] tracking-tight text-white">
                 {track.title ?? "Unknown track"}
               </h1>
 
