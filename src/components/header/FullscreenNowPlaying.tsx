@@ -18,6 +18,7 @@ import {
   type MouseEvent,
   type TouchEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 import type { CurrentlyPlayingTrack } from "@/hooks/useCurrentlyPlaying";
 import { useImageAccentColor } from "@/hooks/useImageAccentColor";
@@ -35,14 +36,22 @@ type FullscreenNowPlayingProps = {
   onClose: () => void;
 };
 
-function formatTime(milliseconds?: number) {
-  if (!milliseconds || milliseconds < 0) return "0:00";
+function formatTime(ms: number) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return "0:00";
+  }
 
-  const totalSeconds = Math.floor(milliseconds / 1000);
+  const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function getArtistText(artists?: string[] | null) {
+  if (!artists?.length) return "Unknown artist";
+
+  return artists.join(", ");
 }
 
 export function FullscreenNowPlaying({
@@ -57,6 +66,7 @@ export function FullscreenNowPlaying({
   onSeek,
   onClose,
 }: FullscreenNowPlayingProps) {
+  const [mounted, setMounted] = useState(false);
   const [fullscreenActive, setFullscreenActive] = useState(false);
   const [fullscreenChromeVisible, setFullscreenChromeVisible] = useState(true);
   const [localProgressMs, setLocalProgressMs] = useState(0);
@@ -65,6 +75,10 @@ export function FullscreenNowPlaying({
   const progressBarRef = useRef<HTMLButtonElement | null>(null);
 
   const accentColor = useImageAccentColor(track?.imageUrl);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setLocalProgressMs(track?.progressMs ?? 0);
@@ -83,15 +97,6 @@ export function FullscreenNowPlaying({
       window.clearInterval(intervalId);
     };
   }, [isPlaying, track?.durationMs]);
-
-  const progressPercent = useMemo(() => {
-    if (!track?.durationMs) return 0;
-
-    return Math.min(
-      100,
-      Math.max(0, (localProgressMs / track.durationMs) * 100),
-    );
-  }, [localProgressMs, track?.durationMs]);
 
   useEffect(() => {
     if (!open) {
@@ -141,18 +146,34 @@ export function FullscreenNowPlaying({
   useEffect(() => {
     if (!open) return;
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
+    const html = document.documentElement;
+    const body = document.body;
+
+    const previousHtmlOverflow = html.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPaddingRight = body.style.paddingRight;
+    const previousHtmlOverscrollBehavior = html.style.overscrollBehavior;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
+
+    const scrollbarWidth = window.innerWidth - html.clientWidth;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+
+    if (scrollbarWidth > 0) {
+      body.style.paddingRight = `${scrollbarWidth}px`;
     }
 
-    window.addEventListener("keydown", handleKeyDown);
-
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.paddingRight = previousBodyPaddingRight;
+      html.style.overscrollBehavior = previousHtmlOverscrollBehavior;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
     };
-  }, [onClose, open]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -193,6 +214,57 @@ export function FullscreenNowPlaying({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        void closeFullscreenNowPlaying();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const progressPercent = useMemo(() => {
+    if (!track?.durationMs) return 0;
+
+    return Math.min(
+      100,
+      Math.max(0, (localProgressMs / track.durationMs) * 100),
+    );
+  }, [localProgressMs, track?.durationMs]);
+
+  async function closeFullscreenNowPlaying() {
+    onClose();
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Browser may reject exitFullscreen if fullscreen was already closed.
+    }
+  }
+
+  async function toggleBrowserFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await document.documentElement.requestFullscreen();
+    } catch {
+      setFullscreenActive(Boolean(document.fullscreenElement));
+    }
+  }
+
   function seekFromClientX(clientX: number) {
     if (!track?.durationMs || !progressBarRef.current) return;
 
@@ -216,372 +288,366 @@ export function FullscreenNowPlaying({
     seekFromClientX(touch.clientX);
   }
 
-  async function leaveFullscreen() {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-    } catch {
-      // Ignore browser fullscreen errors.
-    }
+  if (!mounted) return null;
 
-    onClose();
-  }
-
-  async function toggleBrowserFullscreen() {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        return;
-      }
-
-      await document.documentElement.requestFullscreen();
-      hasEnteredFullscreenRef.current = true;
-    } catch {
-      // Ignore browser fullscreen errors.
-    }
-  }
-
-  const artistText = track?.artists?.join(", ") || "Spotify";
-  const albumText = track?.album || "Now playing";
-  const trackKey = track?.id ?? track?.uri ?? track?.title ?? "nothing-playing";
-
-  return (
+  return createPortal(
     <AnimatePresence>
-      {open && (
+      {open && track && (
         <motion.div
+          key="fullscreen-now-playing"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className={`fixed inset-0 z-[100] overflow-hidden bg-black text-white ${fullscreenChromeVisible ? "cursor-default" : "cursor-none"
-            }`}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Fullscreen now playing"
+          transition={{ duration: 0.22 }}
+          className="fixed inset-0 z-[150] h-[100dvh] w-screen overflow-hidden bg-black text-white"
         >
-          {track?.imageUrl && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={track.imageUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full scale-125 object-cover opacity-25 blur-3xl"
-              />
-              <div className="absolute inset-0 bg-gradient-to-br from-black/85 via-black/72 to-black/95" />
-            </>
-          )}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {track.imageUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={track.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-3xl"
+                />
 
-          {!track?.imageUrl && (
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.18),transparent_35%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.14),transparent_35%),#000]" />
-          )}
+                <motion.div
+                  animate={
+                    isPlaying
+                      ? {
+                        scale: [1, 1.08, 1],
+                        opacity: [0.28, 0.46, 0.28],
+                      }
+                      : {
+                        scale: 1,
+                        opacity: 0.24,
+                      }
+                  }
+                  transition={{
+                    duration: 7,
+                    repeat: isPlaying ? Infinity : 0,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute left-[8vw] top-[8vh] h-[min(42vw,42vh,360px)] w-[min(42vw,42vh,360px)] rounded-full blur-3xl"
+                  style={{
+                    backgroundColor: accentColor.rgbaStrong,
+                  }}
+                />
 
-          <motion.div
-            aria-hidden="true"
-            className="absolute h-[34rem] w-[34rem] rounded-full blur-[90px] will-change-transform"
-            style={{
-              backgroundColor: accentColor.rgbaStrong,
-              boxShadow: `0 0 160px ${accentColor.rgbaMedium}`,
-            }}
-            animate={{
-              x: ["-8vw", "58vw", "28vw", "-8vw"],
-              y: ["4vh", "14vh", "58vh", "4vh"],
-              scale: [1, 1.18, 0.92, 1],
-              opacity: [0.72, 0.95, 0.8, 0.72],
-            }}
-            transition={{ duration: 42, repeat: Infinity, ease: "linear" }}
-          />
+                <motion.div
+                  animate={
+                    isPlaying
+                      ? {
+                        scale: [1, 1.14, 1],
+                        x: [0, -16, 0],
+                        y: [0, 10, 0],
+                        opacity: [0.2, 0.38, 0.2],
+                      }
+                      : {
+                        scale: 1,
+                        x: 0,
+                        y: 0,
+                        opacity: 0.16,
+                      }
+                  }
+                  transition={{
+                    duration: 8,
+                    repeat: isPlaying ? Infinity : 0,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute bottom-[6vh] right-[8vw] h-[min(46vw,46vh,420px)] w-[min(46vw,46vh,420px)] rounded-full blur-3xl"
+                  style={{
+                    backgroundColor: accentColor.rgbaMedium,
+                  }}
+                />
 
-          <motion.div
-            aria-hidden="true"
-            className="absolute h-[30rem] w-[30rem] rounded-full blur-[85px] will-change-transform"
-            style={{
-              backgroundColor: accentColor.rgbaMedium,
-              boxShadow: `0 0 150px ${accentColor.rgbaSoft}`,
-            }}
-            animate={{
-              x: ["68vw", "12vw", "62vw", "68vw"],
-              y: ["62vh", "48vh", "0vh", "62vh"],
-              scale: [0.95, 1.22, 1, 0.95],
-              opacity: [0.58, 0.9, 0.72, 0.58],
-            }}
-            transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-          />
+                <div className="absolute inset-0 bg-gradient-to-br from-black/75 via-[#0d1018]/82 to-black/95" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.12),transparent_38%)]" />
+              </>
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#10131c] via-[#151923] to-black" />
+                <div className="absolute left-[8vw] top-[8vh] h-[min(42vw,42vh,360px)] w-[min(42vw,42vh,360px)] rounded-full bg-green-400/20 blur-3xl" />
+                <div className="absolute bottom-[6vh] right-[8vw] h-[min(46vw,46vh,420px)] w-[min(46vw,46vh,420px)] rounded-full bg-purple-400/15 blur-3xl" />
+              </>
+            )}
+          </div>
 
-          <motion.div
-            aria-hidden="true"
-            className="absolute h-[24rem] w-[24rem] rounded-full blur-[75px] will-change-transform"
-            style={{
-              backgroundColor: `rgba(${accentColor.rgb}, 0.32)`,
-            }}
-            animate={{
-              x: ["38vw", "76vw", "8vw", "38vw"],
-              y: ["-8vh", "42vh", "72vh", "-8vh"],
-              scale: [0.8, 1.12, 0.95, 0.8],
-              opacity: [0.45, 0.8, 0.65, 0.45],
-            }}
-            transition={{ duration: 58, repeat: Infinity, ease: "linear" }}
-          />
-
-          <div
-            aria-hidden="true"
-            className="absolute inset-0"
-            style={{
-              background: `radial-gradient(circle at 50% 50%, rgba(${accentColor.rgb}, 0.16), transparent 34%)`,
-            }}
-          />
-
-          <div className="relative flex h-full w-full items-center justify-center p-6 sm:p-10">
-            <div className="flex w-full max-w-5xl flex-col items-center justify-center text-center">
+          <AnimatePresence>
+            {fullscreenChromeVisible && (
               <motion.div
-                animate={{
-                  y: [0, -10, 0],
-                  scale: [1, 1.015, 1],
-                }}
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.18 }}
+                className="fixed left-1/2 top-4 z-30 hidden -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-4 py-2 text-xs font-medium text-zinc-300 shadow-xl shadow-black/30 backdrop-blur-xl md:block"
+              >
+                Move to the top-right to exit fullscreen or press Esc
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {fullscreenChromeVisible && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.18 }}
+                className="fixed right-4 top-4 z-40 flex items-center gap-2"
+              >
+                <button
+                  type="button"
+                  onClick={toggleBrowserFullscreen}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/35 text-zinc-300 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white"
+                  aria-label={
+                    fullscreenActive
+                      ? "Exit browser fullscreen"
+                      : "Enter browser fullscreen"
+                  }
+                  title={
+                    fullscreenActive
+                      ? "Exit browser fullscreen"
+                      : "Enter browser fullscreen"
+                  }
+                >
+                  {fullscreenActive ? (
+                    <Minimize2 size={17} strokeWidth={2.2} />
+                  ) : (
+                    <Maximize2 size={17} strokeWidth={2.2} />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeFullscreenNowPlaying}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/35 text-zinc-300 shadow-xl shadow-black/30 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white"
+                  aria-label="Close fullscreen now playing"
+                  title="Close fullscreen now playing"
+                >
+                  <X size={18} strokeWidth={2.2} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
+            <motion.div
+              key={track.uri ?? track.title}
+              initial={{ opacity: 0, y: 16, scale: 0.98, filter: "blur(10px)" }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, scale: 0.98, filter: "blur(10px)" }}
+              transition={{
+                duration: 0.32,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="flex w-full max-w-[min(92vw,880px)] flex-col items-center"
+            >
+              <motion.div
+                animate={
+                  isPlaying
+                    ? {
+                      y: [0, -5, 0],
+                      rotate: [-0.7, 0.7, -0.7],
+                      scale: [1, 1.012, 1],
+                    }
+                    : {
+                      y: 0,
+                      rotate: 0,
+                      scale: 1,
+                    }
+                }
                 transition={{
-                  duration: 8,
-                  repeat: Infinity,
+                  duration: 5,
+                  repeat: isPlaying ? Infinity : 0,
                   ease: "easeInOut",
                 }}
-                className="w-full max-w-[320px] will-change-transform sm:max-w-[380px] lg:max-w-[420px]"
+                className="relative aspect-square w-[min(58vw,58vh,420px)] max-w-[420px] overflow-hidden rounded-[clamp(1.5rem,4vw,2.6rem)] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/45"
+                style={{
+                  boxShadow: `0 24px 90px ${accentColor.rgbaMedium}`,
+                }}
               >
-                <div
-                  className="relative aspect-square overflow-hidden rounded-[2rem] border bg-white/[0.04] shadow-2xl shadow-black/60"
-                  style={{
-                    borderColor: accentColor.rgbaMedium,
-                    boxShadow: `0 28px 110px ${accentColor.rgbaMedium}`,
-                  }}
-                >
-                  <AnimatePresence mode="wait">
-                    {track?.imageUrl ? (
-                      <motion.img
-                        key={track.imageUrl}
-                        src={track.imageUrl}
-                        alt={`${track.title ?? "Current track"} cover`}
-                        initial={{ opacity: 0, scale: 1.04 }}
-                        animate={{ opacity: 0.95, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        transition={{
-                          duration: 0.35,
-                          ease: [0.22, 1, 0.36, 1],
-                        }}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <motion.div
-                        key="empty-cover"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex h-full w-full items-center justify-center text-7xl text-white/20"
-                      >
-                        ♪
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                {track.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={track.imageUrl}
+                    alt={`${track.title ?? "Track"} cover`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-zinc-600">
+                    <Play size={54} strokeWidth={1.8} />
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/25" />
+
+                {isPlaying && (
+                  <span
+                    className="absolute bottom-5 right-5 h-4 w-4 rounded-full border-2 border-black bg-green-300"
+                    style={{
+                      boxShadow: `0 0 24px ${accentColor.rgbaStrong}`,
+                    }}
+                  />
+                )}
               </motion.div>
 
-              <div className="mt-8 flex w-full max-w-4xl flex-col items-center text-center">
-                <p
-                  className="mb-4 text-sm uppercase tracking-[0.45em]"
+              <div className="mt-[clamp(1rem,3vh,1.6rem)] flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.28em] text-green-200/90 backdrop-blur-xl sm:text-xs">
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
                   style={{
-                    color: isPlaying
-                      ? `rgb(${accentColor.rgb})`
-                      : "rgba(212, 212, 216, 0.65)",
-                    textShadow: isPlaying
-                      ? `0 0 24px ${accentColor.rgbaStrong}`
-                      : undefined,
+                    backgroundColor: `rgb(${accentColor.rgb})`,
+                    boxShadow: `0 0 14px ${accentColor.rgbaStrong}`,
                   }}
-                >
-                  {isPlaying ? "Now playing" : "Paused"}
+                />
+                {isPlaying ? "Live from Spotify" : "Spotify paused"}
+              </div>
+
+              <h1 className="mt-[clamp(0.85rem,2.8vh,1.4rem)] max-w-[min(90vw,760px)] text-center text-[clamp(1.7rem,5vw,4rem)] font-black leading-[0.98] tracking-tight text-white">
+                {track.title ?? "Unknown track"}
+              </h1>
+
+              <p className="mt-3 max-w-[min(86vw,680px)] truncate text-center text-[clamp(0.95rem,2vw,1.2rem)] font-semibold text-zinc-300">
+                {getArtistText(track.artists)}
+              </p>
+
+              {track.album && (
+                <p className="mt-1 max-w-[min(82vw,620px)] truncate text-center text-sm text-zinc-500">
+                  {track.album}
                 </p>
+              )}
 
-                <AnimatePresence mode="wait">
-                  <motion.h2
-                    key={trackKey}
-                    initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
-                    transition={{
-                      duration: 0.32,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className="max-w-4xl text-balance text-center text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl"
-                  >
-                    {track?.title || "Nothing playing"}
-                  </motion.h2>
-                </AnimatePresence>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`${trackKey}-meta`}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{
-                      duration: 0.28,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className="flex w-full flex-col items-center"
-                  >
-                    <p className="mt-5 max-w-3xl truncate text-center text-xl text-zinc-300 sm:text-2xl">
-                      {artistText}
-                    </p>
-
-                    <p className="mt-2 max-w-3xl truncate text-center text-sm text-zinc-500 sm:text-base">
-                      {albumText}
-                    </p>
-                  </motion.div>
-                </AnimatePresence>
-
-                <div className="mt-10 w-full max-w-2xl">
-                  <button
-                    ref={progressBarRef}
-                    type="button"
-                    onClick={handleProgressClick}
-                    onTouchEnd={handleProgressTouch}
-                    disabled={!track?.durationMs || seekLoading}
-                    className="group relative h-6 w-full cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-70"
-                    aria-label="Seek playback position"
-                  >
-                    <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10 shadow-inner">
-                      <motion.div
-                        animate={{ width: `${progressPercent}%` }}
-                        transition={{
-                          duration: 0.35,
-                          ease: [0.22, 1, 0.36, 1],
-                        }}
-                        className="relative h-full overflow-hidden rounded-full"
-                        style={{
-                          backgroundColor: `rgb(${accentColor.rgb})`,
-                          boxShadow: `0 0 24px ${accentColor.rgbaStrong}`,
-                        }}
-                      >
-                        {isPlaying && (
-                          <motion.div
-                            animate={{
-                              x: ["-120%", "220%"],
-                            }}
-                            transition={{
-                              duration: 1.6,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                            }}
-                            className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/70 to-transparent"
-                          />
-                        )}
-                      </motion.div>
-                    </div>
-
-                    <motion.span
-                      animate={{
-                        left: `${progressPercent}%`,
-                      }}
+              <div className="mt-[clamp(1.2rem,3.2vh,2rem)] w-full max-w-[min(86vw,680px)]">
+                <button
+                  ref={progressBarRef}
+                  type="button"
+                  onClick={handleProgressClick}
+                  onTouchEnd={handleProgressTouch}
+                  disabled={!track.durationMs || seekLoading}
+                  className="group relative h-6 w-full cursor-pointer rounded-full disabled:cursor-not-allowed disabled:opacity-70"
+                  aria-label="Seek playback position"
+                >
+                  <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10 shadow-inner">
+                    <motion.div
+                      animate={{ width: `${progressPercent}%` }}
                       transition={{
                         duration: 0.35,
                         ease: [0.22, 1, 0.36, 1],
                       }}
-                      className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100"
+                      className="relative h-full overflow-hidden rounded-full"
                       style={{
                         backgroundColor: `rgb(${accentColor.rgb})`,
-                        boxShadow: `0 0 18px ${accentColor.rgbaStrong}`,
+                        boxShadow: `0 0 24px ${accentColor.rgbaStrong}`,
                       }}
-                    />
-                  </button>
-
-                  <div className="mt-2 flex justify-between text-xs text-zinc-500">
-                    <span>{formatTime(localProgressMs)}</span>
-                    <span>{formatTime(track?.durationMs ?? 0)}</span>
+                    >
+                      {isPlaying && (
+                        <motion.div
+                          animate={{ x: ["-120%", "220%"] }}
+                          transition={{
+                            duration: 1.6,
+                            repeat: Infinity,
+                            ease: "easeInOut",
+                          }}
+                          className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/70 to-transparent"
+                        />
+                      )}
+                    </motion.div>
                   </div>
-                </div>
 
-                <div className="mt-10 flex items-center justify-center gap-4">
-                  <button
-                    type="button"
-                    onClick={onPrevious}
-                    disabled={controlLoading || !track}
-                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Previous track"
-                  >
-                    <SkipBack size={20} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onTogglePlay}
-                    disabled={controlLoading || !track}
-                    className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+                  <motion.span
+                    animate={{ left: `${progressPercent}%` }}
+                    transition={{
+                      duration: 0.35,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/80 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100"
                     style={{
                       backgroundColor: `rgb(${accentColor.rgb})`,
-                      boxShadow: `0 0 45px ${accentColor.rgbaStrong}`,
+                      boxShadow: `0 0 18px ${accentColor.rgbaStrong}`,
                     }}
-                    aria-label={isPlaying ? "Pause" : "Play"}
-                  >
-                    {isPlaying ? (
-                      <Pause size={26} fill="currentColor" />
-                    ) : (
-                      <Play size={26} fill="currentColor" />
-                    )}
-                  </button>
+                  />
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={onNext}
-                    disabled={controlLoading || !track}
-                    className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-zinc-200 transition hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Next track"
-                  >
-                    <SkipForward size={20} />
-                  </button>
+                <div className="mt-2 flex justify-between text-xs text-zinc-500">
+                  <span>{formatTime(localProgressMs)}</span>
+                  <span>{formatTime(track.durationMs ?? 0)}</span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div
-            className={`pointer-events-none absolute left-1/2 top-5 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 px-4 py-2 text-center text-xs font-medium text-zinc-300 shadow-2xl shadow-black/30 backdrop-blur-xl transition-all duration-300 ${fullscreenChromeVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-2 opacity-0"
-              }`}
-          >
-            Move to the top-right to exit fullscreen. Press Esc to close.
-          </div>
+              <div className="mt-[clamp(1.2rem,3vh,1.8rem)] flex items-center justify-center gap-3 sm:gap-4">
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onPrevious}
+                  disabled={controlLoading}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-white shadow-lg shadow-black/20 transition hover:bg-white/[0.13] disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:w-12"
+                  aria-label="Previous track"
+                >
+                  <SkipBack size={19} strokeWidth={2.4} />
+                </motion.button>
 
-          <div
-            className={`absolute right-4 top-4 z-30 flex items-center gap-2 transition-all duration-300 ${fullscreenChromeVisible
-                ? "translate-y-0 opacity-100"
-                : "-translate-y-2 opacity-0"
-              }`}
-          >
-            <button
-              type="button"
-              onClick={toggleBrowserFullscreen}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
-              aria-label={
-                fullscreenActive
-                  ? "Exit browser fullscreen"
-                  : "Enter browser fullscreen"
-              }
-            >
-              {fullscreenActive ? (
-                <Minimize2 size={17} />
-              ) : (
-                <Maximize2 size={17} />
-              )}
-            </button>
+                <motion.button
+                  type="button"
+                  whileHover={{
+                    scale: 1.08,
+                    boxShadow: `0 0 36px ${accentColor.rgbaStrong}`,
+                  }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onTogglePlay}
+                  disabled={controlLoading}
+                  className="relative flex h-14 w-14 items-center justify-center rounded-full text-black shadow-xl transition disabled:cursor-not-allowed disabled:opacity-50 sm:h-16 sm:w-16"
+                  style={{
+                    backgroundColor: `rgb(${accentColor.rgb})`,
+                    boxShadow: `0 16px 44px ${accentColor.rgbaMedium}`,
+                  }}
+                  aria-label={isPlaying ? "Pause" : "Resume"}
+                >
+                  {isPlaying && (
+                    <motion.span
+                      initial={{ opacity: 0.55, scale: 1 }}
+                      animate={{ opacity: 0, scale: 1.72 }}
+                      transition={{
+                        duration: 1.35,
+                        repeat: Infinity,
+                        ease: "easeOut",
+                      }}
+                      className="absolute inset-0 rounded-full border border-white/50"
+                    />
+                  )}
 
-            <button
-              type="button"
-              onClick={leaveFullscreen}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 backdrop-blur-xl transition hover:bg-white/[0.12] hover:text-white"
-              aria-label="Close fullscreen now playing"
-            >
-              <X size={18} />
-            </button>
+                  <span className="relative z-10">
+                    {isPlaying ? (
+                      <Pause size={24} fill="currentColor" strokeWidth={2.4} />
+                    ) : (
+                      <Play
+                        size={24}
+                        fill="currentColor"
+                        strokeWidth={2.4}
+                        className="ml-0.5"
+                      />
+                    )}
+                  </span>
+                </motion.button>
+
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={onNext}
+                  disabled={controlLoading}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.07] text-white shadow-lg shadow-black/20 transition hover:bg-white/[0.13] disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:w-12"
+                  aria-label="Next track"
+                >
+                  <SkipForward size={19} strokeWidth={2.4} />
+                </motion.button>
+              </div>
+            </motion.div>
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
