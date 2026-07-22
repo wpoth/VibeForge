@@ -26,6 +26,7 @@ import { useImageAccentColor } from "@/hooks/useImageAccentColor";
 type FullscreenNowPlayingProps = {
   open: boolean;
   track: CurrentlyPlayingTrack | null;
+  nextTrack?: CurrentlyPlayingTrack | null;
   isPlaying: boolean;
   controlLoading?: boolean;
   seekLoading?: boolean;
@@ -54,9 +55,60 @@ function getArtistText(artists?: string[] | null) {
   return artists.join(", ");
 }
 
+function MiniVisualizer({
+  playing,
+  accentRgb,
+  accentGlow,
+}: {
+  playing: boolean;
+  accentRgb: string;
+  accentGlow: string;
+}) {
+  const bars = [0.34, 0.72, 0.48, 0.92, 0.58, 0.82, 0.42, 0.68, 0.5, 0.88];
+
+  return (
+    <div className="flex h-9 items-end justify-center gap-1.5">
+      {bars.map((height, index) => (
+        <motion.span
+          key={index}
+          initial={{ height: `${height * 100}%` }}
+          animate={
+            playing
+              ? {
+                  height: [
+                    `${Math.max(18, height * 70)}%`,
+                    `${Math.min(100, height * 125)}%`,
+                    `${Math.max(24, height * 85)}%`,
+                  ],
+                  opacity: [0.45, 1, 0.6],
+                }
+              : {
+                  height: "28%",
+                  opacity: 0.26,
+                }
+          }
+          transition={{
+            duration: 0.75 + index * 0.035,
+            repeat: playing ? Infinity : 0,
+            repeatType: "mirror",
+            ease: "easeInOut",
+            delay: index * 0.045,
+          }}
+          className="w-1.5 rounded-full"
+          style={{
+            backgroundColor: `rgb(${accentRgb})`,
+            boxShadow: playing ? `0 0 14px ${accentGlow}` : "none",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function FullscreenNowPlaying({
   open,
   track,
+  nextTrack = null,
   isPlaying,
   controlLoading = false,
   seekLoading = false,
@@ -239,6 +291,16 @@ export function FullscreenNowPlaying({
       Math.max(0, (localProgressMs / track.durationMs) * 100),
     );
   }, [localProgressMs, track?.durationMs]);
+
+  const remainingMs = useMemo(() => {
+    if (!track?.durationMs) return null;
+
+    return Math.max(0, track.durationMs - localProgressMs);
+  }, [localProgressMs, track?.durationMs]);
+
+  const showNextUp = Boolean(
+    nextTrack && remainingMs !== null && remainingMs <= 10_000 && remainingMs > 0,
+  );
 
   async function closeFullscreenNowPlaying() {
     onClose();
@@ -456,6 +518,46 @@ export function FullscreenNowPlaying({
             )}
           </AnimatePresence>
 
+          <AnimatePresence>
+            {showNextUp && nextTrack && (
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.96 }}
+                transition={{ duration: 0.22 }}
+                className="fixed bottom-5 right-5 z-30 hidden w-80 rounded-3xl border border-white/10 bg-black/35 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:block"
+              >
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.28em] text-zinc-500">
+                  Next up
+                </p>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] text-zinc-600">
+                    {nextTrack.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={nextTrack.imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Play size={18} />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-white">
+                      {nextTrack.title ?? "Unknown track"}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-zinc-500">
+                      {getArtistText(nextTrack.artists)}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="relative z-10 flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
             <motion.div
               key={track.uri ?? track.title}
@@ -479,7 +581,7 @@ export function FullscreenNowPlaying({
               className="flex w-full max-w-[min(92vw,880px)] flex-col items-center"
             >
               <div
-                className="relative aspect-square w-[min(58vw,58vh,420px)] max-w-[420px] overflow-hidden rounded-[clamp(1.5rem,4vw,2.6rem)] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/45"
+                className="relative aspect-square w-[min(54vw,54vh,390px)] max-w-[390px] overflow-hidden rounded-[clamp(1.5rem,4vw,2.6rem)] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/45"
                 style={{
                   boxShadow: `0 24px 90px ${accentColor.rgbaMedium}`,
                 }}
@@ -509,7 +611,15 @@ export function FullscreenNowPlaying({
                 )}
               </div>
 
-              <h1 className="mt-[clamp(1rem,3.2vh,2rem)] max-w-[min(90vw,760px)] text-center text-[clamp(1.7rem,5vw,4rem)] font-black leading-[0.98] tracking-tight text-white">
+              <div className="mt-[clamp(0.8rem,2vh,1.2rem)]">
+                <MiniVisualizer
+                  playing={isPlaying}
+                  accentRgb={accentColor.rgb}
+                  accentGlow={accentColor.rgbaStrong}
+                />
+              </div>
+
+              <h1 className="mt-[clamp(0.8rem,2.2vh,1.4rem)] max-w-[min(90vw,760px)] text-center text-[clamp(1.7rem,5vw,4rem)] font-black leading-[0.98] tracking-tight text-white">
                 {track.title ?? "Unknown track"}
               </h1>
 
@@ -523,7 +633,7 @@ export function FullscreenNowPlaying({
                 </p>
               )}
 
-              <div className="mt-[clamp(1.2rem,3.2vh,2rem)] w-full max-w-[min(86vw,680px)]">
+              <div className="mt-[clamp(1rem,2.6vh,1.6rem)] w-full max-w-[min(86vw,680px)]">
                 <button
                   ref={progressBarRef}
                   type="button"
@@ -580,7 +690,7 @@ export function FullscreenNowPlaying({
                 </div>
               </div>
 
-              <div className="mt-[clamp(1.2rem,3vh,1.8rem)] flex items-center justify-center gap-3 sm:gap-4">
+              <div className="mt-[clamp(1rem,2.6vh,1.6rem)] flex items-center justify-center gap-3 sm:gap-4">
                 <motion.button
                   type="button"
                   whileHover={{ scale: 1.08 }}
