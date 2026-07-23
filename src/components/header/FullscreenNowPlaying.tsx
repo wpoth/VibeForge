@@ -333,12 +333,32 @@ export function FullscreenNowPlaying({
                         {track.imageUrl ? (
                             <>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <motion.img
                                     src={track.imageUrl}
                                     alt=""
                                     aria-hidden="true"
-                                    className="absolute inset-0 h-full w-full scale-125 object-cover opacity-28 blur-3xl"
+                                    animate={
+                                        isPlaying
+                                            ? {
+                                                  scale: [1.08, 1.14, 1.1, 1.08],
+                                                  x: [0, -18, 14, 0],
+                                                  y: [0, 12, -10, 0],
+                                              }
+                                            : {
+                                                  scale: 1.1,
+                                                  x: 0,
+                                                  y: 0,
+                                              }
+                                    }
+                                    transition={{
+                                        duration: 26,
+                                        repeat: isPlaying ? Infinity : 0,
+                                        ease: "easeInOut",
+                                    }}
+                                    className="absolute inset-0 h-full w-full object-cover opacity-24 blur-xl"
                                 />
+
+                                <div className="absolute inset-0 bg-gradient-to-br from-black/72 via-[#0d1018]/78 to-black/92" />
 
                                 {accentColor && (
                                     <>
@@ -346,10 +366,10 @@ export function FullscreenNowPlaying({
                                             animate={
                                                 isPlaying
                                                     ? {
-                                                          x: [0, 42, -18, 0],
-                                                          y: [0, -24, 34, 0],
-                                                          scale: [1, 1.12, 0.96, 1],
-                                                          opacity: [0.3, 0.58, 0.36, 0.3],
+                                                          x: [0, 64, -28, 0],
+                                                          y: [0, -30, 42, 0],
+                                                          scale: [1, 1.16, 0.98, 1],
+                                                          opacity: [0.32, 0.68, 0.42, 0.32],
                                                       }
                                                     : {
                                                           x: 0,
@@ -363,7 +383,7 @@ export function FullscreenNowPlaying({
                                                 repeat: isPlaying ? Infinity : 0,
                                                 ease: "easeInOut",
                                             }}
-                                            className="absolute left-[7vw] top-[8vh] h-[min(42vw,42vh,380px)] w-[min(42vw,42vh,380px)] rounded-full blur-3xl"
+                                            className="absolute left-[4vw] top-[6vh] h-[min(44vw,44vh,420px)] w-[min(44vw,44vh,420px)] rounded-full blur-2xl"
                                             style={{
                                                 backgroundColor: accentColor.rgbaStrong,
                                             }}
@@ -373,24 +393,24 @@ export function FullscreenNowPlaying({
                                             animate={
                                                 isPlaying
                                                     ? {
-                                                          x: [0, -54, 22, 0],
-                                                          y: [0, 18, -28, 0],
-                                                          scale: [1, 1.18, 0.98, 1],
-                                                          opacity: [0.24, 0.5, 0.28, 0.24],
+                                                          x: [0, -70, 34, 0],
+                                                          y: [0, 28, -36, 0],
+                                                          scale: [1, 1.2, 0.98, 1],
+                                                          opacity: [0.26, 0.58, 0.34, 0.26],
                                                       }
                                                     : {
                                                           x: 0,
                                                           y: 0,
                                                           scale: 1,
-                                                          opacity: 0.2,
+                                                          opacity: 0.22,
                                                       }
                                             }
                                             transition={{
-                                                duration: 16,
+                                                duration: 17,
                                                 repeat: isPlaying ? Infinity : 0,
                                                 ease: "easeInOut",
                                             }}
-                                            className="absolute bottom-[7vh] right-[8vw] h-[min(48vw,48vh,460px)] w-[min(48vw,48vh,460px)] rounded-full blur-3xl"
+                                            className="absolute bottom-[5vh] right-[5vw] h-[min(52vw,52vh,500px)] w-[min(52vw,52vh,500px)] rounded-full blur-2xl"
                                             style={{
                                                 backgroundColor: accentColor.rgbaMedium,
                                             }}
@@ -400,63 +420,85 @@ export function FullscreenNowPlaying({
                                             animate={
                                                 isPlaying
                                                     ? {
-                                                          scale: [1, 1.22, 0.98, 1],
-                                                          opacity: [0.12, 0.3, 0.16, 0.12],
+                                                          x: [0, 22, -18, 0],
+                                                          y: [0, -16, 14, 0],
+                                                          scale: [1, 1.18, 1],
+                                                          opacity: [0.18, 0.36, 0.18],
                                                       }
                                                     : {
+                                                          x: 0,
+                                                          y: 0,
                                                           scale: 1,
-                                                          opacity: 0.12,
+                                                          opacity: 0.14,
                                                       }
                                             }
                                             transition={{
-                                                duration: 18,
+                                                duration: 20,
                                                 repeat: isPlaying ? Infinity : 0,
                                                 ease: "easeInOut",
                                             }}
-                                            className="absolute left-1/2 top-1/2 h-[min(64vw,64vh,620px)] w-[min(64vw,64vh,620px)] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+                                            className="absolute left-1/2 top-1/2 h-[min(58vw,58vh,580px)] w-[min(58vw,58vh,580px)] -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl"
                                             style={{
                                                 backgroundColor: accentColor.rgbaSoft,
-                                            }}
-                                        />
-
-                                        <motion.div
-                                            animate={
-                                                isPlaying
-                                                    ? {
-                                                          rotate: [0, 360],
-                                                          opacity: [0.08, 0.16, 0.08],
-                                                      }
-                                                    : {
-                                                          rotate: 0,
-                                                          opacity: 0.06,
-                                                      }
-                                            }
-                                            transition={{
-                                                rotate: {
-                                                    duration: 60,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "linear",
-                                                },
-                                                opacity: {
-                                                    duration: 8,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "easeInOut",
-                                                },
-                                            }}
-                                            className="absolute left-1/2 top-1/2 h-[120vmax] w-[120vmax] -translate-x-1/2 -translate-y-1/2"
-                                            style={{
-                                                background: `conic-gradient(from 0deg, transparent 0deg, ${accentColor.rgbaSoft} 34deg, transparent 72deg, ${accentColor.rgbaMedium} 118deg, transparent 170deg, ${accentColor.rgbaSoft} 246deg, transparent 312deg, ${accentColor.rgbaMedium} 350deg, transparent 360deg)`,
                                             }}
                                         />
                                     </>
                                 )}
 
-                                <div className="absolute inset-0 bg-gradient-to-br from-black/76 via-[#0d1018]/84 to-black/96" />
-                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.11),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.08),transparent_38%)]" />
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.08),transparent_38%)]" />
                             </>
                         ) : (
                             <>
                                 <div className="absolute inset-0 bg-gradient-to-br from-[#10131c] via-[#151923] to-black" />
+
+                                <motion.div
+                                    animate={
+                                        isPlaying
+                                            ? {
+                                                  x: [0, 40, -20, 0],
+                                                  y: [0, -20, 24, 0],
+                                                  scale: [1, 1.14, 0.98, 1],
+                                                  opacity: [0.1, 0.2, 0.12, 0.1],
+                                              }
+                                            : {
+                                                  x: 0,
+                                                  y: 0,
+                                                  scale: 1,
+                                                  opacity: 0.08,
+                                              }
+                                    }
+                                    transition={{
+                                        duration: 16,
+                                        repeat: isPlaying ? Infinity : 0,
+                                        ease: "easeInOut",
+                                    }}
+                                    className="absolute left-[8vw] top-[10vh] h-[min(42vw,42vh,380px)] w-[min(42vw,42vh,380px)] rounded-full bg-white/10 blur-2xl"
+                                />
+
+                                <motion.div
+                                    animate={
+                                        isPlaying
+                                            ? {
+                                                  x: [0, -50, 24, 0],
+                                                  y: [0, 24, -28, 0],
+                                                  scale: [1, 1.18, 0.98, 1],
+                                                  opacity: [0.08, 0.18, 0.1, 0.08],
+                                              }
+                                            : {
+                                                  x: 0,
+                                                  y: 0,
+                                                  scale: 1,
+                                                  opacity: 0.06,
+                                              }
+                                    }
+                                    transition={{
+                                        duration: 18,
+                                        repeat: isPlaying ? Infinity : 0,
+                                        ease: "easeInOut",
+                                    }}
+                                    className="absolute bottom-[8vh] right-[8vw] h-[min(48vw,48vh,460px)] w-[min(48vw,48vh,460px)] rounded-full bg-white/10 blur-2xl"
+                                />
+
                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.05),transparent_38%)]" />
                             </>
                         )}
@@ -548,88 +590,6 @@ export function FullscreenNowPlaying({
                             className="flex w-full max-w-[min(92vw,880px)] flex-col items-center"
                         >
                             <div className="relative">
-                                {accentColor && (
-                                    <>
-                                        <motion.div
-                                            aria-hidden="true"
-                                            animate={
-                                                isPlaying
-                                                    ? {
-                                                          rotate: 360,
-                                                          scale: [1, 1.035, 1],
-                                                          opacity: [0.34, 0.52, 0.34],
-                                                      }
-                                                    : {
-                                                          rotate: 0,
-                                                          scale: 1,
-                                                          opacity: 0.24,
-                                                      }
-                                            }
-                                            transition={{
-                                                rotate: {
-                                                    duration: 34,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "linear",
-                                                },
-                                                scale: {
-                                                    duration: 6,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "easeInOut",
-                                                },
-                                                opacity: {
-                                                    duration: 6,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "easeInOut",
-                                                },
-                                            }}
-                                            className="absolute left-1/2 top-1/2 h-[calc(100%+54px)] w-[calc(100%+54px)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed"
-                                            style={{
-                                                borderColor: accentColor.rgbaMedium,
-                                                boxShadow: `0 0 80px ${accentColor.rgbaSoft}`,
-                                            }}
-                                        />
-
-                                        <motion.div
-                                            aria-hidden="true"
-                                            animate={
-                                                isPlaying
-                                                    ? {
-                                                          rotate: -360,
-                                                          scale: [0.98, 1.08, 0.98],
-                                                          opacity: [0.1, 0.24, 0.1],
-                                                      }
-                                                    : {
-                                                          rotate: 0,
-                                                          scale: 1,
-                                                          opacity: 0.08,
-                                                      }
-                                            }
-                                            transition={{
-                                                rotate: {
-                                                    duration: 46,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "linear",
-                                                },
-                                                scale: {
-                                                    duration: 9,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "easeInOut",
-                                                },
-                                                opacity: {
-                                                    duration: 9,
-                                                    repeat: isPlaying ? Infinity : 0,
-                                                    ease: "easeInOut",
-                                                },
-                                            }}
-                                            className="absolute left-1/2 top-1/2 h-[calc(100%+96px)] w-[calc(100%+96px)] -translate-x-1/2 -translate-y-1/2 rounded-full"
-                                            style={{
-                                                background: `conic-gradient(from 180deg, transparent 0deg, ${accentColor.rgbaSoft} 26deg, transparent 62deg, transparent 150deg, ${accentColor.rgbaMedium} 196deg, transparent 244deg, transparent 360deg)`,
-                                                filter: "blur(18px)",
-                                            }}
-                                        />
-                                    </>
-                                )}
-
                                 <div
                                     className="relative aspect-square w-[min(56vw,56vh,410px)] max-w-[410px] overflow-hidden rounded-[clamp(1.5rem,4vw,2.6rem)] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/45"
                                     style={albumShadowStyle}
